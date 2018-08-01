@@ -1,0 +1,6 @@
+*.keys
+*.cfg
+.idea
+*.iml
+*.pyc
+*.ini
