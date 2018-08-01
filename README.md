@@ -39,3 +39,7 @@ print(binascii.hexlify(proto.message(uuid.bytes, 0x00, [4, 5, 6])))
 ```python
 # TODO
 ```
+
+# License 
+
+The protocol and its implementation are publicized under the [Apache License 2.0](LICENSE).
