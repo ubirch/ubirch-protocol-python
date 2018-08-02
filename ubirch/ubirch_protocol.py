@@ -25,7 +25,7 @@ SIGNED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x02)
 CHAINED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x03)
 
 
-class UbirchProtocol(object):
+class Protocol(object):
     _last_signature: str
 
     def __init__(self, variant: int = SIGNED) -> None:

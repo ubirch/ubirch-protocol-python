@@ -37,7 +37,7 @@ class ED25519Certificate(TrustedCertEntry):
         self.timestamp = int(datetime.utcnow().timestamp())
 
 
-class UbirchKeyStore(object):
+class KeyStore(object):
     """
     The ubirch key store handles the keys relevant for the ubirch protocol.
     """

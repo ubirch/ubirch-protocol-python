@@ -17,12 +17,12 @@ import binascii
 import logging
 from uuid import UUID
 
-from ubirch import UbirchKeyStore, UbirchProtocol
+import ubirch
 from ubirch.ubirch_protocol import CHAINED
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.DEBUG)
 
-keystore = UbirchKeyStore("test-jks.jks", "test-keystore")
+keystore = ubirch.KeyStore("test-jks.jks", "test-keystore")
 
 uuid = UUID(hex="575A5601FD744F8EB6AEEF592CDEE12C")
 if not keystore.exists_signing_key(uuid):
@@ -32,7 +32,7 @@ print(repr(keystore.find_signing_key(uuid)))
 print(repr(keystore.find_verifying_key(uuid)))
 
 
-class Proto(UbirchProtocol):
+class Proto(ubirch.Protocol):
     def _sign(self, message: bytes) -> bytes:
         return keystore.find_signing_key(uuid).sign(message)
 

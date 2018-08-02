@@ -14,6 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .ubirch_ks import UbirchKeyStore
+from .ubirch_ks import KeyStore
 from .ubirch_api import UbirchAPI
-from .ubirch_protocol import UbirchProtocol
+from .ubirch_protocol import Protocol
