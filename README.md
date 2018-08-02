@@ -15,7 +15,7 @@ from uuid import UUID
 import binascii
 
 # create a keystore for the device keypair
-keystore = ubirch.KeyStore("device.jks", "keystore")
+keystore = ubirch.KeyStore("demo-device.jks", "keystore")
 
 # create a UUID that identifies the device and load or create a keypair
 uuid = UUID(hex="575A5601FD744F8EB6AEEF592CDEE12C")
@@ -69,7 +69,24 @@ msg = proto.message_chained(uuid, 0x53, {"ts": int(datetime.utcnow().timestamp()
 print(binascii.hexlify(msg))
 r = api.send(msg)
 print("{}: {}".format(r.status_code, r.content))
+```
 
+### Existing keys
+
+In case you create a key pair from our demo website, use the following code to insert it into the key store:
+
+```python
+import ubirch
+import ed25519
+import uuid
+
+hwDeviceId = uuid.uuid4()
+keystore = ubirch.KeyStore("demo-device.jks", "keystore")
+key_encoded = input("paste the encoded private key here:")
+sk = ed25519.SigningKey(key_encoded, encoding='hex')
+vk = sk.get_verifying_key() 
+
+keystore.insert_ed25519_keypair(hwDeviceId, vk, sk)
 ```
 
 # License 

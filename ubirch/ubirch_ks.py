@@ -58,10 +58,8 @@ class KeyStore(object):
             log.warning("creating new key store: {}".format(self._ks_file))
             self._ks = jks.KeyStore.new("jks", [])
 
-    def create_ed25519_keypair(self, uuid: UUID) -> (VerifyingKey, SigningKey):
-        """Create a new ED25519 key pair and store in key store."""
-        sk, vk = ed25519.create_keypair(entropy=urandom)
-
+    def insert_ed25519_keypair(self, uuid: UUID, vk: VerifyingKey, sk: SigningKey) -> (VerifyingKey, SigningKey):
+        """Insert an existing ED25519 key pair into the key store."""
         if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
@@ -82,7 +80,15 @@ class KeyStore(object):
         self._ks.entries['pke_' + uuid.hex] = pke
         self._ks.save(self._ks_file, self._ks_password)
         log.info("created new key pair for {}: {}".format(uuid.hex, bytes.decode(vk.to_ascii(encoding='hex'))))
-        return
+        return (vk, sk)
+
+    def create_ed25519_keypair(self, uuid: UUID) -> (VerifyingKey, SigningKey):
+        """Create a new ED25519 key pair and store in key store."""
+        sk, vk = ed25519.create_keypair(entropy=urandom)
+        return self.insert_ed25519_keypair(vk, sk)
+
+
+
 
     def exists_signing_key(self, uuid: UUID):
         """Check whether this UUID has a signing key in the key store."""
