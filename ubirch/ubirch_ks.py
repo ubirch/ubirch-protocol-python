@@ -13,8 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from datetime import datetime
+import base64
+from datetime import datetime, timedelta
 from logging import getLogger
 from os import urandom
 from uuid import UUID
@@ -30,6 +30,7 @@ ECC_ENCRYPTION_OID = (1, 2, 1, 3, 101, 112)
 
 
 class ED25519Certificate(TrustedCertEntry):
+
     def __init__(self, alias: str, verifying_key: VerifyingKey, **kwargs):
         super().__init__(**kwargs)
         self.alias = alias
@@ -100,3 +101,20 @@ class KeyStore(object):
         """Find the verifying key for this UUID."""
         cert = self._ks.certs[uuid.hex]
         return VerifyingKey(cert.cert)
+
+    def get_certificate(self, uuid: UUID) -> dict:
+        cert = self._ks.certs[uuid.hex]
+        vk = VerifyingKey(cert.cert)
+        created = datetime.fromtimestamp(cert.timestamp)
+        not_before = datetime.fromtimestamp(cert.timestamp)
+        # TODO fix handling of key validity
+        not_after = created + timedelta(days=365)
+        return {
+            "algorithm": 'ECC_ED25519',
+            "created": int(created.timestamp()),
+            "hwDeviceId": uuid.bytes,
+            "pubKey": vk.to_bytes(),
+            "pubKeyId": vk.to_bytes(),
+            "validNotAfter": int(not_after.timestamp()),
+            "validNotBefore": int(not_before.timestamp())
+        }

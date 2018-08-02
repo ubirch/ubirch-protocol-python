@@ -12,48 +12,134 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import binascii
+import configparser
 import logging
-from typing import Optional
-from uuid import UUID
+import sys
+from datetime import datetime
+from uuid import UUID, uuid4
+
+import time
+from requests import Response
 
 import ubirch
-from ubirch.ubirch_protocol import CHAINED
+from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 
-keystore = ubirch.KeyStore("test-jks.jks", "test-keystore")
-
-uuid = UUID(hex="575A5601FD744F8EB6AEEF592CDEE12C")
-if not keystore.exists_signing_key(uuid):
-    keystore.create_ed25519_keypair(uuid)
-
-logger.debug(repr(keystore.find_signing_key(uuid)))
-logger.debug(repr(keystore.find_verifying_key(uuid)))
-
-
+########################################################################
+# Implement the ubirch-protocol with signing and saving the signatures
 class Proto(ubirch.Protocol):
+
+    def __init__(self, key_store: ubirch.KeyStore, uuid: UUID) -> None:
+        self.__uuid = uuid
+        self.__ks = key_store
+        super().__init__()
+        logger.info("ubirch-protocol: device id: {}".format(uuid))
+
     def _sign(self, message: bytes) -> bytes:
-        return keystore.find_signing_key(uuid).sign(message)
+        return self.__ks.find_signing_key(self.__uuid).sign(message)
 
     def _save_signature(self, signature: bytes) -> None:
         try:
-            with open(uuid.hex + ".sig", "wb+") as f:
+            with open(self.__uuid.hex + ".sig", "wb+") as f:
                 f.write(signature)
         except Exception as e:
             logger.error("can't write signature file: {}".format(e))
 
     def _load_signature(self) -> bytes:
         try:
-            with open(uuid.hex + ".sig", "rb") as f:
+            with open(self.__uuid.hex + ".sig", "rb") as f:
                 return f.read(64)
         except Exception as e:
             logger.warning("can't read signature file: {}".format(e))
         return b'\0' * 64
+########################################################################
 
+# load configuration from storage
+config = configparser.ConfigParser()
+config.read('demo-device.ini')
+if not config.has_section('device'):
+    config.add_section('device')
+    config.set('device', 'uuid', uuid4().hex)
+    auth = input("Missing authentication token, enter:")
+    config.set('device', 'auth', auth)
+    config.set('env', 'demo')
+    config.set('debug', False)
+    with open('demo-device.ini', "w") as f:
+        config.write(f)
 
-proto = Proto(CHAINED)
-logger.info(binascii.hexlify(proto.message(b'\x01' * 16, 0x00, [1, 2, 3])))
-logger.info(binascii.hexlify(proto.message(b'\x01' * 16, 0x00, [4, 5, 6])))
+uuid = UUID(hex=config.get('device', 'uuid'))
+auth = config.get('device', 'auth')
+env = config.get('device', 'env', fallback='demo')
+debug = config.get('device', 'debug', fallback=False)
+
+logger.info("UUID: {}".format(uuid))
+logger.info("AUTH: {}".format(auth))
+logger.info("ENV : {}".format(env))
+logger.info("DEBG: {}".format(debug))
+
+# create a new device uuid and a keystore for the device
+keystore = ubirch.KeyStore(uuid.hex + ".jks", "test-keystore")
+
+# check if the device already has keys or generate a new pair
+if not keystore.exists_signing_key(uuid):
+    keystore.create_ed25519_keypair(uuid)
+
+# create new protocol
+proto = Proto(keystore, uuid)
+
+# use the ubirch API to create a new device and send data using the ubirch-protocol
+api = ubirch.API(auth=auth, debug=debug, env=env)
+
+# check if the device exists and delete if that is the case
+if api.device_exists(uuid):
+    logger.warning("device {} exists, deleting".format(str(uuid)))
+    api.device_delete(uuid)
+    time.sleep(2)
+
+# create a new device on the backend
+r: Response = api.device_create({
+    "deviceId": str(uuid),
+    "deviceTypeKey": "python-device",
+    "deviceName": str(uuid),
+    "hwDeviceId": str(uuid),
+    "tags": ["demo", "python-client"],
+    "deviceProperties": {
+        "storesData": "true",
+        "blockChain": "false"
+    },
+    "created": "{}Z".format(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3])
+})
+if r.status_code == 200:
+    logger.info("created new device: {}".format(str(uuid)))
+    logger.debug(r.content)
+    time.sleep(2)
+else:
+    logger.error(r.content)
+    raise Exception("new device creation failed")
+
+# register the devices identity
+if not api.is_identity_registered(uuid):
+    registration_message = proto.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, keystore.get_certificate(uuid))
+    r = api.register_identity(registration_message)
+    if r.status_code == 200:
+        logger.info("registered new identity: {}".format(uuid))
+    else:
+        logger.error("device registration failed: {}".format(uuid))
+    logger.debug(r.content)
+
+# send data packages
+
+# message 1
+msg = proto.message_chained(uuid, 0x53, {'ts': int(datetime.utcnow().timestamp()), 'v': 99})
+logger.info(binascii.hexlify(msg))
+r = api.send(msg)
+logger.info("{}: {}".format(r.status_code, r.content))
+
+# message 2 (chained to message 1)
+msg = proto.message_chained(uuid, 0x53, {"ts": int(datetime.utcnow().timestamp()), "v": 100})
+logger.info(binascii.hexlify(msg))
+r = api.send(msg)
+logger.info("{}: {}".format(r.status_code, r.content))

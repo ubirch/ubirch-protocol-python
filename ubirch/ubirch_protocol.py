@@ -16,28 +16,30 @@
 
 import logging
 from abc import abstractmethod
+from uuid import UUID
 
+import hashlib
 import msgpack
-from Crypto.Hash import SHA512
 
+log = logging.getLogger(__name__)
+
+# ubirch-protocol constants
 UBIRCH_PROTOCOL_VERSION = 1
+
 PLAIN = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x01)
 SIGNED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x02)
 CHAINED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x03)
 
-log = logging.getLogger(__name__)
-
+UBIRCH_PROTOCOL_TYPE_BIN = 0x00
+UBIRCH_PROTOCOL_TYPE_REG = 0x01
+UBIRCH_PROTOCOL_TYPE_HSK = 0x02
 
 class Protocol(object):
-    def __init__(self, variant: int = SIGNED) -> None:
-        self.__version = variant
+    def __init__(self) -> None:
         self._last_signature = self._load_signature()
         if len(self._last_signature) != 64:
             log.warning("last signature size wrong (len={})".format(len(self._last_signature)))
             self._last_signature = b'\0' * 64
-
-        if self.__version not in (PLAIN, SIGNED, CHAINED):
-            raise Exception("protocol variant unknown: {}".format(self.__version))
 
     @abstractmethod
     def _sign(self, message: bytes) -> bytes:
@@ -63,38 +65,54 @@ class Protocol(object):
         serialized[2] = 0x00
         return serialized
 
-    def message(self, id: bytes, type: int, payload: any) -> bytes:
+    def __sign(self, msg: any) -> (bytes, bytes):
+        # sign the message and store the signature
+        serialized = self.__serialize(msg)[0:-1]
+        sha515digest = hashlib.sha512(serialized).digest()
+        signature = self._sign(sha515digest)
+        # replace last element in array with the signature
+        msg[-1] = signature
+        return (signature, self.__serialize(msg))
+
+
+    def message_signed(self, uuid: UUID, type: int, payload: any) -> bytes:
+        """Create a new signed ubirch-protocol message."""
+        # we need to ensure we get a 16bit integer serialized (0xFF | version)
+        # the 0xFF is replaced by 0x00 in the serialized code
+        msg = [
+            0xFF << 8 | SIGNED,
+            uuid.bytes,
+            type,
+            payload,
+            0
+        ]
+
+        (self._last_signature, serialized) = self.__sign(msg)
+
+        # serialize result and return the message
+        return serialized
+
+
+    def message_chained(self, uuid: UUID, type: int, payload: any) -> bytes:
         """
-        Create a new ubirch-protocol message.
+        Create a new chained ubirch-protocol message.
         Stores the context, the last signature, to be included in the next message.
         """
-        if len(id) > 16:
-            raise Exception("id must be 16 bytes or less")
-
-        # TODO fix this issue with the 16bit serialization
-        if self.__version > 0xFF:
-            log.warning("protocol version (0x{:04x}) may be broken, due to library workaround".format(self.__version))
 
         # we need to ensure we get a 16bit integer serialized (0xFF | version)
         # the 0xFF is replaced by 0x00 in the serialized code
-        msg = [0xFF << 8 | self.__version, id.rjust(16, b'\0')]
+        msg = [
+            0xFF << 8 | CHAINED,
+            uuid.bytes,
+            self._last_signature,
+            type,
+            payload,
+            0
+        ]
 
-        if self.__version is CHAINED:
-            msg.append(self._last_signature)
-
-        msg.append(type)
-        msg.append(payload)
-
-        if self.__version in (SIGNED, CHAINED):
-            msg.append(0)
-            # sign the message and store the signature
-            serialized = self.__serialize(msg)[0:-2]
-            sha515digest = SHA512.new(serialized).digest()
-            signature = self._sign(sha515digest)
-            # replace last element in array with the signature
-            msg[-1] = signature
-            self._last_signature = signature
-            self._save_signature(signature)
+        (self._last_signature, serialized) = self.__sign(msg)
+        self._save_signature(self._last_signature)
 
         # serialize result and return the message
-        return self.__serialize(msg)
+        return serialized
+

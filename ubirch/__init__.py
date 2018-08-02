@@ -15,5 +15,5 @@
 # limitations under the License.
 
 from .ubirch_ks import KeyStore
-from .ubirch_api import UbirchAPI
 from .ubirch_protocol import Protocol
+from .ubirch_api import API

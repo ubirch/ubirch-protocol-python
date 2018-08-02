@@ -51,8 +51,25 @@ print(binascii.hexlify(proto.message(uuid.bytes, 0x00, [4, 5, 6])))
  
 ### Sending messages using the ubirch API
 
+Please see [test-protocol.py](test-protocol.py) for a comprehensive example, how to create a device and
+send data. Below is a snipped that will send two chained messages, using the generic key/value payload.
+
+You will need an authentication token for the ubirch backend. Feel free to [contact us](https://ubirch.com), 
+self on-bording is on it's way!
+
 ```python
-# TODO
+# message 1
+msg = proto.message_chained(uuid, 0x53, {'ts': int(datetime.utcnow().timestamp()), 'v': 99})
+print(binascii.hexlify(msg))
+r = api.send(msg)
+print("{}: {}".format(r.status_code, r.content))
+
+# message 2 (chained to message 1)
+msg = proto.message_chained(uuid, 0x53, {"ts": int(datetime.utcnow().timestamp()), "v": 100})
+print(binascii.hexlify(msg))
+r = api.send(msg)
+print("{}: {}".format(r.status_code, r.content))
+
 ```
 
 # License 

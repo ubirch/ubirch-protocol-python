@@ -18,26 +18,28 @@ import binascii
 import json
 import logging
 from logging import getLogger
+from uuid import UUID
 
 import requests
 from requests import Response
+import http.client as http_client
 
 log = getLogger(__name__)
 
-import http.client as http_client
 
-# enable intensive logging
-if True or log.level == logging.DEBUG:
-    http_client.HTTPConnection.debuglevel = 1
-    requests_log = logging.getLogger("requests.packages.urllib3")
-    requests_log.setLevel(logging.DEBUG)
-    requests_log.propagate = True
-
-
-class UbirchAPI(object):
+class API(object):
     """ubirch API accessor methods."""
-    def __init__(self, auth=None, env=None) -> None:
+
+    def __init__(self, auth=None, env=None, debug=False) -> None:
         super().__init__()
+
+        # enable intensive logging
+        if debug and log.level == logging.DEBUG:
+            http_client.HTTPConnection.debuglevel = 1
+            requests_log = logging.getLogger("requests.packages.urllib3")
+            requests_log.setLevel(logging.DEBUG)
+            requests_log.propagate = True
+
         if auth is not None:
             self._auth = {'Authorization': auth}
         else:
@@ -45,7 +47,7 @@ class UbirchAPI(object):
 
         if env is None:
             self.KEY_SERVICE = "http://localhost:8095/api/keyService/v1".format(env)
-            self.AVATAR_SERVICE = "http://localhost:8096/api/avatarService/v1".format(env)
+            self.AVATAR_SERVICE = "http://localhost:8080/api/avatarService/v1".format(env)
             self.CHAIN_SERVICE = "http://localhost:8097/api/v1/chainService".format(env)
             self.NOTARY_SERVICE = "https://localhost:8098/api/v1/notaryService".format(env)
         else:
@@ -54,10 +56,12 @@ class UbirchAPI(object):
             self.CHAIN_SERVICE = "https://api.ubirch.{}.ubirch.com/api/v1/chainService".format(env)
             self.NOTARY_SERVICE = "http://n.dev.ubirch.com:8080/v1/notaryService".format(env)
 
-    def is_identity_registered(self, serial: str) -> bool:
-        """Check if  """
-        r = requests.get(self.KEY_SERVICE + "/pubkey/current/hardwareId/" + serial)
-        log.info("{}: {}".format(r.status_code, r.content))
+    def is_identity_registered(self, uuid: UUID) -> bool:
+        """Check if this identity is registered with the backend."""
+        log.info("is identity registered: {}".format(uuid))
+        r = requests.get(self.KEY_SERVICE + "/pubkey/current/hardwareId/" + str(uuid),
+                         headers=self._auth)
+        log.debug("{}: {}".format(r.status_code, r.content))
         return r.status_code == 200 and r.json()
 
     def register_identity(self, key_registration: bytes) -> Response:
@@ -68,24 +72,34 @@ class UbirchAPI(object):
             return self._register_identity_mpack(key_registration)
 
     def _register_identity_json(self, key_registration: dict) -> Response:
-        log.info("register device identity: {}".format(key_registration))
-        r = requests.post(self.KEY_SERVICE + '/pubkey', json=key_registration)
+        log.info("register device identity [json]: {}".format(key_registration))
+        r = requests.post(self.KEY_SERVICE + '/pubkey', json=key_registration,
+                          headers=self._auth)
         log.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def _register_identity_mpack(self, key_registration: bytes) -> Response:
-        log.info("register device identity: {}".format(key_registration))
+        log.info("register device identity [msgpack]: {}".format(binascii.hexlify(key_registration)))
         r = requests.post(self.KEY_SERVICE + '/pubkey/mpack', data=key_registration,
-                          headers={'Content-Type': 'application/octet-stream'})
-        log.info("{}: {}".format(r.status_code, r.content))
+                          headers={'Content-Type': 'application/octet-stream', **self._auth})
+        log.debug("{}: {}".format(r.status_code, r.content))
         return r
 
-    def device_exists(self, serial: str) -> bool:
-        r = requests.get(self.AVATAR_SERVICE + '/device/' + serial)
+    def device_exists(self, uuid: UUID) -> bool:
+        log.info("device exists: {}".format(uuid))
+        r = requests.get(self.AVATAR_SERVICE + '/device/' + str(uuid),
+                         headers=self._auth)
         log.debug("{}: {}".format(r.status_code, r.content))
         return r.status_code == 200
 
-    def create_device(self, device_info: dict) -> Response:
+    def device_delete(self, uuid: UUID) -> bool:
+        log.info("delete device: {}".format(uuid))
+        r = requests.delete(self.AVATAR_SERVICE + '/device/' + str(uuid), headers=self._auth)
+        log.debug("{}: {}".format(r.status_code, r.content))
+        return r.status_code == 200
+
+    def device_create(self, device_info: dict) -> Response:
+        log.info("create device: {}".format(device_info))
         r = requests.post(self.AVATAR_SERVICE + '/device',
                           json=device_info,
                           headers=self._auth)
