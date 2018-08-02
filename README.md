@@ -28,6 +28,21 @@ class ProtocolImpl(ubirch.Protocol):
     def _sign(self, message: bytes) -> bytes:
         return keystore.find_signing_key(uuid).sign(message)
 
+    def _save_signature(self, signature: bytes) -> None:
+        try:
+            with open(uuid.hex + ".sig", "wb+") as f:
+                f.write(signature)
+        except Exception as e:
+            print("can't write signature file: {}".format(e))
+
+    def _load_signature(self) -> bytes:
+        try:
+            with open(uuid.hex + ".sig", "rb") as f:
+                return f.read(64)
+        except Exception as e:
+            print("can't read signature file: {}".format(e))
+        return b'\0' * 64
+
 
 proto = ProtocolImpl(CHAINED)
 print(binascii.hexlify(proto.message(uuid.bytes, 0x00, [1, 2, 3])))

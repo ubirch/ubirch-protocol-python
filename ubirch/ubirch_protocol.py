@@ -17,9 +17,6 @@
 import logging
 from abc import abstractmethod
 
-import binascii
-from typing import Optional
-
 import msgpack
 from Crypto.Hash import SHA512
 
