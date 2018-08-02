@@ -22,8 +22,8 @@ uuid = UUID(hex="575A5601FD744F8EB6AEEF592CDEE12C")
 if not keystore.exists_signing_key(uuid):
     keystore.create_ed25519_keypair(uuid)
 
-
-# keys to sign the message
+# implement the _sign method on the ubirch.Protocol to use the just created
+# keys to sign the message and add methods to save and load the last signature
 class ProtocolImpl(ubirch.Protocol):
     def _sign(self, message: bytes) -> bytes:
         return keystore.find_signing_key(uuid).sign(message)
