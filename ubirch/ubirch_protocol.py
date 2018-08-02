@@ -14,7 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from abc import abstractmethod
+
+import binascii
+from typing import Optional
 
 import msgpack
 from Crypto.Hash import SHA512
@@ -24,13 +28,16 @@ PLAIN = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x01)
 SIGNED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x02)
 CHAINED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x03)
 
+log = logging.getLogger(__name__)
+
 
 class Protocol(object):
-    _last_signature: str
-
     def __init__(self, variant: int = SIGNED) -> None:
         self.__version = variant
-        self._last_signature = b'\0' * 64
+        self._last_signature = self._load_signature()
+        if len(self._last_signature) != 64:
+            log.warning("last signature size wrong (len={})".format(len(self._last_signature)))
+            self._last_signature = b'\0' * 64
 
         if self.__version not in (PLAIN, SIGNED, CHAINED):
             raise Exception("protocol variant unknown: {}".format(self.__version))
@@ -39,6 +46,18 @@ class Protocol(object):
     def _sign(self, message: bytes) -> bytes:
         """Sign the request when finished."""
         pass
+
+    @abstractmethod
+    def _save_signature(self, signature: bytes) -> None:
+        """Save the last signature persistently."""
+        log.warning("last signature not saved, implement Protocol._save_signature()")
+        pass
+
+    @abstractmethod
+    def _load_signature(self) -> bytes:
+        """Load the last signature on startup."""
+        log.warning("last signature not loaded, implement Protocol._load_signature()")
+        return b'\0' * 64
 
     def __serialize(self, msg: any) -> bytearray:
         serialized = bytearray(msgpack.packb(msg))
@@ -56,6 +75,9 @@ class Protocol(object):
             raise Exception("id must be 16 bytes or less")
 
         # TODO fix this issue with the 16bit serialization
+        if self.__version > 0xFF:
+            log.warning("protocol version (0x{:04x}) may be broken, due to library workaround".format(self.__version))
+
         # we need to ensure we get a 16bit integer serialized (0xFF | version)
         # the 0xFF is replaced by 0x00 in the serialized code
         msg = [0xFF << 8 | self.__version, id.rjust(16, b'\0')]
@@ -75,6 +97,7 @@ class Protocol(object):
             # replace last element in array with the signature
             msg[-1] = signature
             self._last_signature = signature
+            self._save_signature(signature)
 
         # serialize result and return the message
         return self.__serialize(msg)
