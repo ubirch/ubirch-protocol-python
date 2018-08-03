@@ -65,6 +65,10 @@ r = api.send(msg)
 print("{}: {}".format(r.status_code, r.content))
 ```
 
+### Verification of received message
+
+> TBD
+
 ### Existing keys
 
 In case you create a key pair from our demo website, use the following code to insert it into the key store:
