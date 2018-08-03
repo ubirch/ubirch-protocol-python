@@ -26,23 +26,7 @@ if not keystore.exists_signing_key(uuid):
 # keys to sign the message and add methods to save and load the last signature
 class ProtocolImpl(ubirch.Protocol):
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
-        return keystore.find_signing_key(uuid).sign(message)
-
-    def _save_signature(self, signature: bytes) -> None:
-        try:
-            with open(uuid.hex + ".sig", "wb+") as f:
-                f.write(signature)
-        except Exception as e:
-            print("can't write signature file: {}".format(e))
-
-    def _load_signature(self) -> bytes:
-        try:
-            with open(uuid.hex + ".sig", "rb") as f:
-                return f.read(64)
-        except Exception as e:
-            print("can't read signature file: {}".format(e))
-        return b'\0' * 64
-
+        return keystore.find_signing_key(uuid).sign(message)        
 
 proto = ProtocolImpl(CHAINED)
 print(binascii.hexlify(proto.message_chained(uuid, 0x00, [1, 2, 3])))
@@ -58,8 +42,18 @@ You will need an authentication token for the ubirch backend. Feel free to [cont
 self on-bording is on it's way!
 
 ```python
+import ubirch
+import uuid
+import binascii
+from datetime import datetime
+
+uuid = uuid.uuid4()
+proto = ubirch.Protocol()
+api = ubirch.API()
+
 # message 1
 msg = proto.message_chained(uuid, 0x53, {'ts': int(datetime.utcnow().timestamp()), 'v': 99})
+
 print(binascii.hexlify(msg))
 r = api.send(msg)
 print("{}: {}".format(r.status_code, r.content))
