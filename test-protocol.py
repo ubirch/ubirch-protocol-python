@@ -64,7 +64,7 @@ config = configparser.ConfigParser()
 config.read('demo-device.ini')
 if not config.has_section('device'):
     config.add_section('device')
-    config.set('device', 'uuid', uuid4().hex)
+    config.set('device', 'uuid', str(uuid4()))
     auth = input("Missing authentication token, enter:")
     config.set('device', 'auth', auth)
     config.set('device', 'env', 'demo')
