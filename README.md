@@ -25,7 +25,7 @@ if not keystore.exists_signing_key(uuid):
 # implement the _sign method on the ubirch.Protocol to use the just created
 # keys to sign the message and add methods to save and load the last signature
 class ProtocolImpl(ubirch.Protocol):
-    def _sign(self, message: bytes) -> bytes:
+    def _sign(self, uuid: UUID, message: bytes) -> bytes:
         return keystore.find_signing_key(uuid).sign(message)
 
     def _save_signature(self, signature: bytes) -> None:
@@ -45,8 +45,8 @@ class ProtocolImpl(ubirch.Protocol):
 
 
 proto = ProtocolImpl(CHAINED)
-print(binascii.hexlify(proto.message(uuid.bytes, 0x00, [1, 2, 3])))
-print(binascii.hexlify(proto.message(uuid.bytes, 0x00, [4, 5, 6])))
+print(binascii.hexlify(proto.message_chained(uuid, 0x00, [1, 2, 3])))
+print(binascii.hexlify(proto.message_chained(uuid, 0x00, [4, 5, 6])))
 ```
  
 ### Sending messages using the ubirch API

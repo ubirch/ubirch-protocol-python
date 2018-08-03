@@ -12,15 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import atexit
 import binascii
 import configparser
 import logging
 import pickle
-import sys
+import time
 from datetime import datetime
 from uuid import UUID, uuid4
 
-import time
 from requests import Response
 
 import ubirch
@@ -48,7 +48,9 @@ class Proto(ubirch.Protocol):
     def load(self, uuid: UUID):
         try:
             with open(uuid.hex + ".sig", "rb") as f:
-                self.set_saved_signatures(pickle.load(f))
+                signatures = pickle.load(f)
+                logger.info("loaded {} known signatures".format(len(signatures)))
+                self.set_saved_signatures(signatures)
         except:
             logger.warning("no existing saved signatures")
             pass
@@ -69,6 +71,8 @@ if not config.has_section('device'):
     config.set('device', 'auth', auth)
     config.set('device', 'env', 'demo')
     config.set('device', 'debug', 'False')
+    groups = input("Enter device group UUID (press enter if none):")
+    config.set('device', 'groups', groups)
     with open('demo-device.ini', "w") as f:
         config.write(f)
 
@@ -76,6 +80,7 @@ uuid = UUID(hex=config.get('device', 'uuid'))
 auth = config.get('device', 'auth')
 env = config.get('device', 'env', fallback='demo')
 debug = config.getboolean('device', 'debug', fallback=False)
+groups = list(filter(None, config.get('device', 'groups', fallback="").split(",")))
 
 logger.info("UUID: {}".format(uuid))
 logger.info("AUTH: {}".format(auth))
@@ -104,10 +109,11 @@ if api.device_exists(uuid):
 # create a new device on the backend
 r: Response = api.device_create({
     "deviceId": str(uuid),
-    "deviceTypeKey": "python-device",
+    "deviceTypeKey": "genericSensor",
     "deviceName": str(uuid),
     "hwDeviceId": str(uuid),
     "tags": ["demo", "python-client"],
+    "groups": groups,
     "deviceProperties": {
         "storesData": "true",
         "blockChain": "false"
@@ -145,3 +151,5 @@ msg = proto.message_chained(uuid, 0x53, {"ts": int(datetime.utcnow().timestamp()
 logger.info(binascii.hexlify(msg))
 r = api.send(msg)
 logger.info("{}: {}".format(r.status_code, r.content))
+
+atexit.register(proto.persist, uuid)
