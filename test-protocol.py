@@ -15,6 +15,7 @@
 import binascii
 import configparser
 import logging
+import pickle
 import sys
 from datetime import datetime
 from uuid import UUID, uuid4
@@ -28,33 +29,34 @@ from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 
+
 ########################################################################
 # Implement the ubirch-protocol with signing and saving the signatures
 class Proto(ubirch.Protocol):
 
     def __init__(self, key_store: ubirch.KeyStore, uuid: UUID) -> None:
-        self.__uuid = uuid
-        self.__ks = key_store
         super().__init__()
+        self.__ks = key_store
+        self.load(uuid)
         logger.info("ubirch-protocol: device id: {}".format(uuid))
 
-    def _sign(self, message: bytes) -> bytes:
-        return self.__ks.find_signing_key(self.__uuid).sign(message)
+    def persist(self, uuid: UUID):
+        signatures = self.get_saved_signatures()
+        with open(uuid.hex + ".sig", "wb") as f:
+            pickle.dump(signatures, f)
 
-    def _save_signature(self, signature: bytes) -> None:
+    def load(self, uuid: UUID):
         try:
-            with open(self.__uuid.hex + ".sig", "wb+") as f:
-                f.write(signature)
-        except Exception as e:
-            logger.error("can't write signature file: {}".format(e))
+            with open(uuid.hex + ".sig", "rb") as f:
+                self.set_saved_signatures(pickle.load(f))
+        except:
+            logger.warning("no existing saved signatures")
+            pass
 
-    def _load_signature(self) -> bytes:
-        try:
-            with open(self.__uuid.hex + ".sig", "rb") as f:
-                return f.read(64)
-        except Exception as e:
-            logger.warning("can't read signature file: {}".format(e))
-        return b'\0' * 64
+    def _sign(self, uuid: UUID, message: bytes) -> bytes:
+        return self.__ks.find_signing_key(uuid).sign(message)
+
+
 ########################################################################
 
 # load configuration from storage
@@ -66,14 +68,14 @@ if not config.has_section('device'):
     auth = input("Missing authentication token, enter:")
     config.set('device', 'auth', auth)
     config.set('device', 'env', 'demo')
-    config.set('device', 'debug', False)
+    config.set('device', 'debug', 'False')
     with open('demo-device.ini', "w") as f:
         config.write(f)
 
 uuid = UUID(hex=config.get('device', 'uuid'))
 auth = config.get('device', 'auth')
 env = config.get('device', 'env', fallback='demo')
-debug = config.get('device', 'debug', fallback=False)
+debug = config.getboolean('device', 'debug', fallback=False)
 
 logger.info("UUID: {}".format(uuid))
 logger.info("AUTH: {}".format(auth))

@@ -85,10 +85,7 @@ class KeyStore(object):
     def create_ed25519_keypair(self, uuid: UUID) -> (VerifyingKey, SigningKey):
         """Create a new ED25519 key pair and store in key store."""
         sk, vk = ed25519.create_keypair(entropy=urandom)
-        return self.insert_ed25519_keypair(vk, sk)
-
-
-
+        return self.insert_ed25519_keypair(uuid, vk, sk)
 
     def exists_signing_key(self, uuid: UUID):
         """Check whether this UUID has a signing key in the key store."""
