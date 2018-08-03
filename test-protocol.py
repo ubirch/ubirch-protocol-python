@@ -65,8 +65,8 @@ if not config.has_section('device'):
     config.set('device', 'uuid', uuid4().hex)
     auth = input("Missing authentication token, enter:")
     config.set('device', 'auth', auth)
-    config.set('env', 'demo')
-    config.set('debug', False)
+    config.set('device', 'env', 'demo')
+    config.set('device', 'debug', False)
     with open('demo-device.ini', "w") as f:
         config.write(f)
 
