@@ -58,7 +58,7 @@ class API(object):
 
     def is_identity_registered(self, uuid: UUID) -> bool:
         """Check if this identity is registered with the backend."""
-        log.info("is identity registered: {}".format(uuid))
+        log.info("is identity registered?: {}".format(uuid))
         r = requests.get(self.KEY_SERVICE + "/pubkey/current/hardwareId/" + str(uuid),
                          headers=self._auth)
         log.debug("{}: {}".format(r.status_code, r.content))
@@ -86,7 +86,7 @@ class API(object):
         return r
 
     def device_exists(self, uuid: UUID) -> bool:
-        log.info("device exists: {}".format(uuid))
+        log.info("device exists?: {}".format(uuid))
         r = requests.get(self.AVATAR_SERVICE + '/device/' + str(uuid),
                          headers=self._auth)
         log.debug("{}: {}".format(r.status_code, r.content))

@@ -107,7 +107,7 @@ if api.device_exists(uuid):
     time.sleep(2)
 
 # create a new device on the backend
-r: Response = api.device_create({
+r = api.device_create({
     "deviceId": str(uuid),
     "deviceTypeKey": "genericSensor",
     "deviceName": str(uuid),
