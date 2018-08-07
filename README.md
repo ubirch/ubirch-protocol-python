@@ -4,8 +4,16 @@ This is an implementation of the [ubirch-protocol](https://github.com/ubirch/ubi
 for [Python 3](https://www.python.org/). Please see [ubirch-protocol](https://github.com/ubirch/ubirch-protocol)
 for details.
 
-## Usage
+The library consists of three parts which can be used individually:
 
+* `ubirch.API` - a python layer covering the ubirch backend REST API
+* `ubirch.Protocol` - the protocol compiler which packages messages and handles signing and verification
+* `ubirch.KeyStore` - a simple key store based on [pyjks](https://pypi.org/project/pyjks/) to store keys and certificates
+
+> the [ubirch](https://ubirch.com) protocol uses the [Ed25519](https://ed25519.cr.yp.to/) signature scheme by default.
+ 
+## Usage
+  
 ### Creating keypair and messages
 
 ```python
@@ -86,6 +94,27 @@ vk = sk.get_verifying_key()
 
 keystore.insert_ed25519_keypair(hwDeviceId, vk, sk)
 ```
+
+### Running the example
+
+```bash
+python3 -m venv venv3
+pip install -r requirements.txt
+python3 test-protocol.py
+```
+
+At the first launch the script generates a random UUID for your device and you will be asked
+about the authentication token and the device group. You can safely ignore the device group, just press Enter.
+The script creates a file `demo-device.ini` which is loaded upon running the script again. If
+you need to change anything edit that file.
+
+The script goes through a number of steps:
+
+1. checks the existence of the device and deletes the device if it exists
+2. registers the device with the backend
+3. generates a new identity for that device and stores it in the key store
+4. registers the new identity with the backend
+5. sends two consecutive chained messages to the backend
 
 # License 
 

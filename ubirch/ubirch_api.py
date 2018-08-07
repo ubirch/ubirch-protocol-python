@@ -22,7 +22,6 @@ from uuid import UUID
 
 import requests
 from requests import Response
-import http.client as http_client
 
 log = getLogger(__name__)
 
@@ -35,6 +34,7 @@ class API(object):
 
         # enable intensive logging
         if debug and log.level == logging.DEBUG:
+            import http.client as http_client
             http_client.HTTPConnection.debuglevel = 1
             requests_log = logging.getLogger("requests.packages.urllib3")
             requests_log.setLevel(logging.DEBUG)

@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import atexit
 import binascii
 import configparser
@@ -20,8 +21,6 @@ import pickle
 import time
 from datetime import datetime
 from uuid import UUID, uuid4
-
-from requests import Response
 
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG
@@ -67,7 +66,7 @@ config.read('demo-device.ini')
 if not config.has_section('device'):
     config.add_section('device')
     config.set('device', 'uuid', str(uuid4()))
-    auth = input("Missing authentication token, enter:")
+    auth = input("Enter your API authentication token:")
     config.set('device', 'auth', auth)
     config.set('device', 'env', 'demo')
     config.set('device', 'debug', 'False')
@@ -78,7 +77,7 @@ if not config.has_section('device'):
 
 uuid = UUID(hex=config.get('device', 'uuid'))
 auth = config.get('device', 'auth')
-env = config.get('device', 'env', fallback='demo')
+env = config.get('device', 'env', fallback=None)
 debug = config.getboolean('device', 'debug', fallback=False)
 groups = list(filter(None, config.get('device', 'groups', fallback="").split(",")))
 
