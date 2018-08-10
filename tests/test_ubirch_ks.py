@@ -20,6 +20,7 @@ import logging
 import os
 import unittest
 import uuid
+from datetime import datetime
 
 import ubirch
 
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 # test fixtures
 TEST_KEYSTORE_FILE = "__test.jks"
 TEST_PASSWORD = "abcdef12345"
+
 
 class TestUbirchKeyStore(unittest.TestCase):
 
@@ -40,3 +42,65 @@ class TestUbirchKeyStore(unittest.TestCase):
         self.assertTrue(os.path.isfile(TEST_KEYSTORE_FILE), "KeyStore has not been saved")
         os.remove(TEST_KEYSTORE_FILE)
 
+    def test_create_new_keypair(self):
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        id = uuid.uuid4()
+        ks.create_ed25519_keypair(id)
+        self.assertIsNotNone(ks.find_verifying_key(id))
+        self.assertIsNotNone(ks.find_signing_key(id))
+
+    def test_do_not_create_duplicate(self):
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        id = uuid.uuid4()
+        (vk, sk) = ks.create_ed25519_keypair(id)
+        self.assertIsNotNone(ks.find_verifying_key(id))
+        self.assertIsNotNone(ks.find_signing_key(id))
+
+        try:
+            ks.create_ed25519_keypair(id)
+        except Exception as e:
+            self.assertEqual(e.args[0], "uuid '{}' already exists in keystore".format(id.hex))
+
+        # check again that the keus have not changed
+        self.assertEqual(vk, ks.find_verifying_key(id))
+        self.assertEqual(sk, ks.find_signing_key(id))
+
+    def test_exists_signing_key(self):
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        id = uuid.uuid4()
+        ks.create_ed25519_keypair(id)
+        self.assertTrue(ks.exists_signing_key(id))
+
+    def test_exists_signing_key_fails(self):
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        id = uuid.uuid4()
+        self.assertFalse(ks.exists_signing_key(id))
+
+    def test_exists_verifying_key(self):
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        id = uuid.uuid4()
+        ks.create_ed25519_keypair(id)
+        self.assertTrue(ks.exists_verifying_key(id))
+
+    def test_exists_verifying_key_fails(self):
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        id = uuid.uuid4()
+        self.assertFalse(ks.exists_verifying_key(id))
+
+    def test_get_certificate(self):
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        id = uuid.uuid4()
+        (vk, sk) = ks.create_ed25519_keypair(id)
+        certificate = ks.get_certificate(id)
+        self.assertIsNotNone(certificate)
+        self.assertEqual( "ECC_ED25519", certificate["algorithm"])
+        self.assertEqual( id.bytes, certificate["hwDeviceId"])
+        self.assertEqual(vk.to_bytes(), certificate["pubKey"])
+        self.assertEqual(vk.to_bytes(), certificate["pubKeyId"])
+        self.assertGreaterEqual(int(datetime.utcnow().timestamp()), certificate["validNotBefore"])
+        self.assertLessEqual(int(datetime.utcnow().timestamp()), certificate["validNotAfter"])
+
+    def test_get_certificate_fails(self):
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        id = uuid.uuid4()
+        self.assertIsNone(ks.get_certificate(id))

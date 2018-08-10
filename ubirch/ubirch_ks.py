@@ -107,7 +107,10 @@ class KeyStore(object):
         cert = self._ks.certs[uuid.hex]
         return VerifyingKey(cert.cert)
 
-    def get_certificate(self, uuid: UUID) -> dict:
+    def get_certificate(self, uuid: UUID) -> dict or None:
+        if not uuid.hex in self._ks.certs:
+            return None
+
         cert = self._ks.certs[uuid.hex]
         vk = VerifyingKey(cert.cert)
         created = datetime.fromtimestamp(cert.timestamp)
