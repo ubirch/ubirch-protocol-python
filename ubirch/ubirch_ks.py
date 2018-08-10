@@ -60,26 +60,30 @@ class KeyStore(object):
             logger.warning("creating new key store: {}".format(self._ks_file))
             self._ks = jks.KeyStore.new("jks", [])
 
-    def insert_ed25519_keypair(self, uuid: UUID, vk: VerifyingKey, sk: SigningKey) -> (VerifyingKey, SigningKey):
-        """Insert an existing ED25519 key pair into the key store."""
-        if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
-            raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
-
-        # store verifying key in certificate store
-        self._ks.entries[uuid.hex] = ED25519Certificate(uuid.hex, vk)
-
+    def insert_ed25519_signing_key(self, uuid, sk: SigningKey):
+        """Insert an existing ED25519 signing key."""
         # encode the ED25519 private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
         private_key_info.setComponentByName('version', 'v1')
-
         a = AlgorithmIdentifier()
         a.setComponentByName('algorithm', ECC_ENCRYPTION_OID)
         private_key_info.setComponentByName('privateKeyAlgorithm', a)
         private_key_info.setComponentByName('privateKey', sk.to_bytes())
         pkey_pkcs8 = encoder.encode(private_key_info)
-
         pke = jks.PrivateKeyEntry.new(alias=str(uuid.hex), certs=[], key=pkey_pkcs8)
         self._ks.entries['pke_' + uuid.hex] = pke
+
+    def insert_ed25519_verifying_key(self, uuid, vk: VerifyingKey):
+        # store verifying key in certificate store
+        self._ks.entries[uuid.hex] = ED25519Certificate(uuid.hex, vk)
+
+    def insert_ed25519_keypair(self, uuid: UUID, vk: VerifyingKey, sk: SigningKey) -> (VerifyingKey, SigningKey):
+        """Insert an existing ED25519 key pair into the key store."""
+        if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
+            raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
+
+        self.insert_ed25519_verifying_key(uuid, vk)
+        self.insert_ed25519_signing_key(uuid, sk)
         self._ks.save(self._ks_file, self._ks_password)
         logger.info("created new key pair for {}: {}".format(uuid.hex, bytes.decode(vk.to_ascii(encoding='hex'))))
         return (vk, sk)
