@@ -26,7 +26,7 @@ from ed25519 import SigningKey, VerifyingKey
 from jks import jks, AlgorithmIdentifier, rfc5208, TrustedCertEntry
 from pyasn1.codec.ber import encoder
 
-log = getLogger(__name__)
+logger = getLogger(__name__)
 
 ECC_ENCRYPTION_OID = (1, 2, 1, 3, 101, 112)
 
@@ -57,7 +57,7 @@ class KeyStore(object):
         try:
             self._ks = jks.KeyStore.load(self._ks_file, self._ks_password)
         except FileNotFoundError:
-            log.warning("creating new key store: {}".format(self._ks_file))
+            logger.warning("creating new key store: {}".format(self._ks_file))
             self._ks = jks.KeyStore.new("jks", [])
 
     def insert_ed25519_keypair(self, uuid: UUID, vk: VerifyingKey, sk: SigningKey) -> (VerifyingKey, SigningKey):
@@ -81,7 +81,7 @@ class KeyStore(object):
         pke = jks.PrivateKeyEntry.new(alias=str(uuid.hex), certs=[], key=pkey_pkcs8)
         self._ks.entries['pke_' + uuid.hex] = pke
         self._ks.save(self._ks_file, self._ks_password)
-        log.info("created new key pair for {}: {}".format(uuid.hex, bytes.decode(vk.to_ascii(encoding='hex'))))
+        logger.info("created new key pair for {}: {}".format(uuid.hex, bytes.decode(vk.to_ascii(encoding='hex'))))
         return (vk, sk)
 
     def create_ed25519_keypair(self, uuid: UUID) -> (VerifyingKey, SigningKey):

@@ -1,4 +1,4 @@
-# ubirch protocol
+# ubirch protocol tests
 #
 # @author Matthias L. Jugel
 #

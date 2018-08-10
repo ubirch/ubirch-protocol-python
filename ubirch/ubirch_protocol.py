@@ -14,14 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import hashlib
 import logging
 from abc import abstractmethod
 from uuid import UUID
 
-import hashlib
 import msgpack
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # ubirch-protocol constants
 UBIRCH_PROTOCOL_VERSION = 1
