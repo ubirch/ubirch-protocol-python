@@ -43,7 +43,7 @@ print(binascii.hexlify(proto.message_chained(uuid, 0x00, [4, 5, 6])))
  
 ### Sending messages using the ubirch API
 
-Please see [test-protocol.py](test-protocol.py) for a comprehensive example, how to create a device and
+Please see [test-protocol.py](examples/test-protocol.py) for a comprehensive example, how to create a device and
 send data. Below is a snipped that will send two chained messages, using the generic key/value payload.
 
 You will need an authentication token for the ubirch backend. Feel free to [contact us](https://ubirch.com), 
@@ -116,6 +116,13 @@ The script goes through a number of steps:
 4. registers the new identity with the backend
 5. sends two consecutive chained messages to the backend
 
+### Testing
+
+Unit tests are added to test the functionality of all objects provided in this library.
+
+```bash
+python3 -m unittest discover
+``` 
 # License 
 
 The protocol and its implementation are publicized under the [Apache License 2.0](LICENSE).

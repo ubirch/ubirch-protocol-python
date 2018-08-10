@@ -63,6 +63,20 @@ class TestProtocol(ubirch.Protocol):
 
 class TestUbirchProtocol(unittest.TestCase):
 
+    def test_sign_not_implemented(self):
+        p = ubirch.Protocol()
+        try:
+            p.message_signed(TEST_UUID, 0xEF, 1)
+        except NotImplementedError as e:
+            self.assertEqual(e.args[0], 'signing not implemented')
+
+    def test_verify_not_implemented(self):
+        p = ubirch.Protocol()
+        try:
+            p.message_verify(EXPECTED_SIGNED)
+        except NotImplementedError as e:
+            self.assertEqual(e.args[0], 'verification not implemented')
+
     def test_create_signed_message(self):
         p = TestProtocol()
         message = p.message_signed(TEST_UUID, 0xEF, 1)
@@ -78,33 +92,47 @@ class TestUbirchProtocol(unittest.TestCase):
 
     def test_verify_signed_message(self):
         p = TestProtocol()
-        try:
-            unpacked = p.message_verify(EXPECTED_SIGNED)
-            self.assertEqual(SIGNED, unpacked[0])
-            self.assertEqual(TEST_UUID.bytes, unpacked[1])
-            self.assertEqual(0xEF, unpacked[2])
-            self.assertEqual(1, unpacked[3])
-        except ed25519.BadSignatureError:
-            self.fail("signature verification failed")
+        unpacked = p.message_verify(EXPECTED_SIGNED)
+        self.assertEqual(SIGNED, unpacked[0])
+        self.assertEqual(TEST_UUID.bytes, unpacked[1])
+        self.assertEqual(0xEF, unpacked[2])
+        self.assertEqual(1, unpacked[3])
 
     def test_verify_chained_messages(self):
         p = TestProtocol()
         last_signature = b'\0' * 64
         for i in range(0, 3):
-            try:
-                unpacked = p.message_verify(EXPECTED_CHAINED[i])
-                self.assertEqual(CHAINED, unpacked[0])
-                self.assertEqual(TEST_UUID.bytes, unpacked[1])
-                self.assertEqual(last_signature, unpacked[2])
-                self.assertEqual(0xEE, unpacked[3])
-                self.assertEqual(i + 1, unpacked[4])
-                # update the last signature we expect in the next message
-                last_signature = unpacked[5]
-            except ed25519.BadSignatureError:
-                self.fail("signature verification failed for message #{}".format(i + 1))
+            unpacked = p.message_verify(EXPECTED_CHAINED[i])
+            self.assertEqual(CHAINED, unpacked[0])
+            self.assertEqual(TEST_UUID.bytes, unpacked[1])
+            self.assertEqual(last_signature, unpacked[2])
+            self.assertEqual(0xEE, unpacked[3])
+            self.assertEqual(i + 1, unpacked[4])
+            # update the last signature we expect in the next message
+            last_signature = unpacked[5]
 
     # TODO add randomized message generation and verification
 
+    def test_verify_fails_missing_data(self):
+        p = TestProtocol()
+        message = EXPECTED_SIGNED[0:-67]
+        try:
+            p.message_verify(message)
+        except Exception as e:
+            self.assertEqual(e.args[0], "message format wrong (size < 70 bytes): {}".format(len(message)))
 
-if __name__ == '__main__':
-    unittest.main()
+
+    def test_set_saved_signatures(self):
+        p = TestProtocol()
+        p.set_saved_signatures({TEST_UUID: "1234567890"})
+
+        self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
+
+    def test_set_saved_signatures_changed(self):
+        p = TestProtocol()
+        p.set_saved_signatures({TEST_UUID: "1234567890"})
+        self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
+
+        # sign a message and expect the last signature for this UUID to change
+        p.message_signed(TEST_UUID, 0xEF, 1)
+        self.assertEqual({TEST_UUID: EXPECTED_SIGNED[-64:]}, p.get_saved_signatures())
