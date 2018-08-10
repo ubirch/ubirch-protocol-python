@@ -1,5 +1,7 @@
 # ubirch API
 #
+# @author Matthias L. Jugel
+#
 # Copyright (c) 2018 ubirch GmbH.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
