@@ -34,6 +34,7 @@ UBIRCH_PROTOCOL_TYPE_BIN = 0x00
 UBIRCH_PROTOCOL_TYPE_REG = 0x01
 UBIRCH_PROTOCOL_TYPE_HSK = 0x02
 
+
 class Protocol(object):
     _signatures: dict = {}
 
@@ -82,11 +83,7 @@ class Protocol(object):
         raise NotImplementedError("verification not implemented")
 
     def __serialize(self, msg: any) -> bytearray:
-        serialized = bytearray(msgpack.packb(msg))
-        # TODO fix this issue below
-        # fix the 16bit version
-        serialized[2] = 0x00
-        return serialized
+        return bytearray(msgpack.packb(msg))
 
     def __sign(self, uuid: UUID, msg: any) -> (bytes, bytes):
         # sign the message and store the signature
@@ -96,7 +93,6 @@ class Protocol(object):
         # replace last element in array with the signature
         msg[-1] = signature
         return (signature, self.__serialize(msg))
-
 
     def message_signed(self, uuid: UUID, type: int, payload: any) -> bytes:
         """
@@ -109,7 +105,7 @@ class Protocol(object):
         # we need to ensure we get a 16bit integer serialized (0xFF | version)
         # the 0xFF is replaced by 0x00 in the serialized code
         msg = [
-            0xFF << 8 | SIGNED,
+            SIGNED,
             uuid.bytes,
             type,
             payload,
@@ -122,7 +118,6 @@ class Protocol(object):
         # serialize result and return the message
         return serialized
 
-
     def message_chained(self, uuid: UUID, type: int, payload: any) -> bytes:
         """
         Create a new chained ubirch-protocol message.
@@ -134,12 +129,12 @@ class Protocol(object):
         """
 
         # retrieve last known signature or null bytes
-        last_signature: bytes = self._signatures.get(uuid, b'\0'*64)
+        last_signature: bytes = self._signatures.get(uuid, b'\0' * 64)
 
         # we need to ensure we get a 16bit integer serialized (0xFF | version)
         # the 0xFF is replaced by 0x00 in the serialized code
         msg = [
-            0xFF << 8 | CHAINED,
+            CHAINED,
             uuid.bytes,
             last_signature,
             type,
@@ -164,6 +159,9 @@ class Protocol(object):
             raise Exception("message format wrong (size < 70 bytes): {}".format(len(message)))
         unpacked = msgpack.unpackb(message)
         uuid = UUID(bytes=unpacked[1])
-        signature = message[-67:]
-        self._verify(uuid, message, signature)
+        if unpacked[0] == SIGNED:
+            signature = unpacked[4]
+        else:
+            signature = unpacked[5]
+        self._verify(uuid, message[0:-67], signature)
         return unpacked
