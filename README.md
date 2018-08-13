@@ -104,7 +104,6 @@ message = bytes.fromhex(
     "f0ed0fdbeb1b48bb50fd71d832340ce024d5a0e21c0ebc8e0e")
 print(proto.message_verify(message))
 ```
-> TBD
 
 ### Existing keys
 
