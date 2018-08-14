@@ -73,9 +73,8 @@ if not config.has_section('device'):
     config.set('device', 'auth', auth)
     config.set('device', 'env', 'demo')
     config.set('device', 'debug', 'False')
-    groups = input("Enter device group UUID (press enter if none):")
-    config.set('device', 'groups', groups)
-    with open('demo-device.ini', "w") as f:
+    config.set('device', 'groups', '')
+    with open('demo-device-local.ini', "w") as f:
         config.write(f)
 
 uuid = UUID(hex=config.get('device', 'uuid'))
@@ -84,10 +83,10 @@ env = config.get('device', 'env', fallback=None)
 debug = config.getboolean('device', 'debug', fallback=False)
 groups = list(filter(None, config.get('device', 'groups', fallback="").split(",")))
 
-logger.info("UUID: {}".format(uuid))
-logger.info("AUTH: {}".format(auth))
-logger.info("ENV : {}".format(env))
-logger.info("DEBG: {}".format(debug))
+logger.info("UUID : {}".format(uuid))
+logger.info("AUTH : {}".format(auth))
+logger.info("ENV  : {}".format(env))
+logger.info("DEBUG: {}".format(debug))
 
 # create a new device uuid and a keystore for the device
 keystore = ubirch.KeyStore(uuid.hex + ".jks", "test-keystore")
