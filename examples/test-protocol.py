@@ -74,7 +74,7 @@ if not config.has_section('device'):
     config.set('device', 'env', 'demo')
     config.set('device', 'debug', 'False')
     config.set('device', 'groups', '')
-    with open('demo-device-local.ini', "w") as f:
+    with open('demo-device.ini', "w") as f:
         config.write(f)
 
 uuid = UUID(hex=config.get('device', 'uuid'))
