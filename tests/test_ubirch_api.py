@@ -21,6 +21,7 @@ import logging
 import unittest
 import uuid
 from json import JSONDecodeError
+from ubirch.ubirch_api import KEY_SERVICE, AVATAR_SERVICE, CHAIN_SERVICE, NOTARY_SERVICE
 
 import msgpack
 import requests_mock
@@ -45,29 +46,29 @@ class TestUbirchAPI(unittest.TestCase):
     def test_create_api_defaults(self):
         api = ubirch.API()
 
-        self.assertEqual(TEST_LOCAL_KEY_SERVICE, api.KEY_SERVICE)
-        self.assertEqual(TEST_LOCAL_AVATAR_SERVICE, api.AVATAR_SERVICE)
-        self.assertEqual(TEST_LOCAL_CHAIN_SERVICE, api.CHAIN_SERVICE)
-        self.assertEqual(TEST_LOCAL_NOTARY_SERVICE, api.NOTARY_SERVICE)
+        self.assertEqual(TEST_LOCAL_KEY_SERVICE, api.get_url(KEY_SERVICE))
+        self.assertEqual(TEST_LOCAL_AVATAR_SERVICE, api.get_url(AVATAR_SERVICE))
+        self.assertEqual(TEST_LOCAL_CHAIN_SERVICE, api.get_url(CHAIN_SERVICE))
+        self.assertEqual(TEST_LOCAL_NOTARY_SERVICE, api.get_url(NOTARY_SERVICE))
         self.assertDictEqual({}, api._auth)
 
     def test_create_api_with_auth(self):
         AUTH_TOKEN = "ABC:TOKEN:DEF"
         api = ubirch.API(auth=AUTH_TOKEN)
 
-        self.assertEqual(TEST_LOCAL_KEY_SERVICE, api.KEY_SERVICE)
-        self.assertEqual(TEST_LOCAL_AVATAR_SERVICE, api.AVATAR_SERVICE)
-        self.assertEqual(TEST_LOCAL_CHAIN_SERVICE, api.CHAIN_SERVICE)
-        self.assertEqual(TEST_LOCAL_NOTARY_SERVICE, api.NOTARY_SERVICE)
+        self.assertEqual(TEST_LOCAL_KEY_SERVICE, api.get_url(KEY_SERVICE))
+        self.assertEqual(TEST_LOCAL_AVATAR_SERVICE, api.get_url(AVATAR_SERVICE))
+        self.assertEqual(TEST_LOCAL_CHAIN_SERVICE, api.get_url(CHAIN_SERVICE))
+        self.assertEqual(TEST_LOCAL_NOTARY_SERVICE, api.get_url(NOTARY_SERVICE))
         self.assertDictEqual({'Authorization': AUTH_TOKEN}, api._auth)
 
     def test_create_api_with_env(self):
         api = ubirch.API(env='test')
 
-        self.assertEqual(TEST_ENV_KEY_SERVICE.format("test"), api.KEY_SERVICE)
-        self.assertEqual(TEST_ENV_AVATAR_SERVICE.format("test"), api.AVATAR_SERVICE)
-        self.assertEqual(TEST_ENV_CHAIN_SERVICE.format("test"), api.CHAIN_SERVICE)
-        self.assertEqual(TEST_ENV_NOTARY_SERVICE.format("test"), api.NOTARY_SERVICE)
+        self.assertEqual(TEST_ENV_KEY_SERVICE.format("test"), api.get_url(KEY_SERVICE))
+        self.assertEqual(TEST_ENV_AVATAR_SERVICE.format("test"), api.get_url(AVATAR_SERVICE))
+        self.assertEqual(TEST_ENV_CHAIN_SERVICE.format("test"), api.get_url(CHAIN_SERVICE))
+        self.assertEqual(TEST_ENV_NOTARY_SERVICE.format("test"), api.get_url(NOTARY_SERVICE))
 
     def test_create_api_with_debug(self):
         import http.client as http_client

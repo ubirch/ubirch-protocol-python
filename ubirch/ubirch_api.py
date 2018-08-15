@@ -27,6 +27,11 @@ from requests import Response
 
 logger = getLogger(__name__)
 
+KEY_SERVICE = "key"
+AVATAR_SERVICE = "avatar"
+CHAIN_SERVICE = "chain"
+NOTARY_SERVICE = "notary"
+
 
 class API(object):
     """ubirch API accessor methods."""
@@ -48,15 +53,22 @@ class API(object):
             self._auth = {}
 
         if env is None:
-            self.KEY_SERVICE = "http://localhost:8095/api/keyService/v1"
-            self.AVATAR_SERVICE = "http://localhost:8080/api/avatarService/v1"
-            self.CHAIN_SERVICE = "http://localhost:8097/api/v1/chainService"
-            self.NOTARY_SERVICE = "https://localhost:8098/api/v1/notaryService"
+            self._services = {
+                KEY_SERVICE: "http://localhost:8095/api/keyService/v1",
+                AVATAR_SERVICE: "http://localhost:8080/api/avatarService/v1",
+                CHAIN_SERVICE: "http://localhost:8097/api/v1/chainService",
+                NOTARY_SERVICE: "https://localhost:8098/api/v1/notaryService"
+            }
         else:
-            self.KEY_SERVICE = "https://key.{}.ubirch.com/api/keyService/v1".format(env)
-            self.AVATAR_SERVICE = "https://api.ubirch.{}.ubirch.com/api/avatarService/v1".format(env)
-            self.CHAIN_SERVICE = "https://api.ubirch.{}.ubirch.com/api/v1/chainService".format(env)
-            self.NOTARY_SERVICE = "http://n.dev.ubirch.com:8080/v1/notaryService".format(env)
+            self._services = {
+                KEY_SERVICE: "https://key.{}.ubirch.com/api/keyService/v1".format(env),
+                AVATAR_SERVICE: "https://api.ubirch.{}.ubirch.com/api/avatarService/v1".format(env),
+                CHAIN_SERVICE: "https://api.ubirch.{}.ubirch.com/api/v1/chainService".format(env),
+                NOTARY_SERVICE: "http://n.dev.ubirch.com:8080/v1/notaryService".format(env)
+            }
+
+    def get_url(self, service: str) -> str or None:
+        return self._services.get(service, None)
 
     def is_identity_registered(self, uuid: UUID) -> bool:
         """
@@ -65,7 +77,7 @@ class API(object):
         :return: true if the identity exists
         """
         logger.info("is identity registered?: {}".format(uuid))
-        r = requests.get(self.KEY_SERVICE + "/pubkey/current/hardwareId/" + str(uuid),
+        r = requests.get(self.get_url(KEY_SERVICE) + "/pubkey/current/hardwareId/" + str(uuid),
                          headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r.status_code == 200 and r.json()
@@ -84,14 +96,14 @@ class API(object):
 
     def _register_identity_json(self, key_registration: dict) -> Response:
         logger.info("register device identity [json]: {}".format(key_registration))
-        r = requests.post(self.KEY_SERVICE + '/pubkey', json=key_registration,
+        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey', json=key_registration,
                           headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def _register_identity_mpack(self, key_registration: bytes) -> Response:
         logger.info("register device identity [msgpack]: {}".format(binascii.hexlify(key_registration)))
-        r = requests.post(self.KEY_SERVICE + '/pubkey/mpack', data=key_registration,
+        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/mpack', data=key_registration,
                           headers={'Content-Type': 'application/octet-stream', **self._auth})
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
@@ -103,7 +115,7 @@ class API(object):
         :return: true of it exists
         """
         logger.info("device exists?: {}".format(uuid))
-        r = requests.get(self.AVATAR_SERVICE + '/device/' + str(uuid),
+        r = requests.get(self.get_url(AVATAR_SERVICE) + '/device/' + str(uuid),
                          headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r.status_code == 200
@@ -115,7 +127,7 @@ class API(object):
         :return: true of the deletion succeeded
         """
         logger.info("delete device: {}".format(uuid))
-        r = requests.delete(self.AVATAR_SERVICE + '/device/' + str(uuid), headers=self._auth)
+        r = requests.delete(self.get_url(AVATAR_SERVICE) + '/device/' + str(uuid), headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r.status_code == 200
 
@@ -126,7 +138,7 @@ class API(object):
         :return: the response from the server
         """
         logger.info("create device: {}".format(device_info))
-        r = requests.post(self.AVATAR_SERVICE + '/device',
+        r = requests.post(self.get_url(AVATAR_SERVICE) + '/device',
                           json=device_info,
                           headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
@@ -149,10 +161,7 @@ class API(object):
         :param data: the data to anchor
         :return: the response from the server
         """
-        if data.startswith(b'{'):
-            raise Exception("unsupported data type: json")
-
-        r = requests.post(self.NOTARY_SERVICE + '/notarize',
+        r = requests.post(self.get_url(NOTARY_SERVICE) + '/notarize',
                           json={"data": bytes.decode(binascii.hexlify(data[-64:])), "dataIsHash": True},
                           headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
@@ -161,7 +170,7 @@ class API(object):
     def _send_json(self, data: dict) -> Response:
         payload = str.encode(json.dumps(data, sort_keys=True, separators=(',', ':')))
         logger.debug(json)
-        r = requests.post(self.AVATAR_SERVICE + '/device/update',
+        r = requests.post(self.get_url(AVATAR_SERVICE) + '/device/update',
                           headers={'Content-Type': 'application/json'},
                           data=payload)
         logger.debug("{}: {}".format(r.status_code, r.content))
@@ -169,6 +178,6 @@ class API(object):
 
     def _send_mpack(self, data: bytes) -> Response:
         logger.debug(data)
-        r = requests.post(self.AVATAR_SERVICE + '/device/update/mpack', data=data)
+        r = requests.post(self.get_url(AVATAR_SERVICE) + '/device/update/mpack', data=data)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
