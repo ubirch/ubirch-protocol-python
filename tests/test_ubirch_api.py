@@ -111,6 +111,17 @@ class TestUbirchAPI(unittest.TestCase):
         self.assertTrue(ubirch.API().register_identity(msgpack.packb([1, 2, 3])))
 
     @requests_mock.mock()
+    def test_deregister_identity_json(self, mock):
+        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
+        self.assertTrue(ubirch.API().deregister_identity(str.encode(json.dumps({}))))
+
+    @unittest.expectedFailure
+    @requests_mock.mock()
+    def test_deregister_identity_msgpack(self, mock):
+        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
+        self.assertTrue(ubirch.API().deregister_identity(msgpack.packb([1, 2, 3])))
+
+    @requests_mock.mock()
     def test_device_exists(self, mock):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
         self.assertTrue(ubirch.API().device_exists(uuid.uuid4()))

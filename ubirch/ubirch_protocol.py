@@ -61,6 +61,14 @@ class Protocol(object):
         """
         return self._signatures
 
+    def reset_signature(self, uuid: UUID) -> None:
+        """
+        Reset the last saved signature for this UUID.
+        :param uuid: the UUID to reset
+        """
+        if uuid in self._signatures:
+            del self._signatures[uuid]
+
     @abstractmethod
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         """
@@ -94,7 +102,7 @@ class Protocol(object):
         msg[-1] = signature
         return (signature, self.__serialize(msg))
 
-    def message_signed(self, uuid: UUID, type: int, payload: any) -> bytes:
+    def message_signed(self, uuid: UUID, type: int, payload: any, save_signature: bool = False) -> bytes:
         """
         Create a new signed ubirch-protocol message.
         :param uuid: the uuid of the device that sends the message, part of the envelope
@@ -113,7 +121,8 @@ class Protocol(object):
         ]
 
         (signature, serialized) = self.__sign(uuid, msg)
-        self._signatures[uuid] = signature
+        if save_signature:
+            self._signatures[uuid] = signature
 
         # serialize result and return the message
         return serialized

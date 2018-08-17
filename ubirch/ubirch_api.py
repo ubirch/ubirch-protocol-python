@@ -76,7 +76,7 @@ class API(object):
         :param uuid: the UUID of the identity to check
         :return: true if the identity exists
         """
-        logger.info("is identity registered?: {}".format(uuid))
+        logger.debug("is identity registered?: {}".format(uuid))
         r = requests.get(self.get_url(KEY_SERVICE) + "/pubkey/current/hardwareId/" + str(uuid),
                          headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
@@ -89,24 +89,45 @@ class API(object):
         :return: the response from the server
         """
         if key_registration.startswith(b'{'):
-            logger.debug(key_registration)
             return self._register_identity_json(json.loads(bytes.decode(key_registration)))
         else:
             return self._register_identity_mpack(key_registration)
 
+    def deregister_identity(self, key_deregistration: bytes) -> Response:
+        """
+        De-register an identity at the backend. Deletes the public key.
+        :param key_deregistration: the public key signed
+        :return: the response from the server
+        """
+        if key_deregistration.startswith(b'{'):
+            return self._deregister_identity_json(json.loads(bytes.decode(key_deregistration)))
+        else:
+            return self._deregister_identity_mpack(key_deregistration)
+
     def _register_identity_json(self, key_registration: dict) -> Response:
-        logger.info("register device identity [json]: {}".format(key_registration))
+        logger.debug("register device identity [json]: {}".format(key_registration))
         r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey', json=key_registration,
                           headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def _register_identity_mpack(self, key_registration: bytes) -> Response:
-        logger.info("register device identity [msgpack]: {}".format(binascii.hexlify(key_registration)))
+        logger.debug("register device identity [msgpack]: {}".format(binascii.hexlify(key_registration)))
         r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/mpack', data=key_registration,
                           headers={'Content-Type': 'application/octet-stream', **self._auth})
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
+
+    def _deregister_identity_json(self, key_deregistration: dict) -> Response:
+        logger.debug("de-register device identity [json]: {}".format(key_deregistration))
+        r = requests.delete(self.get_url(KEY_SERVICE) + '/pubkey', json=key_deregistration,
+                            headers=self._auth)
+        logger.debug("{}: {}".format(r.status_code, r.content))
+        return r
+        pass
+
+    def _deregister_identity_mpack(self, key_deregistration: bytes) -> Response:
+        raise NotImplementedError("msgpack identity deregistration not supported yet")
 
     def device_exists(self, uuid: UUID) -> bool:
         """
@@ -114,7 +135,7 @@ class API(object):
         :param uuid: the UUID of the device
         :return: true of it exists
         """
-        logger.info("device exists?: {}".format(uuid))
+        logger.debug("device exists?: {}".format(uuid))
         r = requests.get(self.get_url(AVATAR_SERVICE) + '/device/' + str(uuid),
                          headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
@@ -126,7 +147,7 @@ class API(object):
         :param uuid: the UUID of the device
         :return: true of the deletion succeeded
         """
-        logger.info("delete device: {}".format(uuid))
+        logger.debug("delete device: {}".format(uuid))
         r = requests.delete(self.get_url(AVATAR_SERVICE) + '/device/' + str(uuid), headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r.status_code == 200
@@ -137,7 +158,7 @@ class API(object):
         :param device_info: a device descriptor
         :return: the response from the server
         """
-        logger.info("create device: {}".format(device_info))
+        logger.debug("create device: {}".format(device_info))
         r = requests.post(self.get_url(AVATAR_SERVICE) + '/device',
                           json=device_info,
                           headers=self._auth)

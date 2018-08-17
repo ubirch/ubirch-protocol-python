@@ -85,7 +85,7 @@ class KeyStore(object):
         self.insert_ed25519_verifying_key(uuid, vk)
         self.insert_ed25519_signing_key(uuid, sk)
         self._ks.save(self._ks_file, self._ks_password)
-        logger.info("created new key pair for {}: {}".format(uuid.hex, bytes.decode(vk.to_ascii(encoding='hex'))))
+        logger.info("inserted new key pair for {}: {}".format(uuid.hex, bytes.decode(vk.to_ascii(encoding='hex'))))
         return (vk, sk)
 
     def create_ed25519_keypair(self, uuid: UUID) -> (VerifyingKey, SigningKey):

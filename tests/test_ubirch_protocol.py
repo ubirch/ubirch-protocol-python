@@ -148,5 +148,24 @@ class TestUbirchProtocol(unittest.TestCase):
         self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
 
         # sign a message and expect the last signature for this UUID to change
-        p.message_signed(TEST_UUID, 0xEF, 1)
+        p.message_signed(TEST_UUID, 0xEF, 1, True)
         self.assertEqual({TEST_UUID: EXPECTED_SIGNED[-64:]}, p.get_saved_signatures())
+
+    def test_set_saved_signatures_unchanged(self):
+        p = TestProtocol()
+        p.set_saved_signatures({TEST_UUID: "1234567890"})
+        self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
+
+        # sign a message and do not save the last signature
+        p.message_signed(TEST_UUID, 0xEF, 1, False)
+        self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
+
+    def test_reset_saved_signatures(self):
+        p = TestProtocol()
+        p.set_saved_signatures({TEST_UUID: "1234567890"})
+        self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
+
+        # sign a message and expect the last signature for this UUID to change
+        p.message_signed(TEST_UUID, 0xEF, 1, True)
+        p.reset_signature(TEST_UUID)
+        self.assertEqual({}, p.get_saved_signatures())
