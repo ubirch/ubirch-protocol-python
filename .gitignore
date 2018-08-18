@@ -7,3 +7,5 @@
 *.sig
 *.jks
 *.egg-info
+build
+dist
