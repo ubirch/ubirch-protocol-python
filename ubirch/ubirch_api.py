@@ -113,8 +113,9 @@ class API(object):
 
     def _register_identity_mpack(self, key_registration: bytes) -> Response:
         logger.debug("register device identity [msgpack]: {}".format(binascii.hexlify(key_registration)))
-        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/mpack', data=key_registration,
-                          headers={'Content-Type': 'application/octet-stream', **self._auth})
+        headers = {'Content-Type': 'application/octet-stream'}
+        headers.update(self._auth)
+        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/mpack', data=key_registration, headers=headers)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
