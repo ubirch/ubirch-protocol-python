@@ -116,8 +116,8 @@ r = api.device_create({
     "tags": ["demo", "python-client"],
     "groups": groups,
     "deviceProperties": {
-        "storesData": "true",
-        "blockChain": "false"
+        "storesData": True,
+        "blockChain": False
     },
     "created": "{}Z".format(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3])
 })
@@ -141,16 +141,22 @@ if not api.is_identity_registered(uuid):
 
 # send data packages
 
-# message 1
+# message 1 - binary message no payload interpretation
+msg = proto.message_chained(uuid, 0x00, bytearray([1,2,3,4,5]))
+logger.info(binascii.hexlify(msg))
+r = api.send(msg)
+logger.info("1: {}: {}".format(r.status_code, r.content))
+
+# message 2 - interpreted payload message chained
 msg = proto.message_chained(uuid, 0x53, {'ts': int(datetime.utcnow().timestamp()), 'v': 99})
 logger.info(binascii.hexlify(msg))
 r = api.send(msg)
-logger.info("{}: {}".format(r.status_code, r.content))
+logger.info("2: {}: {}".format(r.status_code, r.content))
 
-# message 2 (chained to message 1)
+# message 3 (chained to message 1)
 msg = proto.message_chained(uuid, 0x53, {"ts": int(datetime.utcnow().timestamp()), "v": 100})
 logger.info(binascii.hexlify(msg))
 r = api.send(msg)
-logger.info("{}: {}".format(r.status_code, r.content))
+logger.info("3: {}: {}".format(r.status_code, r.content))
 
 atexit.register(proto.persist, uuid)
