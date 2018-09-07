@@ -138,7 +138,7 @@ class Protocol(object):
         """
 
         # retrieve last known signature or null bytes
-        last_signature: bytes = self._signatures.get(uuid, b'\0' * 64)
+        last_signature = self._signatures.get(uuid, b'\0' * 64)
 
         # we need to ensure we get a 16bit integer serialized (0xFF | version)
         # the 0xFF is replaced by 0x00 in the serialized code
