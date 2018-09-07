@@ -36,7 +36,7 @@ UBIRCH_PROTOCOL_TYPE_HSK = 0x02
 
 
 class Protocol(object):
-    _signatures: dict = {}
+    _signatures = {}
 
     def __init__(self, signatures: dict = None) -> None:
         """
