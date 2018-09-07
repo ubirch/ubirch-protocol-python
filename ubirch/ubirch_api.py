@@ -80,7 +80,7 @@ class API(object):
         r = requests.get(self.get_url(KEY_SERVICE) + "/pubkey/current/hardwareId/" + str(uuid),
                          headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
-        return r.status_code == 200 and r.json()
+        return r.status_code == requests.codes.ok and r.json()
 
     def register_identity(self, key_registration: bytes) -> Response:
         """
@@ -139,7 +139,7 @@ class API(object):
         r = requests.get(self.get_url(AVATAR_SERVICE) + '/device/' + str(uuid),
                          headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
-        return r.status_code == 200
+        return r.status_code == requests.codes.ok
 
     def device_delete(self, uuid: UUID) -> bool:
         """
@@ -150,7 +150,7 @@ class API(object):
         logger.debug("delete device: {}".format(uuid))
         r = requests.delete(self.get_url(AVATAR_SERVICE) + '/device/' + str(uuid), headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
-        return r.status_code == 200
+        return r.status_code == requests.codes.ok
 
     def device_create(self, device_info: dict) -> Response:
         """

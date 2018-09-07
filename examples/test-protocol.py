@@ -25,6 +25,8 @@ import time
 from datetime import datetime
 from uuid import UUID, uuid4
 
+import requests
+
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG
 
@@ -121,7 +123,7 @@ r = api.device_create({
     },
     "created": "{}Z".format(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3])
 })
-if r.status_code == 200:
+if r.status_code == requests.codes.ok:
     logger.info("created new device: {}".format(str(uuid)))
     logger.debug(r.content)
     time.sleep(2)
@@ -133,7 +135,7 @@ else:
 if not api.is_identity_registered(uuid):
     registration_message = proto.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, keystore.get_certificate(uuid))
     r = api.register_identity(registration_message)
-    if r.status_code == 200:
+    if r.status_code == requests.codes.ok:
         logger.info("registered new identity: {}".format(uuid))
     else:
         logger.error("device registration failed: {}".format(uuid))
