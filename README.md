@@ -125,9 +125,18 @@ keystore.insert_ed25519_keypair(hwDeviceId, vk, sk)
 
 ### Running the example
 
+#### Setting Up The Environment (Ubuntu 16.04)
+
+```bash
+sudo apt install python3-pip
+```
+
+#### Running the Test Script
+
 ```bash
 python3 -m venv venv3
-pip install -r requirements.txt
+pip3 install -r requirements.txt
+pip3 install ubirch-protocol
 python3 examples/test-protocol.py
 ```
 
