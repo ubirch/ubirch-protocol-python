@@ -125,14 +125,6 @@ keystore.insert_ed25519_keypair(hwDeviceId, vk, sk)
 
 ### Running the example
 
-#### Setting Up The Environment (Ubuntu 16.04)
-
-```bash
-sudo apt install python3-pip
-```
-
-#### Running the Test Script
-
 ```bash
 python3 -m venv venv3
 . venv3/bin/activate
