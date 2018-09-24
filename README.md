@@ -137,7 +137,7 @@ sudo apt install python3-pip
 python3 -m venv venv3
 . venv3/bin/activate
 pip install -r requirements.txt
-pip3 install ubirch-protocol
+pip install ubirch-protocol
 python3 examples/test-protocol.py
 ```
 
