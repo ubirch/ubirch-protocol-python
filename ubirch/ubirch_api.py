@@ -119,17 +119,15 @@ class API(object):
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
-    def _trust_identity_json(self, signed_trust: dict) -> Response:
+    def trust_identity_json(self, signed_trust: dict) -> Response:
         logger.debug("trust an identity [json]: {}".format(signed_trust))
-        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/trust', json=signed_trust,
-                          headers=self._auth)
+        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/trust', json=signed_trust)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
-    def _get_trusted_identities_json(self, get_trusted: dict) -> Response:
-        logger.debug("trust an identity [json]: {}".format(get_trusted))
-        r = requests.get(self.get_url(KEY_SERVICE) + '/pubkey/trusted', json=get_trusted,
-                          headers=self._auth)
+    def get_trusted_identities_json(self, get_trusted: dict) -> Response:
+        logger.debug("get trusted identities [json]: {}".format(get_trusted))
+        r = requests.get(self.get_url(KEY_SERVICE) + '/pubkey/trusted', json=get_trusted)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 

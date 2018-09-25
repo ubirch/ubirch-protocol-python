@@ -146,6 +146,55 @@ The script goes through a number of steps:
 4. registers the new identity with the backend
 5. sends two consecutive chained messages to the backend
 
+### Example: Web-of-Trust
+
+#### Before First Execution
+
+```bash
+python3 -m venv venv3
+pip install -r requirements.txt
+pip install ubirch-protocol
+```
+
+#### Running The Example
+
+```bash
+. venv3/bin/activate
+python3 examples/test-web-of-trust.py
+```
+
+During first launch the script generates key pairs for two users. Each user has one device and key pairs are created for 
+these, too. All key pairs are stored in `test-web-of-trust.jks` while the association of users, their device and the 
+respective key pair is stored in `demo-web-of-trust.ini`. In consecutive runs no new key pairs are generated and instead
+the ones referenced in `demo-web-of-trust.ini` are used.
+
+The script always uploads all public keys, followed by creating and uploading a web-of-trust and searching all public 
+keys trusted by `deviceA`. This search is repeated with different parameters. The results are then printed onto the
+terminal.
+
+The web-of-trust created looks as follows (trust knows a direction; always bidirectional in this example):
+
+```
+deviceA <--trustLevel=100--> user1 <--trustLevel=50--> user2 <--trustLevel=100--> deviceB
+```
+
+The first search for all trusted keys is for a minimum trust of 50 and a depth of 3 resulting in the the following keys
+being found:
+
+* user1
+* user2
+* deviceB
+
+The second search increases the minimum trust to 60 resulting in:
+
+* user1
+
+And the third search is with a minimum trust of 50 again while the depth is now 2 resulting in:
+
+* user1
+* user2
+
+
 ### Testing
 
 Unit tests are added to test the functionality of all objects provided in this library.
