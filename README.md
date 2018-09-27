@@ -13,6 +13,8 @@ The library consists of three parts which can be used individually:
 > the [ubirch](https://ubirch.com) protocol uses the [Ed25519](https://ed25519.cr.yp.to/) signature scheme by default.
  
 ## Usage
+
+Install the library: `pip install ubirch-protocol`
   
 ### Creating keypair and messages
 
@@ -130,7 +132,7 @@ python3 -m venv venv3
 . venv3/bin/activate
 pip install -r requirements.txt
 pip install ubirch-protocol
-python3 examples/test-protocol.py
+PYTHONPATH=. python3 examples/test-protocol.py
 ```
 
 At the first launch the script generates a random UUID for your device and you will be asked
@@ -153,14 +155,13 @@ The script goes through a number of steps:
 ```bash
 python3 -m venv venv3
 pip install -r requirements.txt
-pip install ubirch-protocol
 ```
 
 #### Running The Example
 
 ```bash
 . venv3/bin/activate
-python3 examples/test-web-of-trust.py
+PYTHONPATH=. python3 examples/test-web-of-trust.py
 ```
 
 During first launch the script generates key pairs for two users. Each user has one device and key pairs are created for 
