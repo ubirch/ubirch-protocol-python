@@ -105,22 +105,34 @@ class API(object):
             return self._deregister_identity_mpack(key_deregistration)
 
     def _register_identity_json(self, key_registration: dict) -> Response:
-        logger.debug("register device identity [json]: {}".format(key_registration))
+        logger.debug("register identity [json]: {}".format(key_registration))
         r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey', json=key_registration,
                           headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def _register_identity_mpack(self, key_registration: bytes) -> Response:
-        logger.debug("register device identity [msgpack]: {}".format(binascii.hexlify(key_registration)))
+        logger.debug("register identity [msgpack]: {}".format(binascii.hexlify(key_registration)))
         headers = {'Content-Type': 'application/octet-stream'}
         headers.update(self._auth)
         r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/mpack', data=key_registration, headers=headers)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
+    def trust_identity_json(self, signed_trust: dict) -> Response:
+        logger.debug("trust an identity [json]: {}".format(signed_trust))
+        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/trust', json=signed_trust)
+        logger.debug("{}: {}".format(r.status_code, r.content))
+        return r
+
+    def get_trusted_identities_json(self, get_trusted: dict) -> Response:
+        logger.debug("get trusted identities [json]: {}".format(get_trusted))
+        r = requests.get(self.get_url(KEY_SERVICE) + '/pubkey/trusted', json=get_trusted)
+        logger.debug("{}: {}".format(r.status_code, r.content))
+        return r
+
     def _deregister_identity_json(self, key_deregistration: dict) -> Response:
-        logger.debug("de-register device identity [json]: {}".format(key_deregistration))
+        logger.debug("de-register identity [json]: {}".format(key_deregistration))
         r = requests.delete(self.get_url(KEY_SERVICE) + '/pubkey', json=key_deregistration,
                             headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
