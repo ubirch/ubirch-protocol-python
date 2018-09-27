@@ -20,6 +20,8 @@ import base64
 import configparser
 import json
 import logging
+import pickle
+
 import requests
 from datetime import datetime
 from uuid import UUID, uuid4
