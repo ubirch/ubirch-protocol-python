@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-python -m venv venv
+python3 -m venv venv
 . ./venv/bin/activate
 pip --no-cache-dir install -r requirements.txt
 PYTHONPATH=.
@@ -10,7 +10,8 @@ case $1 in
      python -m compileall ubirch tests examples
     ;;
   test)
-    python -m unittest discover -v
+    pip --no-cache-dir install -r requirements.test.txt
+    python -m pytest --junit-xml test-results.xml tests
     ;;
   package)
     ./bin/create_package.sh

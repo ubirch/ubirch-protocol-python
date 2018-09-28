@@ -23,6 +23,7 @@ import unittest
 from uuid import UUID
 
 import ed25519
+import pytest
 
 import ubirch
 from ubirch.ubirch_protocol import SIGNED, CHAINED
@@ -64,7 +65,7 @@ EXPECTED_CHAINED = [
 
 
 # a simple implementation of the ubirch protocol, having a fixed single key (from fixtures)
-class TestProtocol(ubirch.Protocol):
+class Protocol(ubirch.Protocol):
     sk = ed25519.SigningKey(TEST_PRIV)
     vk = ed25519.VerifyingKey(TEST_PUBL)
 
@@ -92,20 +93,20 @@ class TestUbirchProtocol(unittest.TestCase):
             self.assertEqual(e.args[0], 'verification not implemented')
 
     def test_create_signed_message(self):
-        p = TestProtocol()
+        p = Protocol()
         message = p.message_signed(TEST_UUID, 0xEF, 1)
         logger.debug("MESSAGE: %s", binascii.hexlify(message))
         self.assertEqual(EXPECTED_SIGNED, message)
 
     def test_create_chained_messages(self):
-        p = TestProtocol()
+        p = Protocol()
         for i in range(0, 3):
             message = p.message_chained(TEST_UUID, 0xEE, i + 1)
             logger.debug("MESSAGE: %s", binascii.hexlify(message))
             self.assertEqual(EXPECTED_CHAINED[i], message, "message #{} failed".format(i + 1))
 
     def test_verify_signed_message(self):
-        p = TestProtocol()
+        p = Protocol()
         unpacked = p.message_verify(EXPECTED_SIGNED)
         self.assertEqual(SIGNED, unpacked[0])
         self.assertEqual(TEST_UUID.bytes, unpacked[1])
@@ -113,7 +114,7 @@ class TestUbirchProtocol(unittest.TestCase):
         self.assertEqual(1, unpacked[3])
 
     def test_verify_chained_messages(self):
-        p = TestProtocol()
+        p = Protocol()
         last_signature = b'\0' * 64
         for i in range(0, 3):
             unpacked = p.message_verify(EXPECTED_CHAINED[i])
@@ -128,7 +129,7 @@ class TestUbirchProtocol(unittest.TestCase):
     # TODO add randomized message generation and verification
 
     def test_verify_fails_missing_data(self):
-        p = TestProtocol()
+        p = Protocol()
         message = EXPECTED_SIGNED[0:-67]
         try:
             p.message_verify(message)
@@ -137,13 +138,13 @@ class TestUbirchProtocol(unittest.TestCase):
 
 
     def test_set_saved_signatures(self):
-        p = TestProtocol()
+        p = Protocol()
         p.set_saved_signatures({TEST_UUID: "1234567890"})
 
         self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
 
     def test_set_saved_signatures_changed(self):
-        p = TestProtocol()
+        p = Protocol()
         p.set_saved_signatures({TEST_UUID: "1234567890"})
         self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
 
@@ -152,7 +153,7 @@ class TestUbirchProtocol(unittest.TestCase):
         self.assertEqual({TEST_UUID: EXPECTED_SIGNED[-64:]}, p.get_saved_signatures())
 
     def test_set_saved_signatures_unchanged(self):
-        p = TestProtocol()
+        p = Protocol()
         p.set_saved_signatures({TEST_UUID: "1234567890"})
         self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
 
@@ -161,7 +162,7 @@ class TestUbirchProtocol(unittest.TestCase):
         self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
 
     def test_reset_saved_signatures(self):
-        p = TestProtocol()
+        p = Protocol()
         p.set_saved_signatures({TEST_UUID: "1234567890"})
         self.assertEqual({TEST_UUID: "1234567890"}, p.get_saved_signatures())
 

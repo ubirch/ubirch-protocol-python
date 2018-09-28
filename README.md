@@ -201,7 +201,8 @@ And the third search is with a minimum trust of 50 again while the depth is now 
 Unit tests are added to test the functionality of all objects provided in this library.
 
 ```bash
-python3 -m unittest discover
+pip install -r requirements.test.txt
+python3 -m pytest tests
 ``` 
 # License 
 
