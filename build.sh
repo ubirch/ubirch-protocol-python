@@ -11,7 +11,7 @@ case $1 in
     ;;
   test)
     pip --no-cache-dir install -r requirements.test.txt
-    python -m pytest --junit-xml test-results.xml tests
+    python -m pytest --junit-xml test-results/test-report.xml tests
     ;;
   package)
     pip --no-cache-dir install wheel
