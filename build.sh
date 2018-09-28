@@ -2,7 +2,7 @@
 
 python -m venv venv
 . ./venv/bin/activate
-pip install -r requirements.txt
+pip --no-cache-dir install -r requirements.txt
 PYTHONPATH=.
 
 case $1 in
