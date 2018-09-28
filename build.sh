@@ -12,9 +12,8 @@ case $1 in
   test)
     pip --no-cache-dir install -r requirements.test.txt
     python -m pytest --junit-xml test-report.xml tests
-    mv test-report.xml test-report.tmp
-    xmllint --format test-report.tmp > test-report.xml
-    rm test-report.tmp
+    python -c 'import xml.dom.minidom; print(xml.dom.minidom.parse("test-report.xml").toprettyxml())' > /tmp/report.xml
+    mv /tmp/report.xml test-report.xml
     ;;
   package)
     pip --no-cache-dir install wheel
