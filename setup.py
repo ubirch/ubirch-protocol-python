@@ -13,11 +13,11 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/ubirch/ubirch-protocol-python",
     packages=setuptools.find_packages(exclude=['bin', 'docs', 'examples', 'tests*']),
-    classifiers=(
+    classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
-    ),
+    ],
     install_requires=[
         'msgpack>=0.5.6',
         'ed25519>=1.4',
