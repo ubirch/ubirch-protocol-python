@@ -14,6 +14,7 @@ case $1 in
     python -m pytest --junit-xml test-results.xml tests
     ;;
   package)
+    pip --no-cache-dir install wheel
     ./bin/create_package.sh
     ;;
   push)
