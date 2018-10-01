@@ -22,7 +22,7 @@ case $1 in
     pip --no-cache-dir install twine
     VERSION=$(python setup.py --version)
     git tag -a "v$VERSION+$2" -m "release v$VERSION+$2"
-    git describe
+    git push --tags
     ./bin/upload_pypi.sh
     ;;
   *)
