@@ -2,12 +2,11 @@
 
 python3 -m venv venv
 . ./venv/bin/activate
-pip --no-cache-dir install -r requirements.txt
-PYTHONPATH=.
 
 case $1 in
   build)
-     python -m compileall ubirch tests examples
+    pip --no-cache-dir install -r requirements.txt
+    PYTHONPATH=. python -m compileall ubirch tests examples
     ;;
   test)
     pip --no-cache-dir install -r requirements.test.txt
