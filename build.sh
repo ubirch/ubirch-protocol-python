@@ -20,6 +20,7 @@ case $1 in
     ./bin/create_package.sh
     ;;
   push)
+    pip --no-cache-dir install twine
     VERSION=$(python setup.py --version)
     git tag -a "v$VERSION+$2" -m "release v$VERSION+$2"
     git describe
