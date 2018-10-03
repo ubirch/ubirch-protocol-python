@@ -23,7 +23,7 @@ case $1 in
     VERSION=$(python setup.py --version)
     git tag -a "v$VERSION+$2" -m "release v$VERSION+$2"
     git push --tags
-    ./bin/upload_pypi.sh
+    twine upload dist/*
     ;;
   *)
     echo "Usage: $0 { build | test | package | push }"
