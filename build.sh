@@ -15,9 +15,9 @@ case $1 in
     mv /tmp/report.xml test-report.xml
     ;;
   package)
-    VERSION=$(python setup.py --version)
-    TAGGED=$(git describe --exact-match HEAD)
-    if [ "v$VERSION" eq "$TAGGED" ]; then
+    VERSION=v$(python setup.py --version)
+    TAGGED=$(git describe --exact-match HEAD 2>&1)
+    if [ "$VERSION" eq "$TAGGED" ]; then
       pip --no-cache-dir install wheel
       ./bin/create_package.sh
     else
@@ -26,8 +26,8 @@ case $1 in
     fi
     ;;
   push)
-    VERSION=$(python setup.py --version)
-    TAGGED=$(git describe --exact-match HEAD)
+    VERSION=v$(python setup.py --version)
+    TAGGED=$(git describe --exact-match HEAD 2>&1)
     if [ "v$VERSION" eq "$TAGGED" ]; then
       pip --no-cache-dir install twine
       twine upload dist/*
