@@ -21,7 +21,7 @@ case $1 in
       pip --no-cache-dir install wheel
       ./bin/create_package.sh
     else
-      echo "not a tagged version, not packaging"
+      (>&2 echo "ERROR: not a tagged version, not packaging")
       exit -1
     fi
     ;;
@@ -32,7 +32,7 @@ case $1 in
       pip --no-cache-dir install twine
       twine upload dist/*
     else
-      echo "Version does not match tag: '$VERSION' != '$TAGGED', not pushed!"
+      (>&2 echo "ERROR: version does not match tag: '$VERSION' != '$TAGGED', not pushed!")
       exit -1
     fi
     ;;
