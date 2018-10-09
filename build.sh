@@ -15,15 +15,26 @@ case $1 in
     mv /tmp/report.xml test-report.xml
     ;;
   package)
-    pip --no-cache-dir install wheel
-    ./bin/create_package.sh
+    VERSION=$(python setup.py --version)
+    TAGGED=$(git describe --exact-match HEAD)
+    if [ "v$VERSION" eq "$TAGGED" ]; then
+      pip --no-cache-dir install wheel
+      ./bin/create_package.sh
+    else
+      echo "not a tagged version, not packaging"
+      exit -1
+    fi
     ;;
   push)
-    pip --no-cache-dir install twine
     VERSION=$(python setup.py --version)
-    git tag -a "v$VERSION+$2" -m "release v$VERSION+$2"
-    git push --tags
-    twine upload dist/*
+    TAGGED=$(git describe --exact-match HEAD)
+    if [ "v$VERSION" eq "$TAGGED" ]; then
+      pip --no-cache-dir install twine
+      twine upload dist/*
+    else
+      echo "Version does not match tag: '$VERSION' != '$TAGGED', not pushed!"
+      exit -1
+    fi
     ;;
   *)
     echo "Usage: $0 { build | test | package | push }"
