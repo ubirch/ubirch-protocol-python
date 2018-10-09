@@ -93,7 +93,13 @@ class Protocol(object):
     def __serialize(self, msg: any) -> bytearray:
         return bytearray(msgpack.packb(msg))
 
-    def __sign(self, uuid: UUID, msg: any) -> (bytes, bytes):
+    def _prepare_and_sign(self, uuid: UUID, msg: any) -> (bytes, bytes):
+        """
+        Sign the request when finished. The message is first prepared by serializing and hashing it.
+        :param uuid: the uuid of the sender to identify the correct key pair
+        :param msg: the bytes to sign
+        :return: the signature
+        """
         # sign the message and store the signature
         serialized = self.__serialize(msg)[0:-1]
         sha515digest = hashlib.sha512(serialized).digest()
@@ -120,7 +126,7 @@ class Protocol(object):
             0
         ]
 
-        (signature, serialized) = self.__sign(uuid, msg)
+        (signature, serialized) = self._prepare_and_sign(uuid, msg)
         if save_signature:
             self._signatures[uuid] = signature
 
@@ -151,11 +157,22 @@ class Protocol(object):
             0
         ]
 
-        (signature, serialized) = self.__sign(uuid, msg)
+        (signature, serialized) = self._prepare_and_sign(uuid, msg)
         self._signatures[uuid] = signature
 
         # serialize result and return the message
         return serialized
+
+    def _prepare_and_verify(self, uuid: UUID, message: bytes, signature: bytes) -> bytes:
+        """
+        Verify the message. Throws exception if not verifiable. The message is first prepared by hashing it.
+        :param uuid: the uuid of the sender to identify the correct key pair
+        :param message: the message bytes to verify
+        :param signature: the signature to use for verification
+        :return:
+        """
+        message = hashlib.sha512(message).digest()
+        return self._verify(uuid, message, signature)
 
     def message_verify(self, message: bytes) -> dict:
         """
@@ -172,5 +189,5 @@ class Protocol(object):
             signature = unpacked[4]
         else:
             signature = unpacked[5]
-        self._verify(uuid, message[0:-67], signature)
+        self._prepare_and_verify(uuid, message[0:-67], signature)
         return unpacked
