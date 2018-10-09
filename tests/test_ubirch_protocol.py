@@ -17,13 +17,11 @@
 # limitations under the License.
 
 import binascii
-import hashlib
 import logging
 import unittest
 from uuid import UUID
 
 import ed25519
-import pytest
 
 import ubirch
 from ubirch.ubirch_protocol import SIGNED, CHAINED
@@ -73,7 +71,7 @@ class Protocol(ubirch.Protocol):
         return self.sk.sign(message)
 
     def _verify(self, uuid: UUID, message: bytes, signature: bytes) -> bytes:
-        return self.vk.verify(signature, hashlib.sha512(message).digest())
+        return self.vk.verify(signature, message)
 
 
 class TestUbirchProtocol(unittest.TestCase):

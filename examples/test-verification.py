@@ -1,4 +1,3 @@
-import hashlib
 from uuid import UUID
 
 from ed25519 import VerifyingKey
@@ -15,8 +14,7 @@ keystore.insert_ed25519_verifying_key(remote_uuid, remote_vk)
 
 class ProtocolImpl(ubirch.Protocol):
     def _verify(self, uuid: UUID, message: bytes, signature: bytes) -> dict:
-        hash = hashlib.sha512(message).digest()
-        return keystore.find_verifying_key(uuid).verify(signature, hash)
+        return keystore.find_verifying_key(uuid).verify(signature, message)
 
 
 proto = ProtocolImpl(SIGNED)
