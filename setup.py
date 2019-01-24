@@ -19,7 +19,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-        'msgpack>=0.5.6',
+        'msgpack>=0.6.0',
         'ed25519>=1.4',
         'pyjks>=17.1.1',
         'requests>=2.19.1'

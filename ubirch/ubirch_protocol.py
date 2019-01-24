@@ -24,7 +24,7 @@ import msgpack
 logger = logging.getLogger(__name__)
 
 # ubirch-protocol constants
-UBIRCH_PROTOCOL_VERSION = 1
+UBIRCH_PROTOCOL_VERSION = 2
 
 PLAIN = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x01)
 SIGNED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x02)
@@ -80,7 +80,7 @@ class Protocol(object):
         raise NotImplementedError("signing not implemented")
 
     @abstractmethod
-    def _verify(self, uuid: UUID, message: bytes, signature: bytes) -> bytes:
+    def _verify(self, uuid: UUID, message: bytes, signature: bytes):
         """
         Verify the message. Throws exception if not verifiable.
         :param uuid: the uuid of the sender to identify the correct key pair
@@ -91,7 +91,7 @@ class Protocol(object):
         raise NotImplementedError("verification not implemented")
 
     def __serialize(self, msg: any) -> bytearray:
-        return bytearray(msgpack.packb(msg))
+        return bytearray(msgpack.packb(msg, use_bin_type=True))
 
     def _prepare_and_sign(self, uuid: UUID, msg: any) -> (bytes, bytes):
         """
@@ -174,7 +174,7 @@ class Protocol(object):
         message = hashlib.sha512(message).digest()
         return self._verify(uuid, message, signature)
 
-    def message_verify(self, message: bytes) -> dict:
+    def message_verify(self, message: bytes) -> list:
         """
         Verify the integrity of the message and decode the contents.
         Throws an exception if the message is not verifiable.
@@ -183,11 +183,17 @@ class Protocol(object):
         """
         if len(message) < 70:
             raise Exception("message format wrong (size < 70 bytes): {}".format(len(message)))
-        unpacked = msgpack.unpackb(message)
-        uuid = UUID(bytes=unpacked[1])
-        if unpacked[0] == SIGNED:
-            signature = unpacked[4]
-        else:
-            signature = unpacked[5]
-        self._prepare_and_verify(uuid, message[0:-67], signature)
+
+        unpacker = msgpack.Unpacker()
+        unpacker.feed(message)
+
+        unpacked = []
+        # unpack all entries, except the last one, remember the byte index for signature verification
+        for n in range(0, unpacker.read_array_header() - 1):
+            unpacked.append(unpacker.unpack())
+        signatureIndex = unpacker.tell()
+        unpacked.append(unpacker.unpack())
+
+        # verify the message using extracted values
+        self._prepare_and_verify(UUID(bytes=unpacked[1]), message[0:signatureIndex], unpacked[-1])
         return unpacked

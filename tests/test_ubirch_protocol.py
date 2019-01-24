@@ -18,6 +18,7 @@
 
 import binascii
 import logging
+import os
 import unittest
 from uuid import UUID
 
@@ -34,31 +35,31 @@ TEST_PRIV = bytes.fromhex("a6abdc5466e0ab864285ba925452d02866638a8acb5ebdc065d25
 TEST_PUBL = bytes.fromhex("b12a906051f102881bbb487ee8264aa05d8d0fcc51218f2a47f562ceb9b0d068")
 
 # expected simple signed message
-EXPECTED_SIGNED = bytes.fromhex(
-    "9512b06eac4d0b16e645088c4622e7451ea5a1ccef01da0040578a5b22ceb3e1"
-    "d0d0f8947c098010133b44d3b1d2ab398758ffed11507b607ed37dbbe006f645"
-    "f0ed0fdbeb1b48bb50fd71d832340ce024d5a0e21c0ebc8e0e")
+EXPECTED_SIGNED = bytearray(bytes.fromhex(
+    "9522c4106eac4d0b16e645088c4622e7451ea5a1ccef01"
+    "c440c8f1c19fb64ca6ecd68a336bbffb39e8f4e6ee686de725ce9e23f76945fc2d"
+    "734b4e77f9f02cb0bb2d4f8f8e361efc5ea10033bdc741a24cff4d7eb08db6340b"))
 
 # expected sequence of chained messages
 EXPECTED_CHAINED = [
-    bytes.fromhex(
-        "9613b06eac4d0b16e645088c4622e7451ea5a1da004000000000000000000000"
+    bytearray(bytes.fromhex(
+        "9623c4106eac4d0b16e645088c4622e7451ea5a1c44000000000000000000000"
         "0000000000000000000000000000000000000000000000000000000000000000"
-        "00000000000000000000000000000000000000000000ccee01da00408e58872a"
-        "8a3baa13ec28dd9cf22957f28fb4d2e7e048f2d3f61fe2c7f45f3c46d4b4f95a"
-        "eae3dacf0359f15617492e82fb21635b8ff6a420dc61dd3a16f85c09"),
-    bytes.fromhex(
-        "9613b06eac4d0b16e645088c4622e7451ea5a1da00408e58872a8a3baa13ec28"
-        "dd9cf22957f28fb4d2e7e048f2d3f61fe2c7f45f3c46d4b4f95aeae3dacf0359"
-        "f15617492e82fb21635b8ff6a420dc61dd3a16f85c09ccee02da0040da8777b7"
-        "2b80d9708e6956c1a2164f5f04f085d5595787faf3521672bcc172071cfe90b3"
-        "37cc94118258ede362cf1d3e078b9ae2aff4e038e6f8c8658e8f530e"),
-    bytes.fromhex(
-        "9613b06eac4d0b16e645088c4622e7451ea5a1da0040da8777b72b80d9708e69"
-        "56c1a2164f5f04f085d5595787faf3521672bcc172071cfe90b337cc94118258"
-        "ede362cf1d3e078b9ae2aff4e038e6f8c8658e8f530eccee03da0040a9bed504"
-        "5af0379bd2e999e51a8d97e459517bc539a576a3f0a3c9f109d5b737ab0535d7"
-        "8418e9d9d65188fcfb2c70a020237b451366dd8dcacd1b5b23cd4609")
+        "00000000000000000000000000000000000000000000ccee01c440296544cbaf"
+        "aae7646422c7f5cf8c7e8d0767df257b6d66e237f0f98ca8375eb44dc1564607"
+        "85984b570196ea6834e210dcf991fbbb6cd986a50ae2e2b5268f09")),
+    bytearray(bytes.fromhex(
+        "9623c4106eac4d0b16e645088c4622e7451ea5a1c440296544cbafaae7646422"
+        "c7f5cf8c7e8d0767df257b6d66e237f0f98ca8375eb44dc156460785984b5701"
+        "96ea6834e210dcf991fbbb6cd986a50ae2e2b5268f09ccee02c44033c137b6ca"
+        "f084a5c480a0f129650507f0236be63da60c1cdc89ae4576c5e8b4dd26945ad5"
+        "84c2c76ba130e1d46f9ae65e59e99f4f16c379329ab6aaf04ab107")),
+    bytearray(bytes.fromhex(
+        "9623c4106eac4d0b16e645088c4622e7451ea5a1c44033c137b6caf084a5c480"
+        "a0f129650507f0236be63da60c1cdc89ae4576c5e8b4dd26945ad584c2c76ba1"
+        "30e1d46f9ae65e59e99f4f16c379329ab6aaf04ab107ccee03c440a0a6247a71"
+        "e31626831d00ba06e0a5bf1a608da1ab8cbdc92664d1675b95a9d92c444ffe2a"
+        "9ead4e39b187ed4b95c1ad32e06b9795897cdc568c84230fc8c90c"))
 ]
 
 
@@ -70,7 +71,7 @@ class Protocol(ubirch.Protocol):
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         return self.sk.sign(message)
 
-    def _verify(self, uuid: UUID, message: bytes, signature: bytes) -> bytes:
+    def _verify(self, uuid: UUID, message: bytes, signature: bytes):
         return self.vk.verify(signature, message)
 
 
@@ -134,7 +135,6 @@ class TestUbirchProtocol(unittest.TestCase):
         except Exception as e:
             self.assertEqual(e.args[0], "message format wrong (size < 70 bytes): {}".format(len(message)))
 
-
     def test_set_saved_signatures(self):
         p = Protocol()
         p.set_saved_signatures({TEST_UUID: "1234567890"})
@@ -168,3 +168,27 @@ class TestUbirchProtocol(unittest.TestCase):
         p.message_signed(TEST_UUID, 0xEF, 1, True)
         p.reset_signature(TEST_UUID)
         self.assertEqual({}, p.get_saved_signatures())
+
+    def test_unpack_legacy_trackle_message(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+        with open(os.path.join(loc, "v0.4-trackle-production.mpack"), "rb") as f:
+            message = f.read()
+
+        class ProtocolNoVerify(ubirch.Protocol):
+            def _verify(self, uuid: UUID, message: bytes, signature: bytes) -> bytes:
+                pass
+
+        p = ProtocolNoVerify()
+        unpacked = p.message_verify(message)
+        self.assertEqual(CHAINED & 0x0f, unpacked[0] & 0x0f)
+        self.assertEqual(UUID(bytes=bytes.fromhex("af931b05acca758bc2aaeb98d6f93329")), UUID(bytes=unpacked[1]))
+        self.assertEqual(0x54, unpacked[3])
+
+        payload = unpacked[4]
+        self.assertEqual("v1.0.2-PROD-20180326103205 (v5.6.6)", bytes.decode(payload[0]))
+        self.assertEqual(2766, payload[1])
+        self.assertEqual(3, payload[2])
+        self.assertEqual(736, len(payload[3]))
+        self.assertEqual(3519, payload[3].get(1533846771))
+        self.assertEqual(3914, payload[3].get(1537214378))
