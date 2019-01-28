@@ -17,6 +17,7 @@
 # limitations under the License.
 
 import binascii
+import hashlib
 import logging
 import os
 import unittest
@@ -40,6 +41,14 @@ EXPECTED_SIGNED = bytearray(bytes.fromhex(
     "c440c8f1c19fb64ca6ecd68a336bbffb39e8f4e6ee686de725ce9e23f76945fc2d"
     "734b4e77f9f02cb0bb2d4f8f8e361efc5ea10033bdc741a24cff4d7eb08db6340b"))
 
+EXPECTED_SIGNED_HASH = bytearray(bytes.fromhex(
+    "9522c4106eac4d0b16e645088c4622e7451ea5a1ccefc4404dff4ea340f0a823f1"
+    "5d3f4f01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da"
+    "793a6e79d560e5f7f9bd058a12a280433ed6fa46510ac440c79663647d486d6c4c"
+    "577d12cb34b825988c9eb4a8d322dbd2ceb8b17c99ce3dd34295cf641ea312ee77"
+    "c15a2c9b404a32d67abb414061b7639e1ea5a20ce90b"
+))
+
 # expected sequence of chained messages
 EXPECTED_CHAINED = [
     bytearray(bytes.fromhex(
@@ -61,6 +70,16 @@ EXPECTED_CHAINED = [
         "e31626831d00ba06e0a5bf1a608da1ab8cbdc92664d1675b95a9d92c444ffe2a"
         "9ead4e39b187ed4b95c1ad32e06b9795897cdc568c84230fc8c90c"))
 ]
+
+EXPECTED_CHAINED_HASH = bytearray(bytes.fromhex(
+    "9623c4106eac4d0b16e645088c4622e7451ea5a1c440000000000000000000000000"
+    "00000000000000000000000000000000000000000000000000000000000000000000"
+    "000000000000000000000000000000000000ccefc4404dff4ea340f0a823f15d3f4f"
+    "01ab62eae0e5da579ccb851f8db9dfe84c58b2b37b89903a740e1ee172da793a6e79"
+    "d560e5f7f9bd058a12a280433ed6fa46510ac440dde50cad0db567dee187513e2d11"
+    "bb2d9ba24a85fe6dddc4a0dc0b28fa2cd28bca72a60aa15dda962ae46488c80ae67a"
+    "67445d257c56febf4f3c5221d95c2309"
+))
 
 
 # a simple implementation of the ubirch protocol, having a fixed single key (from fixtures)
@@ -97,12 +116,24 @@ class TestUbirchProtocol(unittest.TestCase):
         logger.debug("MESSAGE: %s", binascii.hexlify(message))
         self.assertEqual(EXPECTED_SIGNED, message)
 
+    def test_create_signed_message_with_hash(self):
+        p = Protocol()
+        message = p.message_signed(TEST_UUID, 0xEF, hashlib.sha512(b'1').digest())
+        logger.debug("MESSAGE: %s", binascii.hexlify(message))
+        self.assertEqual(EXPECTED_SIGNED_HASH, message)
+
     def test_create_chained_messages(self):
         p = Protocol()
         for i in range(0, 3):
             message = p.message_chained(TEST_UUID, 0xEE, i + 1)
             logger.debug("MESSAGE: %s", binascii.hexlify(message))
             self.assertEqual(EXPECTED_CHAINED[i], message, "message #{} failed".format(i + 1))
+
+    def test_create_chained_message_with_hash(self):
+        p = Protocol()
+        message = p.message_chained(TEST_UUID, 0xEF, hashlib.sha512(b'1').digest())
+        logger.debug("MESSAGE: %s", binascii.hexlify(message))
+        self.assertEqual(EXPECTED_CHAINED_HASH, message)
 
     def test_verify_signed_message(self):
         p = Protocol()
