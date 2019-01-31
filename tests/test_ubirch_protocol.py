@@ -237,7 +237,7 @@ class TestUbirchProtocol(unittest.TestCase):
         p = ProtocolNoVerify()
         unpacked = p.message_verify(message)
         self.assertEqual(SIGNED & 0x0f, unpacked[0] & 0x0f)
-        self.assertEqual(1, (unpacked[0] & 0xf0 >> 4))
+        self.assertEqual(1, unpacked[0] >> 4)
         self.assertEqual(UUID(bytes=bytes.fromhex("00000000000000000000000000000000")), UUID(bytes=unpacked[1]))
         self.assertEqual(0x01, unpacked[2])
 
