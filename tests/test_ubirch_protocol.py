@@ -223,3 +223,31 @@ class TestUbirchProtocol(unittest.TestCase):
         self.assertEqual(736, len(payload[3]))
         self.assertEqual(3519, payload[3].get(1533846771))
         self.assertEqual(3914, payload[3].get(1537214378))
+
+    def test_unpack_register_v1(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+        with open(os.path.join(loc, "v1.0-register.mpack"), "rb") as f:
+            message = f.read()
+
+        class ProtocolNoVerify(ubirch.Protocol):
+            def _verify(self, uuid: UUID, message: bytes, signature: bytes) -> bytes:
+                pass
+
+        p = ProtocolNoVerify()
+        unpacked = p.message_verify(message)
+        self.assertEqual(SIGNED & 0x0f, unpacked[0] & 0x0f)
+        self.assertEqual(1, (unpacked[0] & 0xf0 >> 4))
+        self.assertEqual(UUID(bytes=bytes.fromhex("00000000000000000000000000000000")), UUID(bytes=unpacked[1]))
+        self.assertEqual(0x01, unpacked[2])
+
+        payload = unpacked[3]
+        expectedPubKey = binascii.unhexlify("2c37eee25b08490a9936e0c4d1f8f2091bebdbc3b08e29164e833a33742df91a")
+
+        self.assertEqual(b'ECC_ED25519', payload[b'algorithm'])
+        self.assertEqual( 1542793437, payload[b'created'])
+        self.assertEqual(b'\0'*16, payload[b'hwDeviceId'])
+        self.assertEqual(expectedPubKey, payload[b'pubKey'])
+        self.assertEqual(expectedPubKey, payload[b'pubKeyId'])
+        self.assertEqual( 1574329437, payload[b'validNotAfter'])
+        self.assertEqual( 1542793437, payload[b'validNotBefore'])
