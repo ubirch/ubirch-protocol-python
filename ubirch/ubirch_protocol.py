@@ -121,7 +121,7 @@ class Protocol(object):
         msg = [
             SIGNED,
             uuid.bytes,
-            type,
+            type & 0xffffffff,
             payload,
             0
         ]
@@ -152,7 +152,7 @@ class Protocol(object):
             CHAINED,
             uuid.bytes,
             last_signature,
-            type,
+            type & 0xffffffff,
             payload,
             0
         ]
