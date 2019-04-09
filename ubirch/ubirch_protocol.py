@@ -69,6 +69,15 @@ class Protocol(object):
         if uuid in self._signatures:
             del self._signatures[uuid]
 
+    def _hash(self, message: bytes) -> bytes:
+        """
+        Hash the message before signing. Override this method if
+        a different hash algorithm is used. Default is SHA512.
+        :param message: the message bytes
+        :return: the digest in bytes
+        """
+        return hashlib.sha512(message).digest
+
     @abstractmethod
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         """
@@ -102,8 +111,7 @@ class Protocol(object):
         """
         # sign the message and store the signature
         serialized = self.__serialize(msg)[0:-1]
-        sha515digest = hashlib.sha512(serialized).digest()
-        signature = self._sign(uuid, sha515digest)
+        signature = self._sign(uuid, self._hash(serialized))
         # replace last element in array with the signature
         msg[-1] = signature
         return (signature, self.__serialize(msg))
@@ -171,8 +179,7 @@ class Protocol(object):
         :param signature: the signature to use for verification
         :return:
         """
-        message = hashlib.sha512(message).digest()
-        return self._verify(uuid, message, signature)
+        return self._verify(uuid, self._hash(message), signature)
 
     def message_verify(self, message: bytes) -> list:
         """
