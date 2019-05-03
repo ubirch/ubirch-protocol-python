@@ -19,6 +19,7 @@
 import binascii
 import hashlib
 import logging
+import os
 import unittest
 from uuid import UUID
 
@@ -75,8 +76,7 @@ class Protocol(ubirch.Protocol):
         return self.vk.verify(signature, message)
 
 
-class TestUbirchProtocol(unittest.TestCase):
-
+class TestUbirchProtocolECDSA(unittest.TestCase):
     def test_sign_not_implemented(self):
         p = ubirch.Protocol()
         try:
@@ -170,3 +170,33 @@ class TestUbirchProtocol(unittest.TestCase):
             p.message_verify(message)
         except Exception as e:
             self.assertEqual(e.args[0], "message format wrong (size < 70 bytes): {}".format(len(message)))
+
+
+class TestUbirchProtocolSIM(unittest.TestCase):
+    def test_verify_registration_message_sim(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        with open(os.path.join(loc, "v1.0-ecdsa-register.mpack"), "rb") as f:
+            message = f.read()
+
+        vk = "06784eaaf180c1091a135bfe4804306f696fc56a4a75d12e269bfcafb67498d5a963fb72aaaca9fa3209bdf9b34d249c493bd5cd0a4d3763e425c8f461af50a5"
+        p = Protocol()
+        p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(vk), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+
+        unpacked = p.message_verify(message)
+        logger.debug(repr(unpacked))
+
+        self.assertEqual(vk, binascii.hexlify(unpacked[3][b'pubKey']).decode())
+
+    def test_verify_signed_message_sim(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        with open(os.path.join(loc, "v1.0-ecdsa-message.mpack"), "rb") as f:
+            message = f.read()
+
+        vk = "06784eaaf180c1091a135bfe4804306f696fc56a4a75d12e269bfcafb67498d5a963fb72aaaca9fa3209bdf9b34d249c493bd5cd0a4d3763e425c8f461af50a5"
+        p = Protocol()
+        p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(vk), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+
+        unpacked = p.message_verify(message)
+        logger.debug(repr(unpacked))
+
+        self.assertEqual(hashlib.sha256(b"UBIRCH").digest(), unpacked[3])

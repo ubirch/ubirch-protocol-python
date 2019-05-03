@@ -76,7 +76,7 @@ class Protocol(object):
         :param message: the message bytes
         :return: the digest in bytes
         """
-        return hashlib.sha512(message).digest
+        return hashlib.sha512(message).digest()
 
     @abstractmethod
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
