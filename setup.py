@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ubirch-protocol",
-    version="2.0.0",
+    version="2.0.1",
     author="Matthias L. Jugel",
     author_email="matthias.jugel@ubirch.com",
     description="A ubirch-protocol implementation for python.",
