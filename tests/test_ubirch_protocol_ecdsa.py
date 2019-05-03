@@ -173,7 +173,7 @@ class TestUbirchProtocolECDSA(unittest.TestCase):
 
 
 class TestUbirchProtocolSIM(unittest.TestCase):
-    def test_verify_registration_message_sim(self):
+    def test_verify_registration_message_sim_v1(self):
         loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
         with open(os.path.join(loc, "v1.0-ecdsa-register.mpack"), "rb") as f:
             message = f.read()
@@ -187,12 +187,40 @@ class TestUbirchProtocolSIM(unittest.TestCase):
 
         self.assertEqual(vk, binascii.hexlify(unpacked[3][b'pubKey']).decode())
 
-    def test_verify_signed_message_sim(self):
+    def test_verify_signed_message_sim_v1(self):
         loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
         with open(os.path.join(loc, "v1.0-ecdsa-message.mpack"), "rb") as f:
             message = f.read()
 
         vk = "06784eaaf180c1091a135bfe4804306f696fc56a4a75d12e269bfcafb67498d5a963fb72aaaca9fa3209bdf9b34d249c493bd5cd0a4d3763e425c8f461af50a5"
+        p = Protocol()
+        p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(vk), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+
+        unpacked = p.message_verify(message)
+        logger.debug(repr(unpacked))
+
+        self.assertEqual(hashlib.sha256(b"UBIRCH").digest(), unpacked[3])
+
+    def test_verify_registration_message_sim_v2(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        with open(os.path.join(loc, "v2.0-ecdsa-register.mpack"), "rb") as f:
+            message = f.read()
+
+        vk = "a3c14cff55de8459fe4367a98cc399c19bb74615e24b4254742ff0393d71bd8dd55af363480e2ff201d5dca2603cbd9cd68ffea783cec86ff50aabbc540fc75d"
+        p = Protocol()
+        p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(vk), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+
+        unpacked = p.message_verify(message)
+        logger.debug(repr(unpacked))
+
+        self.assertEqual(vk, binascii.hexlify(unpacked[3][b'pubKey']).decode())
+
+    def test_verify_signed_message_sim_v2(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        with open(os.path.join(loc, "v2.0-ecdsa-message.mpack"), "rb") as f:
+            message = f.read()
+
+        vk =            "a3c14cff55de8459fe4367a98cc399c19bb74615e24b4254742ff0393d71bd8dd55af363480e2ff201d5dca2603cbd9cd68ffea783cec86ff50aabbc540fc75d"
         p = Protocol()
         p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(vk), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
 
