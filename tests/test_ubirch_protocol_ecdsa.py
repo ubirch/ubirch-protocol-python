@@ -220,7 +220,7 @@ class TestUbirchProtocolSIM(unittest.TestCase):
         with open(os.path.join(loc, "v2.0-ecdsa-message.mpack"), "rb") as f:
             message = f.read()
 
-        vk =            "a3c14cff55de8459fe4367a98cc399c19bb74615e24b4254742ff0393d71bd8dd55af363480e2ff201d5dca2603cbd9cd68ffea783cec86ff50aabbc540fc75d"
+        vk = "a3c14cff55de8459fe4367a98cc399c19bb74615e24b4254742ff0393d71bd8dd55af363480e2ff201d5dca2603cbd9cd68ffea783cec86ff50aabbc540fc75d"
         p = Protocol()
         p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(vk), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
 
