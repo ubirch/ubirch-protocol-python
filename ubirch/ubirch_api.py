@@ -15,7 +15,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import base64
 import binascii
 import json
 import logging
@@ -28,9 +28,8 @@ from requests import Response
 logger = getLogger(__name__)
 
 KEY_SERVICE = "key"
-AVATAR_SERVICE = "avatar"
-CHAIN_SERVICE = "chain"
-NOTARY_SERVICE = "notary"
+NIOMON_SERVICE = "niomon"
+VERIFIER_SERVICE = "verify"
 
 
 class API(object):
@@ -52,20 +51,11 @@ class API(object):
         else:
             self._auth = {}
 
-        if env is None:
-            self._services = {
-                KEY_SERVICE: "http://localhost:8095/api/keyService/v1",
-                AVATAR_SERVICE: "http://localhost:8080/api/avatarService/v1",
-                CHAIN_SERVICE: "http://localhost:8097/api/v1/chainService",
-                NOTARY_SERVICE: "https://localhost:8098/api/v1/notaryService"
-            }
-        else:
-            self._services = {
-                KEY_SERVICE: "https://key.{}.ubirch.com/api/keyService/v1".format(env),
-                AVATAR_SERVICE: "https://api.ubirch.{}.ubirch.com/api/avatarService/v1".format(env),
-                CHAIN_SERVICE: "https://api.ubirch.{}.ubirch.com/api/v1/chainService".format(env),
-                NOTARY_SERVICE: "http://n.dev.ubirch.com:8080/v1/notaryService".format(env)
-            }
+        self._services = {
+            KEY_SERVICE: "https://key.{}.ubirch.com/api/keyService/v1".format(env),
+            NIOMON_SERVICE: "https://niomon.{}.ubirch.com/".format(env),
+            VERIFIER_SERVICE: "https://verify.{}.ubirch.com/api/verify".format(env)
+        }
 
     def get_url(self, service: str) -> str or None:
         return self._services.get(service, None)
@@ -137,46 +127,9 @@ class API(object):
                             headers=self._auth)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
-        pass
 
     def _deregister_identity_mpack(self, key_deregistration: bytes) -> Response:
         raise NotImplementedError("msgpack identity deregistration not supported yet")
-
-    def device_exists(self, uuid: UUID) -> bool:
-        """
-        Check if a device exists.
-        :param uuid: the UUID of the device
-        :return: true of it exists
-        """
-        logger.debug("device exists?: {}".format(uuid))
-        r = requests.get(self.get_url(AVATAR_SERVICE) + '/device/' + str(uuid),
-                         headers=self._auth)
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r.status_code == requests.codes.ok
-
-    def device_delete(self, uuid: UUID) -> bool:
-        """
-        Delete a device
-        :param uuid: the UUID of the device
-        :return: true of the deletion succeeded
-        """
-        logger.debug("delete device: {}".format(uuid))
-        r = requests.delete(self.get_url(AVATAR_SERVICE) + '/device/' + str(uuid), headers=self._auth)
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r.status_code == requests.codes.ok
-
-    def device_create(self, device_info: dict) -> Response:
-        """
-        Create a new device in the server using the device info provided.
-        :param device_info: a device descriptor
-        :return: the response from the server
-        """
-        logger.debug("create device: {}".format(device_info))
-        r = requests.post(self.get_url(AVATAR_SERVICE) + '/device',
-                          json=device_info,
-                          headers=self._auth)
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r
 
     def send(self, data: bytes) -> Response:
         """
@@ -189,29 +142,32 @@ class API(object):
         else:
             return self._send_mpack(data)
 
-    def anchor(self, data: bytes) -> Response:
-        """
-        Anchor some data in the blockchain service.
-        :param data: the data to anchor
-        :return: the response from the server
-        """
-        r = requests.post(self.get_url(NOTARY_SERVICE) + '/notarize',
-                          json={"data": bytes.decode(binascii.hexlify(data[-64:])), "dataIsHash": True},
-                          headers=self._auth)
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r
-
     def _send_json(self, data: dict) -> Response:
         payload = str.encode(json.dumps(data, sort_keys=True, separators=(',', ':')))
         logger.debug(json)
-        r = requests.post(self.get_url(AVATAR_SERVICE) + '/device/update',
-                          headers={'Content-Type': 'application/json'},
+        r = requests.post(self.get_url(NIOMON_SERVICE),
+                          headers={'Content-Type': 'application/json'}.update(self._auth),
                           data=payload)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def _send_mpack(self, data: bytes) -> Response:
         logger.debug(data)
-        r = requests.post(self.get_url(AVATAR_SERVICE) + '/device/update/mpack', data=data)
+        r = requests.post(self.get_url(NIOMON_SERVICE),
+                          headers=self._auth,
+                          data=data)
+        logger.debug("{}: {}".format(r.status_code, r.content))
+        return r
+
+    def verify(self, data: bytes) -> Response:
+        """
+        Verify a given hash with the ubirch backend. Returns all available verification
+        data.
+        :param data: the hash of the message to verify
+        :return: if the verification was successful and the data related to it
+        """
+        r = requests.post(self.get_url(VERIFIER_SERVICE),
+                          headers={'Accept': 'application/json', 'Content-type': 'text/plain'},
+                          data=base64.b64encode(data))
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r

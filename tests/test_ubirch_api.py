@@ -21,7 +21,7 @@ import logging
 import unittest
 import uuid
 from json import JSONDecodeError
-from ubirch.ubirch_api import KEY_SERVICE, AVATAR_SERVICE, CHAIN_SERVICE, NOTARY_SERVICE
+from ubirch.ubirch_api import KEY_SERVICE, NIOMON_SERVICE, VERIFIER_SERVICE
 
 import msgpack
 import requests_mock
@@ -31,44 +31,20 @@ import ubirch
 logger = logging.getLogger(__name__)
 
 # test fixtures
-TEST_LOCAL_KEY_SERVICE = "http://localhost:8095/api/keyService/v1"
-TEST_LOCAL_AVATAR_SERVICE = "http://localhost:8080/api/avatarService/v1"
-TEST_LOCAL_CHAIN_SERVICE = "http://localhost:8097/api/v1/chainService"
-TEST_LOCAL_NOTARY_SERVICE = "https://localhost:8098/api/v1/notaryService"
 TEST_ENV_KEY_SERVICE = "https://key.{}.ubirch.com/api/keyService/v1"
-TEST_ENV_AVATAR_SERVICE = "https://api.ubirch.{}.ubirch.com/api/avatarService/v1"
-TEST_ENV_CHAIN_SERVICE = "https://api.ubirch.{}.ubirch.com/api/v1/chainService"
-TEST_ENV_NOTARY_SERVICE = "http://n.dev.ubirch.com:8080/v1/notaryService"
+TEST_ENV_NIOMON_SERVICE = "https://niomon.{}.ubirch.com/"
+TEST_ENV_VERIFIER_SERVICE = "https://verify.{}.ubirch.com/"
+
 
 # TODO this test class needs some more functional tests
 class TestUbirchAPI(unittest.TestCase):
-
-    def test_create_api_defaults(self):
-        api = ubirch.API()
-
-        self.assertEqual(TEST_LOCAL_KEY_SERVICE, api.get_url(KEY_SERVICE))
-        self.assertEqual(TEST_LOCAL_AVATAR_SERVICE, api.get_url(AVATAR_SERVICE))
-        self.assertEqual(TEST_LOCAL_CHAIN_SERVICE, api.get_url(CHAIN_SERVICE))
-        self.assertEqual(TEST_LOCAL_NOTARY_SERVICE, api.get_url(NOTARY_SERVICE))
-        self.assertDictEqual({}, api._auth)
-
-    def test_create_api_with_auth(self):
-        AUTH_TOKEN = "ABC:TOKEN:DEF"
-        api = ubirch.API(auth=AUTH_TOKEN)
-
-        self.assertEqual(TEST_LOCAL_KEY_SERVICE, api.get_url(KEY_SERVICE))
-        self.assertEqual(TEST_LOCAL_AVATAR_SERVICE, api.get_url(AVATAR_SERVICE))
-        self.assertEqual(TEST_LOCAL_CHAIN_SERVICE, api.get_url(CHAIN_SERVICE))
-        self.assertEqual(TEST_LOCAL_NOTARY_SERVICE, api.get_url(NOTARY_SERVICE))
-        self.assertDictEqual({'Authorization': AUTH_TOKEN}, api._auth)
 
     def test_create_api_with_env(self):
         api = ubirch.API(env='test')
 
         self.assertEqual(TEST_ENV_KEY_SERVICE.format("test"), api.get_url(KEY_SERVICE))
-        self.assertEqual(TEST_ENV_AVATAR_SERVICE.format("test"), api.get_url(AVATAR_SERVICE))
-        self.assertEqual(TEST_ENV_CHAIN_SERVICE.format("test"), api.get_url(CHAIN_SERVICE))
-        self.assertEqual(TEST_ENV_NOTARY_SERVICE.format("test"), api.get_url(NOTARY_SERVICE))
+        self.assertEqual(TEST_ENV_NIOMON_SERVICE.format("test"), api.get_url(NIOMON_SERVICE))
+        self.assertEqual(TEST_ENV_VERIFIER_SERVICE.format("test"), api.get_url(VERIFIER_SERVICE))
 
     def test_create_api_with_debug(self):
         import http.client as http_client
@@ -122,21 +98,6 @@ class TestUbirchAPI(unittest.TestCase):
         self.assertTrue(ubirch.API().deregister_identity(msgpack.packb([1, 2, 3])))
 
     @requests_mock.mock()
-    def test_device_exists(self, mock):
-        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
-        self.assertTrue(ubirch.API().device_exists(uuid.uuid4()))
-
-    @requests_mock.mock()
-    def test_device_delete(self, mock):
-        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
-        self.assertTrue(ubirch.API().device_delete(uuid.uuid4()))
-
-    @requests_mock.mock()
-    def test_device_create(self, mock):
-        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
-        self.assertTrue(ubirch.API().device_create({}))
-
-    @requests_mock.mock()
     def test_send_json(self, mock):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
         self.assertTrue(ubirch.API().send(str.encode(json.dumps({}))))
@@ -145,8 +106,3 @@ class TestUbirchAPI(unittest.TestCase):
     def test_send_msgpack(self, mock):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
         self.assertTrue(ubirch.API().send(msgpack.packb([1,2,3])))
-
-    @requests_mock.mock()
-    def test_anchor(self, mock):
-        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
-        self.assertTrue(ubirch.API().anchor(b'This is a Test'))
