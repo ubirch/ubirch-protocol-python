@@ -57,7 +57,7 @@ if len(sys.argv) < 2 or auth is None:
 env = sys.argv[1]
 uuid = UUID(hex=sys.argv[2])
 
-# create a new device uuid and a keystore for the device
+# create a keystore for the device
 keystore = ubirch.KeyStore(uuid.hex + ".jks", "test-keystore")
 
 # check if the device already has keys or generate a new pair
@@ -71,6 +71,7 @@ api = ubirch.API(auth=("Basic " + base64.b64encode(auth.encode()).decode()), deb
 
 # register the devices identity
 if not api.is_identity_registered(uuid):
+    # TODO include this in API
     pubKeyInfo = keystore.get_certificate(uuid)
     # create a json key registration request
     pubKeyInfo['hwDeviceId'] = str(uuid)
@@ -92,7 +93,7 @@ if not api.is_identity_registered(uuid):
         logger.info("registered new identity: {}".format(uuid))
     else:
         logger.error("device registration failed: {}".format(uuid))
-    logger.debug(r.content)
+    logger.debug("registered: {}: {}".format(r.status_code, r.content))
 
 # create a payload message like being sent to the customer backend
 payload = {
@@ -107,9 +108,25 @@ digest = hashlib.sha512(encoded).digest()
 msg = protocol.message_chained(uuid, 0x00, digest)
 logger.info(binascii.hexlify(msg))
 r = api.send(msg)
-logger.info("{}: {}".format(r.status_code, r.content))
+logger.info("sent: {}: {}".format(r.status_code, r.content))
 
 r = api.verify(digest)
-logger.info("{}: {}".format(r.status_code, r.content))
+logger.info("verified: {}: {}".format(r.status_code, r.content))
 
 protocol.persist(uuid)
+
+# deregister the devices identity
+if api.is_identity_registered(uuid):
+    vk = keystore.find_verifying_key(uuid)
+    sk = keystore.find_signing_key(uuid)
+
+    key_deregistration = str.encode(json.dumps({
+        "publicKey": bytes.decode(base64.b64encode(vk.to_bytes())),
+        "signature": bytes.decode(base64.b64encode(sk.sign(vk.to_bytes())))
+    }))
+    r = api.deregister_identity(key_deregistration)
+    if r.status_code == requests.codes.ok:
+        logger.info("deregistered identity: {}".format(uuid))
+    else:
+        logger.error("deregistration failed: {}".format(uuid))
+    logger.debug("deregistered: {}: {}".format(r.status_code, r.content))
