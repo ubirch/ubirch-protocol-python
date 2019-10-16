@@ -83,17 +83,6 @@ class API(object):
         else:
             return self._register_identity_mpack(key_registration)
 
-    def deregister_identity(self, key_deregistration: bytes) -> Response:
-        """
-        De-register an identity at the backend. Deletes the public key.
-        :param key_deregistration: the public key signed
-        :return: the response from the server
-        """
-        if key_deregistration.startswith(b'{'):
-            return self._deregister_identity_json(json.loads(bytes.decode(key_deregistration)))
-        else:
-            return self._deregister_identity_mpack(key_deregistration)
-
     def _register_identity_json(self, key_registration: dict) -> Response:
         logger.debug("register identity [json]: {}".format(key_registration))
         r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey', json=key_registration,
@@ -109,6 +98,27 @@ class API(object):
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
+    def deregister_identity(self, key_deregistration: bytes) -> Response:
+        """
+        De-register an identity at the backend. Deletes the public key.
+        :param key_deregistration: the public key signed
+        :return: the response from the server
+        """
+        if key_deregistration.startswith(b'{'):
+            return self._deregister_identity_json(json.loads(bytes.decode(key_deregistration)))
+        else:
+            return self._deregister_identity_mpack(key_deregistration)
+
+    def _deregister_identity_json(self, key_deregistration: dict) -> Response:
+        logger.debug("de-register identity [json]: {}".format(key_deregistration))
+        r = requests.delete(self.get_url(KEY_SERVICE) + '/pubkey', json=key_deregistration,
+                            headers=self._auth)
+        logger.debug("{}: {}".format(r.status_code, r.content))
+        return r
+
+    def _deregister_identity_mpack(self, key_deregistration: bytes) -> Response:
+        raise NotImplementedError("msgpack identity deregistration not supported yet")
+
     def trust_identity_json(self, signed_trust: dict) -> Response:
         logger.debug("trust an identity [json]: {}".format(signed_trust))
         r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/trust', json=signed_trust)
@@ -120,16 +130,6 @@ class API(object):
         r = requests.get(self.get_url(KEY_SERVICE) + '/pubkey/trusted', json=get_trusted)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
-
-    def _deregister_identity_json(self, key_deregistration: dict) -> Response:
-        logger.debug("de-register identity [json]: {}".format(key_deregistration))
-        r = requests.delete(self.get_url(KEY_SERVICE) + '/pubkey', json=key_deregistration,
-                            headers=self._auth)
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r
-
-    def _deregister_identity_mpack(self, key_deregistration: bytes) -> Response:
-        raise NotImplementedError("msgpack identity deregistration not supported yet")
 
     def send(self, data: bytes) -> Response:
         """
