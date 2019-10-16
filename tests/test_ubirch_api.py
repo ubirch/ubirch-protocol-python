@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # test fixtures
 TEST_ENV_KEY_SERVICE = "https://key.{}.ubirch.com/api/keyService/v1"
 TEST_ENV_NIOMON_SERVICE = "https://niomon.{}.ubirch.com/"
-TEST_ENV_VERIFIER_SERVICE = "https://verify.{}.ubirch.com/"
+TEST_ENV_VERIFIER_SERVICE = "https://verify.{}.ubirch.com/api/verify"
 
 
 # TODO this test class needs some more functional tests
