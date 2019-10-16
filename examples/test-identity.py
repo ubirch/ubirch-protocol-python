@@ -65,4 +65,4 @@ key_deregistration = str.encode(json.dumps({
     "signature": bytes.decode(base64.b64encode(sk.sign(vk.to_bytes())))
 }))
 r = api.deregister_identity(key_deregistration)
-logger.info("registered: {}: {}".format(r.status_code, r.content))
+logger.info("deregistered: {}: {}".format(r.status_code, r.content))
