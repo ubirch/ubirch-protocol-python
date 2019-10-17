@@ -35,7 +35,7 @@ VERIFIER_SERVICE = "verify"
 class API(object):
     """ubirch API accessor methods."""
 
-    def __init__(self, auth=None, env=None, debug=False) -> None:
+    def __init__(self, uuid: UUID, auth: str, env="demo", debug=False) -> None:
         super().__init__()
 
         # enable intensive logging
@@ -46,10 +46,11 @@ class API(object):
             requests_log.setLevel(logging.DEBUG)
             requests_log.propagate = True
 
-        if auth is not None:
-            self._auth = {'Authorization': auth}
-        else:
-            self._auth = {}
+        self._headers = {
+            'X-Ubirch-Hardware-Id': str(uuid),
+            'X-Ubirch-Credential': base64.b64encode(auth.encode()).decode(),
+            'X-Ubirch-Auth-Type': 'ubirch'
+        }
 
         self._services = {
             KEY_SERVICE: "https://key.{}.ubirch.com/api/keyService/v1".format(env),
@@ -67,8 +68,7 @@ class API(object):
         :return: true if the identity exists
         """
         logger.debug("is identity registered?: {}".format(uuid))
-        r = requests.get(self.get_url(KEY_SERVICE) + "/pubkey/current/hardwareId/" + str(uuid),
-                         headers=self._auth)
+        r = requests.get(self.get_url(KEY_SERVICE) + "/pubkey/current/hardwareId/" + str(uuid))
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r.status_code == requests.codes.ok and r.json()
 
@@ -85,15 +85,13 @@ class API(object):
 
     def _register_identity_json(self, key_registration: dict) -> Response:
         logger.debug("register identity [json]: {}".format(key_registration))
-        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey', json=key_registration,
-                          headers=self._auth)
+        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey', json=key_registration)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def _register_identity_mpack(self, key_registration: bytes) -> Response:
         logger.debug("register identity [msgpack]: {}".format(binascii.hexlify(key_registration)))
         headers = {'Content-Type': 'application/octet-stream'}
-        headers.update(self._auth)
         r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/mpack', data=key_registration, headers=headers)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
@@ -111,8 +109,7 @@ class API(object):
 
     def _deregister_identity_json(self, key_deregistration: dict) -> Response:
         logger.debug("de-register identity [json]: {}".format(key_deregistration))
-        r = requests.delete(self.get_url(KEY_SERVICE) + '/pubkey', json=key_deregistration,
-                            headers=self._auth)
+        r = requests.delete(self.get_url(KEY_SERVICE) + '/pubkey', json=key_deregistration)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
@@ -144,17 +141,17 @@ class API(object):
 
     def _send_json(self, data: dict) -> Response:
         payload = str.encode(json.dumps(data, sort_keys=True, separators=(',', ':')))
-        logger.debug(json)
+        logger.debug("sending [json]: {}".format(payload))
         r = requests.post(self.get_url(NIOMON_SERVICE),
-                          headers={'Content-Type': 'application/json'}.update(self._auth),
+                          headers={'Content-Type': 'application/json'}.update(self._headers),
                           data=payload)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def _send_mpack(self, data: bytes) -> Response:
-        logger.debug(data)
+        logger.debug("sending [msgpack]: {}".format(binascii.hexlify(data)))
         r = requests.post(self.get_url(NIOMON_SERVICE),
-                          headers=self._auth,
+                          headers=self._headers,
                           data=data)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
@@ -166,8 +163,9 @@ class API(object):
         :param data: the hash of the message to verify
         :return: if the verification was successful and the data related to it
         """
+        logger.debug("verifying hash: {}".format(base64.b64encode(data).decode()))
         r = requests.post(self.get_url(VERIFIER_SERVICE),
-                          headers={'Accept': 'application/json', 'Content-type': 'text/plain'},
-                          data=base64.b64encode(data))
+                          headers={'Accept': 'application/json', 'Content-Type': 'text/plain'},
+                          data=base64.b64encode(data).decode())
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r

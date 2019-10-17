@@ -38,6 +38,16 @@ class Proto(ubirch.Protocol):
         return self.__ks.find_signing_key(uuid).sign(message)
 
 
+if None in (os.getenv("UBIRCH_UUID"), os.getenv("UBIRCH_AUTH"), os.getenv("UBIRCH_ENV")):
+    print("usage:")
+    print("  export UBIRCH_UUID=<UUID>")
+    print("  export UBIRCH_AUTH=<ubirch-authorization-token>")
+    print("  export UBIRCH_ENV=[dev|demo|prod]")
+    print("  PYTHONPATH=. python3 examples/test-identity.py")
+    import sys
+
+    sys.exit(0)
+
 uuid = UUID(hex=os.getenv("UBIRCH_UUID"))
 auth = os.getenv("UBIRCH_AUTH")
 env = os.getenv("UBIRCH_ENV")
@@ -46,20 +56,29 @@ logger.info("UUID : {}".format(uuid))
 logger.info("AUTH : {}".format(auth))
 logger.info("ENV  : {}".format(env))
 
+# create a keystore for the device
 keystore = ubirch.KeyStore("test-identity.jks", "test-keystore")
-proto = Proto(keystore)
 
+# check if the device already has keys or generate a new pair
 if not keystore.exists_signing_key(uuid):
     keystore.create_ed25519_keypair(uuid)
 
+# get the keys
 sk = keystore.find_signing_key(uuid)
 vk = keystore.find_verifying_key(uuid)
 
-# create API and de-register the key
-api = ubirch.API(auth=auth, env=env)
+# create protocol instance
+proto = Proto(keystore)
+
+# create API instance
+api = ubirch.API(uuid, auth, env=env)
+
+# register public key
 key_registration = proto.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, keystore.get_certificate(uuid))
 r = api.register_identity(key_registration)
 logger.info("registered: {}: {}".format(r.status_code, r.content))
+
+# de-register public key
 key_deregistration = str.encode(json.dumps({
     "publicKey": bytes.decode(base64.b64encode(vk.to_bytes())),
     "signature": bytes.decode(base64.b64encode(sk.sign(vk.to_bytes())))

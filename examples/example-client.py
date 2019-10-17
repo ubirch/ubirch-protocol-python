@@ -42,9 +42,13 @@ class Proto(ubirch.Protocol):
                 self.set_saved_signatures(signatures)
         except:
             logger.warning("no existing saved signatures")
+            pass
 
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         return self.__ks.find_signing_key(uuid).sign(message)
+
+
+########################################################################
 
 
 auth = os.getenv("UBIRCH_AUTH")
@@ -67,7 +71,7 @@ if not keystore.exists_signing_key(uuid):
 # create an instance of the protocol with signature saving
 protocol = Proto(keystore, uuid)
 # create an instance of the ubirch API
-api = ubirch.API(auth=("Basic " + base64.b64encode(auth.encode()).decode()), debug=False, env=env)
+api = ubirch.API(uuid, auth, env=env)
 
 # register the devices identity
 if not api.is_identity_registered(uuid):
@@ -110,23 +114,26 @@ logger.info(binascii.hexlify(msg))
 r = api.send(msg)
 logger.info("sent: {}: {}".format(r.status_code, r.content))
 
+# seems to take more than just a few seconds for the hash to be anchored in the blockchain
+# so we wait ...
+time.sleep(30)
 r = api.verify(digest)
 logger.info("verified: {}: {}".format(r.status_code, r.content))
 
 protocol.persist(uuid)
 
-# deregister the devices identity
-if api.is_identity_registered(uuid):
-    vk = keystore.find_verifying_key(uuid)
-    sk = keystore.find_signing_key(uuid)
-
-    key_deregistration = str.encode(json.dumps({
-        "publicKey": bytes.decode(base64.b64encode(vk.to_bytes())),
-        "signature": bytes.decode(base64.b64encode(sk.sign(vk.to_bytes())))
-    }))
-    r = api.deregister_identity(key_deregistration)
-    if r.status_code == requests.codes.ok:
-        logger.info("deregistered identity: {}".format(uuid))
-    else:
-        logger.error("deregistration failed: {}".format(uuid))
-    logger.debug("deregistered: {}: {}".format(r.status_code, r.content))
+# # deregister the devices identity
+# if api.is_identity_registered(uuid):
+#     vk = keystore.find_verifying_key(uuid)
+#     sk = keystore.find_signing_key(uuid)
+#
+#     key_deregistration = str.encode(json.dumps({
+#         "publicKey": bytes.decode(base64.b64encode(vk.to_bytes())),
+#         "signature": bytes.decode(base64.b64encode(sk.sign(vk.to_bytes())))
+#     }))
+#     r = api.deregister_identity(key_deregistration)
+#     if r.status_code == requests.codes.ok:
+#         logger.info("deregistered identity: {}".format(uuid))
+#     else:
+#         logger.error("deregistration failed: {}".format(uuid))
+#     logger.debug("deregistered: {}: {}".format(r.status_code, r.content))
