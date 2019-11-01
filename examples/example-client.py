@@ -104,29 +104,36 @@ payload = {
     "ts": int(time.time()),
     "v": random.randint(0, 100)
 }
-# create a compact rendering of the payload to ensure determinism when creating the hash
-encoded = json.dumps(payload, separators=(':', ','), sort_keys=True).encode()
 
-# create a new protocol message with the hashed data payload
-digest = hashlib.sha512(encoded).digest()
-msg = protocol.message_chained(uuid, 0x00, digest)
-logger.info("sending UPP: {}".format(binascii.hexlify(msg)))
-r = api.send(msg)
+# # create a compact rendering of the payload to ensure determinism when creating the hash
+# encoded = json.dumps(payload, separators=(',', ':'), sort_keys=True).encode()
+
+# send data to the ubirch data service
+logger.info("sending data: {}".format(payload))
+r, message = api.data_send_mpack(payload)
+logger.info("message: {}".format(binascii.hexlify(message)))
+logger.info("response: {}: {}".format(r.status_code, r.content))
+
+# create a new protocol message with the hashed message
+message_hash = hashlib.sha512(message).digest()
+upp = protocol.message_chained(uuid, 0x00, message_hash)
+logger.info("sending UPP: {}".format(binascii.hexlify(upp)))
+r = api.send(upp)
 logger.info("response: {}: {}".format(r.status_code, binascii.hexlify(r.content)))
 
 logger.info("verifying hash with backend -> quick check")
-for _ in range(3):
-    r = api.verify(digest, quick=True)
-    if r.status_code == 200: break
+for i in range(3):
+    r = api.verify(message_hash, quick=True)
+    if r.status_code == 200 or i == 2: break
     logger.info("Hash couldn't be verified yet. Retry...")
     time.sleep(0.5)
 
 logger.info("verified: {}: {}".format(r.status_code, r.content))
 
 logger.info("verifying hash with backend -> chain check")
-for _ in range(3):
-    r = api.verify(digest)
-    if r.status_code == 200: break
+for i in range(3):
+    r = api.verify(message_hash)
+    if r.status_code == 200 or i == 2: break
     logger.info("Hash couldn't be verified yet. Retry...")
     time.sleep(0.5)
 

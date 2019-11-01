@@ -19,9 +19,11 @@ import base64
 import binascii
 import json
 import logging
+import time
 from logging import getLogger
 from uuid import UUID
 
+import msgpack
 import requests
 from requests import Response
 
@@ -47,8 +49,10 @@ class API(object):
             requests_log.setLevel(logging.DEBUG)
             requests_log.propagate = True
 
+        self._uuid = uuid
+
         self._headers = {
-            'X-Ubirch-Hardware-Id': str(uuid),
+            'X-Ubirch-Hardware-Id': str(self._uuid),
             'X-Ubirch-Credential': base64.b64encode(auth.encode()).decode(),
             'X-Ubirch-Auth-Type': 'ubirch'
         }
@@ -132,7 +136,7 @@ class API(object):
 
     def send(self, data: bytes) -> Response:
         """
-        Send data to the backend. Requires encoding before sending.
+        Send data to the ubirch niomon service. Requires encoding before sending.
         :param data: the msgpack or JSON encoded data to send
         :return: the response from the server
         """
@@ -144,8 +148,10 @@ class API(object):
     def _send_json(self, data: dict) -> Response:
         payload = str.encode(json.dumps(data, sort_keys=True, separators=(',', ':')))
         logger.debug("sending [json]: {}".format(payload))
+        json_header = {'Content-Type': 'application/json'}
+        json_header.update(self._headers)
         r = requests.post(self.get_url(NIOMON_SERVICE),
-                          headers={'Content-Type': 'application/json'}.update(self._headers),
+                          headers=json_header,
                           data=payload)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
@@ -175,3 +181,47 @@ class API(object):
                           data=base64.b64encode(data).decode())
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
+
+    def data_send_mpack(self, data: dict) -> (Response, bytes):
+        """
+        Send a data map to the ubirch simple data service. Adds UUID and timestamp
+        to the message and packs it as msgpack formatted message
+        :param data: the data map to send
+        :return: the response from the server, the msgpack formatted message
+        """
+        logger.debug("sending data to ubirch data service [msgpack]: {}".format(json.dumps(data)))
+        msg = [
+            str(self._uuid),
+            0,
+            int(time.time()),
+            data
+        ]
+        serialized = msgpack.packb(msg)
+        logger.debug("msgpack message: {}".format(binascii.hexlify(serialized)))
+        r = requests.post(self.get_url(DATA_SERVICE) + '/msgPack',
+                          headers=self._headers,
+                          data=binascii.hexlify(serialized))
+        logger.debug("{}: {}".format(r.status_code, r.content))
+        return r, serialized
+
+    def data_send_json(self, data: dict) -> (Response, bytes):
+        """
+        Send a data map to the ubirch simple data service. Adds UUID and timestamp
+        to the message and packs it as compact sorted json formatted message
+        :param data: the data map to send
+        :return: the response from the server, the compact sorted json formatted message
+        """
+        logger.debug("sending data to ubirch data service [json]: {}".format(json.dumps(data)))
+        msg_map = {
+            'uuid': str(self._uuid),
+            'msg_type': 0,
+            'timestamp': int(time.time()),
+            'data': data
+        }
+        # create a compact rendering of the message to ensure determinism when creating the hash
+        serialized = json.dumps(msg_map, separators=(',', ':'), sort_keys=True).encode()
+        json_header = {'Content-Type': 'application/json'}
+        json_header.update(self._headers)
+        r = requests.post(self.get_url(DATA_SERVICE) + '/json', headers=json_header, data=serialized)
+        logger.debug("{}: {}".format(r.status_code, r.content))
+        return r, serialized
