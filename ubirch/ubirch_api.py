@@ -29,7 +29,8 @@ logger = getLogger(__name__)
 
 KEY_SERVICE = "key"
 NIOMON_SERVICE = "niomon"
-VERIFIER_SERVICE = "verify"
+VERIFICATION_SERVICE = "verify"
+DATA_SERVICE = "data"
 
 
 class API(object):
@@ -53,9 +54,10 @@ class API(object):
         }
 
         self._services = {
-            KEY_SERVICE: "https://key.{}.ubirch.com/api/keyService/v1".format(env),
+            KEY_SERVICE: "https://key.{}.ubirch.com/api/keyService/v1/pubkey".format(env),
             NIOMON_SERVICE: "https://niomon.{}.ubirch.com/".format(env),
-            VERIFIER_SERVICE: "https://verify.{}.ubirch.com/api/verify".format(env)
+            VERIFICATION_SERVICE: "https://verify.{}.ubirch.com/api/upp".format(env),
+            DATA_SERVICE: "https://data.{}.ubirch.com/v1".format(env)
         }
 
     def get_url(self, service: str) -> str or None:
@@ -68,7 +70,7 @@ class API(object):
         :return: true if the identity exists
         """
         logger.debug("is identity registered?: {}".format(uuid))
-        r = requests.get(self.get_url(KEY_SERVICE) + "/pubkey/current/hardwareId/" + str(uuid))
+        r = requests.get(self.get_url(KEY_SERVICE) + "/current/hardwareId/" + str(uuid))
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r.status_code == requests.codes.ok and r.json()
 
@@ -85,14 +87,14 @@ class API(object):
 
     def _register_identity_json(self, key_registration: dict) -> Response:
         logger.debug("register identity [json]: {}".format(key_registration))
-        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey', json=key_registration)
+        r = requests.post(self.get_url(KEY_SERVICE), json=key_registration)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def _register_identity_mpack(self, key_registration: bytes) -> Response:
         logger.debug("register identity [msgpack]: {}".format(binascii.hexlify(key_registration)))
         headers = {'Content-Type': 'application/octet-stream'}
-        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/mpack', data=key_registration, headers=headers)
+        r = requests.post(self.get_url(KEY_SERVICE) + '/mpack', data=key_registration, headers=headers)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
@@ -109,7 +111,7 @@ class API(object):
 
     def _deregister_identity_json(self, key_deregistration: dict) -> Response:
         logger.debug("de-register identity [json]: {}".format(key_deregistration))
-        r = requests.delete(self.get_url(KEY_SERVICE) + '/pubkey', json=key_deregistration)
+        r = requests.delete(self.get_url(KEY_SERVICE), json=key_deregistration)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
@@ -118,13 +120,13 @@ class API(object):
 
     def trust_identity_json(self, signed_trust: dict) -> Response:
         logger.debug("trust an identity [json]: {}".format(signed_trust))
-        r = requests.post(self.get_url(KEY_SERVICE) + '/pubkey/trust', json=signed_trust)
+        r = requests.post(self.get_url(KEY_SERVICE) + '/trust', json=signed_trust)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def get_trusted_identities_json(self, get_trusted: dict) -> Response:
         logger.debug("get trusted identities [json]: {}".format(get_trusted))
-        r = requests.get(self.get_url(KEY_SERVICE) + '/pubkey/trusted', json=get_trusted)
+        r = requests.get(self.get_url(KEY_SERVICE) + '/trusted', json=get_trusted)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
@@ -156,15 +158,19 @@ class API(object):
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
-    def verify(self, data: bytes) -> Response:
+    def verify(self, data: bytes, quick=False) -> Response:
         """
         Verify a given hash with the ubirch backend. Returns all available verification
         data.
         :param data: the hash of the message to verify
+        :param quick: only run quick check to verify that the hash has been stored in backend
         :return: if the verification was successful and the data related to it
         """
         logger.debug("verifying hash: {}".format(base64.b64encode(data).decode()))
-        r = requests.post(self.get_url(VERIFIER_SERVICE),
+        url = self.get_url(VERIFICATION_SERVICE)
+        if not quick:
+            url = self.get_url(VERIFICATION_SERVICE) + '/verify'
+        r = requests.post(url,
                           headers={'Accept': 'application/json', 'Content-Type': 'text/plain'},
                           data=base64.b64encode(data).decode())
         logger.debug("{}: {}".format(r.status_code, r.content))

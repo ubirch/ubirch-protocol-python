@@ -21,19 +21,19 @@ import logging
 import unittest
 import uuid
 from json import JSONDecodeError
-from ubirch.ubirch_api import KEY_SERVICE, NIOMON_SERVICE, VERIFIER_SERVICE
 
 import msgpack
 import requests_mock
 
 import ubirch
+from ubirch.ubirch_api import KEY_SERVICE, NIOMON_SERVICE, VERIFICATION_SERVICE
 
 logger = logging.getLogger(__name__)
 
 # test fixtures
 TEST_ENV_KEY_SERVICE = "https://key.{}.ubirch.com/api/keyService/v1"
 TEST_ENV_NIOMON_SERVICE = "https://niomon.{}.ubirch.com/"
-TEST_ENV_VERIFIER_SERVICE = "https://verify.{}.ubirch.com/api/verify"
+TEST_ENV_VERIFIER_SERVICE = "https://verify.{}.ubirch.com/api/upp"
 
 
 # TODO this test class needs some more functional tests
@@ -44,7 +44,7 @@ class TestUbirchAPI(unittest.TestCase):
 
         self.assertEqual(TEST_ENV_KEY_SERVICE.format("test"), api.get_url(KEY_SERVICE))
         self.assertEqual(TEST_ENV_NIOMON_SERVICE.format("test"), api.get_url(NIOMON_SERVICE))
-        self.assertEqual(TEST_ENV_VERIFIER_SERVICE.format("test"), api.get_url(VERIFIER_SERVICE))
+        self.assertEqual(TEST_ENV_VERIFIER_SERVICE.format("test"), api.get_url(VERIFICATION_SERVICE))
 
     def test_create_api_with_debug(self):
         import http.client as http_client

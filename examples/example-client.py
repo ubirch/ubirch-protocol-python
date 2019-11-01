@@ -110,14 +110,26 @@ encoded = json.dumps(payload, separators=(':', ','), sort_keys=True).encode()
 # create a new protocol message with the hashed data payload
 digest = hashlib.sha512(encoded).digest()
 msg = protocol.message_chained(uuid, 0x00, digest)
-logger.info(binascii.hexlify(msg))
+logger.info("sending UPP: {}".format(binascii.hexlify(msg)))
 r = api.send(msg)
-logger.info("sent: {}: {}".format(r.status_code, r.content))
+logger.info("response: {}: {}".format(r.status_code, binascii.hexlify(r.content)))
 
-# seems to take more than just a few seconds for the hash to be anchored in the blockchain
-# so we wait ...
-time.sleep(30)
-r = api.verify(digest)
+logger.info("verifying hash with backend -> quick check")
+for _ in range(3):
+    r = api.verify(digest, quick=True)
+    if r.status_code == 200: break
+    logger.info("Hash couldn't be verified yet. Retry...")
+    time.sleep(0.5)
+
+logger.info("verified: {}: {}".format(r.status_code, r.content))
+
+logger.info("verifying hash with backend -> chain check")
+for _ in range(3):
+    r = api.verify(digest)
+    if r.status_code == 200: break
+    logger.info("Hash couldn't be verified yet. Retry...")
+    time.sleep(0.5)
+
 logger.info("verified: {}: {}".format(r.status_code, r.content))
 
 protocol.persist(uuid)
