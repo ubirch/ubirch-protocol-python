@@ -60,7 +60,7 @@ class KeyStore(object):
             logger.warning("creating new key store: {}".format(self._ks_file))
             self._ks = jks.KeyStore.new("jks", [])
 
-    def insert_ed25519_signing_key(self, uuid, sk: SigningKey):
+    def insert_ed25519_signing_key(self, uuid: UUID, sk: SigningKey):
         """Store an existing ED25519 signing key in the key store."""
         # encode the ED25519 private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
@@ -73,7 +73,7 @@ class KeyStore(object):
         pke = jks.PrivateKeyEntry.new(alias=str(uuid.hex), certs=[], key=pkey_pkcs8)
         self._ks.entries['pke_' + uuid.hex] = pke
 
-    def insert_ed25519_verifying_key(self, uuid, vk: VerifyingKey):
+    def insert_ed25519_verifying_key(self, uuid: UUID, vk: VerifyingKey):
         """Store an existing ED25519 verifying key in the key store."""
         self._ks.entries[uuid.hex] = ED25519Certificate(uuid.hex, vk)
 
