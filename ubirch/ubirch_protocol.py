@@ -13,8 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import base64
 import hashlib
+import json
 import logging
 from abc import abstractmethod
 from uuid import UUID
@@ -205,3 +206,11 @@ class Protocol(object):
         # verify the message using extracted values
         self._prepare_and_verify(UUID(bytes=unpacked[1]), message[0:signatureIndex], unpacked[-1])
         return unpacked
+
+    def create_key_registration_message(self, cert: dict, uuid: UUID) -> bytes:
+        signable_json = json.dumps(cert, separators=(',', ':')).encode()
+        # logger.info(signable_json.decode())
+        signed_message = self._sign(uuid, signable_json)
+        signature = base64.b64encode(signed_message).decode()
+        key_reg_msg = {'pubKeyInfo': cert, 'signature': signature}
+        return json.dumps(key_reg_msg).encode()
