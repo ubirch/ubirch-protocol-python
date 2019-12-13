@@ -1,0 +1,56 @@
+<?xml version="1.0" ?>
+<testsuites>
+	<testsuite errors="0" failures="0" hostname="playground" name="pytest" skipped="1" tests="48" time="2.386" timestamp="2019-12-13T11:26:32.519182">
+		<testcase classname="tests.test_ubirch_api.TestUbirchAPI" file="tests/test_ubirch_api.py" line="50" name="test_create_api_with_debug" time="0.001"/>
+		<testcase classname="tests.test_ubirch_api.TestUbirchAPI" file="tests/test_ubirch_api.py" line="43" name="test_create_api_with_env" time="0.001"/>
+		<testcase classname="tests.test_ubirch_api.TestUbirchAPI" file="tests/test_ubirch_api.py" line="90" name="test_deregister_identity_json" time="0.003"/>
+		<testcase classname="tests.test_ubirch_api.TestUbirchAPI" file="tests/test_ubirch_api.py" line="95" name="test_deregister_identity_msgpack" time="0.001">
+			<skipped message="" type="pytest.xfail"/>
+		</testcase>
+		<testcase classname="tests.test_ubirch_api.TestUbirchAPI" file="tests/test_ubirch_api.py" line="67" name="test_is_identity_registered" time="0.002"/>
+		<testcase classname="tests.test_ubirch_api.TestUbirchAPI" file="tests/test_ubirch_api.py" line="72" name="test_is_identity_registered_fails" time="0.002"/>
+		<testcase classname="tests.test_ubirch_api.TestUbirchAPI" file="tests/test_ubirch_api.py" line="80" name="test_register_identity_json" time="0.002"/>
+		<testcase classname="tests.test_ubirch_api.TestUbirchAPI" file="tests/test_ubirch_api.py" line="85" name="test_register_identity_msgpack" time="0.002"/>
+		<testcase classname="tests.test_ubirch_api.TestUbirchAPI" file="tests/test_ubirch_api.py" line="101" name="test_send_json" time="0.002"/>
+		<testcase classname="tests.test_ubirch_api.TestUbirchAPI" file="tests/test_ubirch_api.py" line="106" name="test_send_msgpack" time="0.002"/>
+		<testcase classname="tests.test_ubirch_ks.TestUbirchKeyStore" file="tests/test_ubirch_ks.py" line="35" name="test_create_keystore" time="0.001"/>
+		<testcase classname="tests.test_ubirch_ks.TestUbirchKeyStore" file="tests/test_ubirch_ks.py" line="44" name="test_create_new_keypair" time="0.005"/>
+		<testcase classname="tests.test_ubirch_ks.TestUbirchKeyStore" file="tests/test_ubirch_ks.py" line="51" name="test_do_not_create_duplicate" time="0.006"/>
+		<testcase classname="tests.test_ubirch_ks.TestUbirchKeyStore" file="tests/test_ubirch_ks.py" line="67" name="test_exists_signing_key" time="0.004"/>
+		<testcase classname="tests.test_ubirch_ks.TestUbirchKeyStore" file="tests/test_ubirch_ks.py" line="73" name="test_exists_signing_key_fails" time="0.002"/>
+		<testcase classname="tests.test_ubirch_ks.TestUbirchKeyStore" file="tests/test_ubirch_ks.py" line="78" name="test_exists_verifying_key" time="0.005"/>
+		<testcase classname="tests.test_ubirch_ks.TestUbirchKeyStore" file="tests/test_ubirch_ks.py" line="84" name="test_exists_verifying_key_fails" time="0.002"/>
+		<testcase classname="tests.test_ubirch_ks.TestUbirchKeyStore" file="tests/test_ubirch_ks.py" line="89" name="test_get_certificate" time="0.006"/>
+		<testcase classname="tests.test_ubirch_ks.TestUbirchKeyStore" file="tests/test_ubirch_ks.py" line="102" name="test_get_certificate_fails" time="0.002"/>
+		<testcase classname="tests.test_ubirch_ks.TestUbirchKeyStore" file="tests/test_ubirch_ks.py" line="38" name="test_keystore_is_saved" time="0.015"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="131" name="test_create_chained_message_with_hash" time="0.003"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="124" name="test_create_chained_messages" time="0.008"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="112" name="test_create_signed_message" time="0.010"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="118" name="test_create_signed_message_with_hash" time="0.003"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="192" name="test_reset_saved_signatures" time="0.003"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="168" name="test_set_saved_signatures" time="0.001"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="174" name="test_set_saved_signatures_changed" time="0.003"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="183" name="test_set_saved_signatures_unchanged" time="0.003"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="98" name="test_sign_not_implemented" time="0.001"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="202" name="test_unpack_legacy_trackle_message" time="0.001"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="226" name="test_unpack_register_v1" time="0.001"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="145" name="test_verify_chained_messages" time="0.045"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="160" name="test_verify_fails_missing_data" time="0.001"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="105" name="test_verify_not_implemented" time="0.001"/>
+		<testcase classname="tests.test_ubirch_protocol.TestUbirchProtocol" file="tests/test_ubirch_protocol.py" line="137" name="test_verify_signed_message" time="0.007"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolECDSA" file="tests/test_ubirch_protocol_ecdsa.py" line="131" name="test_create_chained_message_with_hash" time="0.124"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolECDSA" file="tests/test_ubirch_protocol_ecdsa.py" line="113" name="test_create_chained_messages" time="0.326"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolECDSA" file="tests/test_ubirch_protocol_ecdsa.py" line="93" name="test_create_signed_message" time="0.146"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolECDSA" file="tests/test_ubirch_protocol_ecdsa.py" line="103" name="test_create_signed_message_with_hash" time="0.087"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolECDSA" file="tests/test_ubirch_protocol_ecdsa.py" line="79" name="test_sign_not_implemented" time="0.001"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolECDSA" file="tests/test_ubirch_protocol_ecdsa.py" line="150" name="test_verify_chained_messages" time="0.193"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolECDSA" file="tests/test_ubirch_protocol_ecdsa.py" line="165" name="test_verify_fails_missing_data" time="0.001"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolECDSA" file="tests/test_ubirch_protocol_ecdsa.py" line="86" name="test_verify_not_implemented" time="0.001"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolECDSA" file="tests/test_ubirch_protocol_ecdsa.py" line="142" name="test_verify_signed_message" time="0.058"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolSIM" file="tests/test_ubirch_protocol_ecdsa.py" line="175" name="test_verify_registration_message_sim_v1" time="0.170"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolSIM" file="tests/test_ubirch_protocol_ecdsa.py" line="203" name="test_verify_registration_message_sim_v2" time="0.083"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolSIM" file="tests/test_ubirch_protocol_ecdsa.py" line="189" name="test_verify_signed_message_sim_v1" time="0.141"/>
+		<testcase classname="tests.test_ubirch_protocol_ecdsa.TestUbirchProtocolSIM" file="tests/test_ubirch_protocol_ecdsa.py" line="217" name="test_verify_signed_message_sim_v2" time="0.134"/>
+	</testsuite>
+</testsuites>
+

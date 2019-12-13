@@ -1,0 +1,7 @@
+HTTP/2 400 
+server: nginx/1.15.5
+date: Tue, 16 Jul 2019 16:05:21 GMT
+content-type: text/plain; charset=UTF-8
+content-length: 40
+strict-transport-security: max-age=15724800; includeSubDomains
+
