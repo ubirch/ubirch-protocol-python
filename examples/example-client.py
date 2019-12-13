@@ -1,14 +1,11 @@
-import base64
 import binascii
 import hashlib
-import json
 import logging
 import os
 import pickle
 import random
 import sys
 import time
-from datetime import datetime
 from uuid import UUID
 
 import requests
@@ -75,24 +72,9 @@ api = ubirch.API(uuid, auth, env=env)
 
 # register the devices identity
 if not api.is_identity_registered(uuid):
-    # TODO include this in API
-    pubKeyInfo = keystore.get_certificate(uuid)
-    # create a json key registration request
-    pubKeyInfo['hwDeviceId'] = str(uuid)
-    pubKeyInfo['pubKey'] = base64.b64encode(pubKeyInfo['pubKey']).decode()
-    pubKeyInfo['pubKeyId'] = base64.b64encode(pubKeyInfo['pubKeyId']).decode()
-    pubKeyInfo['created'] = str(datetime.utcfromtimestamp(pubKeyInfo['created']).isoformat() + ".000Z")
-    pubKeyInfo['validNotAfter'] = str(datetime.utcfromtimestamp(pubKeyInfo['validNotAfter']).isoformat() + ".000Z")
-    pubKeyInfo['validNotBefore'] = str(datetime.utcfromtimestamp(pubKeyInfo['validNotBefore']).isoformat() + ".000Z")
-
-    signable_json = json.dumps(pubKeyInfo, separators=(',', ':')).encode()
-    # logger.info(signable_json.decode())
-    signed_message = protocol._sign(uuid, signable_json)
-    signature = base64.b64encode(signed_message).decode()
-    pubKeyRegMsg = {'pubKeyInfo': pubKeyInfo, 'signature': signature}
-    pubKeyRegMsgJson = json.dumps(pubKeyRegMsg).encode()
-
-    r = api.register_identity(pubKeyRegMsgJson)
+    cert = keystore.get_certificate(uuid, legacy=True)
+    key_reg_msg = protocol.create_key_registration_message(cert, uuid)
+    r = api.register_identity(key_reg_msg)
     if r.status_code == requests.codes.ok:
         logger.info("registered new identity: {}".format(uuid))
     else:
