@@ -105,21 +105,23 @@ r = api.send(uuid, upp)
 logger.info("response: {}: {}".format(r.status_code, binascii.hexlify(r.content)))
 
 logger.info("verifying hash with backend -> quick check")
-for i in range(3):
+i = 0
+while True:
+    time.sleep(0.1)
     r = api.verify(message_hash, quick=True)
-    if r.status_code == 200 or i == 2: break
+    if r.status_code == 200 or i == 10: break
     logger.info("Hash couldn't be verified yet. Retry...")
-    time.sleep(0.5)
-
+    i += 1
 logger.info("verified: {}: {}".format(r.status_code, r.content))
 
 logger.info("verifying hash with backend -> chain check")
-for i in range(10):
+i = 0
+while True:
+    time.sleep(0.2)
     r = api.verify(message_hash)
-    if r.status_code == 200 or i == 9: break
+    if r.status_code == 200 or i == 10: break
     logger.info("Hash couldn't be verified yet. Retry...")
-    time.sleep(0.5)
-
+    i += 1
 logger.info("verified: {}: {}".format(r.status_code, r.content))
 
 protocol.persist(uuid)

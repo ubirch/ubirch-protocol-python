@@ -71,7 +71,8 @@ vk = keystore.find_verifying_key(uuid)
 proto = Proto(keystore)
 
 # create API instance
-api = ubirch.API(uuid, auth, env=env)
+api = ubirch.API(env=env)
+api.set_authentication(uuid, auth)
 
 # register public key
 key_registration = proto.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, keystore.get_certificate(uuid))
