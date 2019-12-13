@@ -31,9 +31,11 @@ from ubirch.ubirch_api import KEY_SERVICE, NIOMON_SERVICE, VERIFICATION_SERVICE
 logger = logging.getLogger(__name__)
 
 # test fixtures
-TEST_ENV_KEY_SERVICE = "https://key.{}.ubirch.com/api/keyService/v1"
+TEST_ENV_KEY_SERVICE = "https://key.{}.ubirch.com/api/keyService/v1/pubkey"
 TEST_ENV_NIOMON_SERVICE = "https://niomon.{}.ubirch.com/"
 TEST_ENV_VERIFIER_SERVICE = "https://verify.{}.ubirch.com/api/upp"
+
+TEST_UUID = uuid.UUID("ecdf0d5c-ddcf-4511-bb71-41219a4fe6d4")
 
 
 # TODO this test class needs some more functional tests
@@ -100,9 +102,9 @@ class TestUbirchAPI(unittest.TestCase):
     @requests_mock.mock()
     def test_send_json(self, mock):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
-        self.assertTrue(ubirch.API().send(str.encode(json.dumps({}))))
+        self.assertTrue(ubirch.API().send(TEST_UUID, str.encode(json.dumps({}))))
 
     @requests_mock.mock()
     def test_send_msgpack(self, mock):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
-        self.assertTrue(ubirch.API().send(msgpack.packb([1,2,3])))
+        self.assertTrue(ubirch.API().send(TEST_UUID, msgpack.packb([1,2,3])))

@@ -38,8 +38,9 @@ DATA_SERVICE = "data"
 class API(object):
     """ubirch API accessor methods."""
 
-    def __init__(self, uuid: UUID, auth: str, env="demo", debug=False) -> None:
+    def __init__(self, env="demo", debug=False) -> None:
         super().__init__()
+        self._auth = {}
 
         # enable intensive logging
         if debug and logger.level == logging.DEBUG:
@@ -48,14 +49,6 @@ class API(object):
             requests_log = logging.getLogger("requests.packages.urllib3")
             requests_log.setLevel(logging.DEBUG)
             requests_log.propagate = True
-
-        self._uuid = uuid
-
-        self._headers = {
-            'X-Ubirch-Hardware-Id': str(self._uuid),
-            'X-Ubirch-Credential': base64.b64encode(auth.encode()).decode(),
-            'X-Ubirch-Auth-Type': 'ubirch'
-        }
 
         self._services = {
             KEY_SERVICE: "https://key.{}.ubirch.com/api/keyService/v1/pubkey".format(env),
@@ -66,6 +59,18 @@ class API(object):
 
     def get_url(self, service: str) -> str or None:
         return self._services.get(service, None)
+
+    def set_authentication(self, uuid: UUID, auth: str):
+        self._auth[uuid] = auth
+
+    def _update_authentication(self, uuid: UUID, headers: dict) -> dict:
+        if uuid in self._auth.keys():
+            headers.update({
+                'X-Ubirch-Hardware-Id': str(uuid),
+                'X-Ubirch-Credential': base64.b64encode(self._auth[uuid].encode()).decode(),
+                'X-Ubirch-Auth-Type': 'ubirch'
+            })
+        return headers
 
     def is_identity_registered(self, uuid: UUID) -> bool:
         """
@@ -134,32 +139,33 @@ class API(object):
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
-    def send(self, data: bytes) -> Response:
+    def send(self, uuid: UUID, data: bytes) -> Response:
         """
         Send data to the ubirch niomon service. Requires encoding before sending.
         :param data: the msgpack or JSON encoded data to send
         :return: the response from the server
         """
         if data.startswith(b'{'):
-            return self._send_json(json.loads(bytes.decode(data)))
+            return self._send_json(uuid, json.loads(bytes.decode(data)))
         else:
-            return self._send_mpack(data)
+            return self._send_mpack(uuid, data)
 
-    def _send_json(self, data: dict) -> Response:
+    def _send_json(self, uuid: UUID, data: dict) -> Response:
         payload = str.encode(json.dumps(data, sort_keys=True, separators=(',', ':')))
         logger.debug("sending [json]: {}".format(payload))
-        json_header = {'Content-Type': 'application/json'}
-        json_header.update(self._headers)
+        json_header = {
+            'Content-Type': 'application/json'
+        }
         r = requests.post(self.get_url(NIOMON_SERVICE),
-                          headers=json_header,
+                          headers=self._update_authentication(uuid, json_header),
                           data=payload)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
-    def _send_mpack(self, data: bytes) -> Response:
+    def _send_mpack(self, uuid: UUID, data: bytes) -> Response:
         logger.debug("sending [msgpack]: {}".format(binascii.hexlify(data)))
         r = requests.post(self.get_url(NIOMON_SERVICE),
-                          headers=self._headers,
+                          headers=self._update_authentication(uuid, {}),
                           data=data)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
@@ -182,7 +188,7 @@ class API(object):
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
-    def data_send_mpack(self, data: dict) -> (Response, bytes):
+    def data_send_mpack(self, uuid: UUID, data: dict) -> (Response, bytes):
         """
         Send a data map to the ubirch simple data service. Adds UUID and timestamp
         to the message and packs it as msgpack formatted message
@@ -191,7 +197,7 @@ class API(object):
         """
         logger.debug("sending data to ubirch data service [msgpack]: {}".format(json.dumps(data)))
         msg = [
-            str(self._uuid),
+            str(uuid),
             0,
             int(time.time()),
             data
@@ -199,12 +205,12 @@ class API(object):
         serialized = msgpack.packb(msg)
         logger.debug("msgpack message: {}".format(binascii.hexlify(serialized)))
         r = requests.post(self.get_url(DATA_SERVICE) + '/msgPack',
-                          headers=self._headers,
+                          headers=self._update_authentication(uuid, {}),
                           data=binascii.hexlify(serialized))
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r, serialized
 
-    def data_send_json(self, data: dict) -> (Response, bytes):
+    def data_send_json(self, uuid: UUID, data: dict) -> (Response, bytes):
         """
         Send a data map to the ubirch simple data service. Adds UUID and timestamp
         to the message and packs it as compact sorted json formatted message
@@ -213,7 +219,7 @@ class API(object):
         """
         logger.debug("sending data to ubirch data service [json]: {}".format(json.dumps(data)))
         msg_map = {
-            'uuid': str(self._uuid),
+            'uuid': str(uuid),
             'msg_type': 0,
             'timestamp': int(time.time()),
             'data': data
@@ -221,7 +227,8 @@ class API(object):
         # create a compact rendering of the message to ensure determinism when creating the hash
         serialized = json.dumps(msg_map, separators=(',', ':'), sort_keys=True).encode()
         json_header = {'Content-Type': 'application/json'}
-        json_header.update(self._headers)
-        r = requests.post(self.get_url(DATA_SERVICE) + '/json', headers=json_header, data=serialized)
+        r = requests.post(self.get_url(DATA_SERVICE) + '/json',
+                          headers=self._update_authentication(uuid, json_header),
+                          data=serialized)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r, serialized
