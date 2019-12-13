@@ -110,7 +110,9 @@ if not keystore.exists_signing_key(user2_uuid):
 if not keystore.exists_signing_key(user2_deviceB):
     keystore.create_ed25519_keypair(user2_deviceB)
 
-api = ubirch.API(auth=auth, env=env)
+api = ubirch.API(env=env)
+api.set_authentication(user1_uuid, auth)
+api.set_authentication(user2_uuid, auth)
 
 
 def upload_public_key(uuid: UUID, info_text: str):

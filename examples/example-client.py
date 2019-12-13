@@ -68,7 +68,8 @@ if not keystore.exists_signing_key(uuid):
 # create an instance of the protocol with signature saving
 protocol = Proto(keystore, uuid)
 # create an instance of the ubirch API
-api = ubirch.API(uuid, auth, env=env)
+api = ubirch.API(env=env)
+api.set_authentication(uuid, auth)
 
 # register the devices identity
 if not api.is_identity_registered(uuid):
@@ -92,7 +93,7 @@ payload = {
 
 # send data to the ubirch data service
 logger.info("sending data: {}".format(payload))
-r, message = api.data_send_mpack(payload)
+r, message = api.data_send_mpack(uuid, payload)
 logger.info("message: {}".format(binascii.hexlify(message)))
 logger.info("response: {}: {}".format(r.status_code, r.content))
 
@@ -100,7 +101,7 @@ logger.info("response: {}: {}".format(r.status_code, r.content))
 message_hash = hashlib.sha512(message).digest()
 upp = protocol.message_chained(uuid, 0x00, message_hash)
 logger.info("sending UPP: {}".format(binascii.hexlify(upp)))
-r = api.send(upp)
+r = api.send(uuid, upp)
 logger.info("response: {}: {}".format(r.status_code, binascii.hexlify(r.content)))
 
 logger.info("verifying hash with backend -> quick check")

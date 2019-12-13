@@ -60,8 +60,9 @@ class API(object):
     def get_url(self, service: str) -> str or None:
         return self._services.get(service, None)
 
-    def set_authentication(self, uuid: UUID, auth: str):
-        self._auth[uuid] = auth
+    def set_authentication(self, uuid: UUID, auth: str or None):
+        if auth is not None:
+            self._auth[uuid] = auth
 
     def _update_authentication(self, uuid: UUID, headers: dict) -> dict:
         if uuid in self._auth.keys():
