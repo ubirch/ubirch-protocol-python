@@ -21,7 +21,6 @@ import binascii
 import configparser
 import logging
 import pickle
-import time
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -62,8 +61,8 @@ class Proto(ubirch.Protocol):
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         return self.__ks.find_signing_key(uuid).sign(message)
 
-
 ########################################################################
+
 
 # load configuration from storage
 config = configparser.ConfigParser()
@@ -101,36 +100,8 @@ if not keystore.exists_signing_key(uuid):
 proto = Proto(keystore, uuid)
 
 # use the ubirch API to create a new device and send data using the ubirch-protocol
-api = ubirch.API(auth=auth, debug=debug, env=env)
-
-# check if the device exists and delete if that is the case
-if api.device_exists(uuid):
-    logger.warning("device {} exists, deleting".format(str(uuid)))
-    api.device_delete(uuid)
-    time.sleep(2)
-
-# create a new device on the backend
-r = api.device_create({
-    "deviceId": str(uuid),
-    "deviceTypeKey": "genericSensor",
-    "deviceName": str(uuid),
-    "hwDeviceId": str(uuid),
-    "tags": ["demo", "python-client"],
-    "groups": groups,
-    "deviceProperties": {
-        "storesData": True,
-        "blockChain": False
-    },
-    "created": "{}Z".format(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3])
-})
-if r.status_code == requests.codes.ok:
-    logger.info("created new device: {}".format(str(uuid)))
-    logger.debug(r.content)
-    time.sleep(2)
-else:
-    logger.error(r.content)
-    raise Exception("new device creation failed")
-
+api = ubirch.API(env=env, debug=debug)
+api.set_authentication(uuid, auth)
 # register the devices identity
 if not api.is_identity_registered(uuid):
     registration_message = proto.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, keystore.get_certificate(uuid))
@@ -144,21 +115,21 @@ if not api.is_identity_registered(uuid):
 # send data packages
 
 # message 1 - binary message no payload interpretation
-msg = proto.message_chained(uuid, 0x00, bytearray([1,2,3,4,5]))
+msg = proto.message_chained(uuid, 0x00, bytearray([1, 2, 3, 4, 5]))
 logger.info(binascii.hexlify(msg))
-r = api.send(msg)
+r = api.send(uuid, msg)
 logger.info("1: {}: {}".format(r.status_code, r.content))
 
 # message 2 - interpreted payload message chained
 msg = proto.message_chained(uuid, 0x53, {'ts': int(datetime.utcnow().timestamp()), 'v': 99})
 logger.info(binascii.hexlify(msg))
-r = api.send(msg)
+r = api.send(uuid, msg)
 logger.info("2: {}: {}".format(r.status_code, r.content))
 
 # message 3 (chained to message 1)
 msg = proto.message_chained(uuid, 0x53, {"ts": int(datetime.utcnow().timestamp()), "v": 100})
 logger.info(binascii.hexlify(msg))
-r = api.send(msg)
+r = api.send(uuid, msg)
 logger.info("3: {}: {}".format(r.status_code, r.content))
 
 atexit.register(proto.persist, uuid)

@@ -65,13 +65,13 @@ api = ubirch.API()
 msg = proto.message_chained(uuid, 0x53, {'ts': int(datetime.utcnow().timestamp()), 'v': 99})
 
 print(binascii.hexlify(msg))
-r = api.send(msg)
+r = api.send(uuid, msg)
 print("{}: {}".format(r.status_code, r.content))
 
 # message 2 (chained to message 1)
 msg = proto.message_chained(uuid, 0x53, {"ts": int(datetime.utcnow().timestamp()), "v": 100})
 print(binascii.hexlify(msg))
-r = api.send(msg)
+r = api.send(uuid, msg)
 print("{}: {}".format(r.status_code, r.content))
 ```
 

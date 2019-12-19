@@ -99,7 +99,7 @@ class Protocol(object):
         """
         raise NotImplementedError("verification not implemented")
 
-    def __serialize(self, msg: any) -> bytearray:
+    def _serialize(self, msg: any) -> bytearray:
         return bytearray(msgpack.packb(msg, use_bin_type=True))
 
     def _prepare_and_sign(self, uuid: UUID, msg: any) -> (bytes, bytes):
@@ -110,11 +110,11 @@ class Protocol(object):
         :return: the signature
         """
         # sign the message and store the signature
-        serialized = self.__serialize(msg)[0:-1]
+        serialized = self._serialize(msg)[0:-1]
         signature = self._sign(uuid, self._hash(serialized))
         # replace last element in array with the signature
         msg[-1] = signature
-        return (signature, self.__serialize(msg))
+        return signature, self._serialize(msg)
 
     def message_signed(self, uuid: UUID, type: int, payload: any, save_signature: bool = False) -> bytes:
         """
@@ -122,6 +122,7 @@ class Protocol(object):
         :param uuid: the uuid of the device that sends the message, part of the envelope
         :param type: a hint of the type of message sent (0-255)
         :param payload: the actual message payload
+        :param save_signature: save the signature of the created message so the next chained message contains it
         :return: the encoded and signed message
         """
         # we need to ensure we get a 16bit integer serialized (0xFF | version)

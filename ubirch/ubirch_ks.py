@@ -60,8 +60,8 @@ class KeyStore(object):
             logger.warning("creating new key store: {}".format(self._ks_file))
             self._ks = jks.KeyStore.new("jks", [])
 
-    def insert_ed25519_signing_key(self, uuid, sk: SigningKey):
-        """Insert an existing ED25519 signing key."""
+    def insert_ed25519_signing_key(self, uuid: UUID, sk: SigningKey):
+        """Store an existing ED25519 signing key in the key store."""
         # encode the ED25519 private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
         private_key_info.setComponentByName('version', 'v1')
@@ -73,12 +73,12 @@ class KeyStore(object):
         pke = jks.PrivateKeyEntry.new(alias=str(uuid.hex), certs=[], key=pkey_pkcs8)
         self._ks.entries['pke_' + uuid.hex] = pke
 
-    def insert_ed25519_verifying_key(self, uuid, vk: VerifyingKey):
-        # store verifying key in certificate store
+    def insert_ed25519_verifying_key(self, uuid: UUID, vk: VerifyingKey):
+        """Store an existing ED25519 verifying key in the key store."""
         self._ks.entries[uuid.hex] = ED25519Certificate(uuid.hex, vk)
 
     def insert_ed25519_keypair(self, uuid: UUID, vk: VerifyingKey, sk: SigningKey) -> (VerifyingKey, SigningKey):
-        """Insert an existing ED25519 key pair into the key store."""
+        """Store an existing ED25519 key pair in the key store."""
         if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
@@ -86,7 +86,7 @@ class KeyStore(object):
         self.insert_ed25519_signing_key(uuid, sk)
         self._ks.save(self._ks_file, self._ks_password)
         logger.info("inserted new key pair for {}: {}".format(uuid.hex, bytes.decode(vk.to_ascii(encoding='hex'))))
-        return (vk, sk)
+        return vk, sk
 
     def create_ed25519_keypair(self, uuid: UUID) -> (VerifyingKey, SigningKey):
         """Create a new ED25519 key pair and store in key store."""
@@ -112,7 +112,8 @@ class KeyStore(object):
         return VerifyingKey(cert.cert)
 
     def get_certificate(self, uuid: UUID) -> dict or None:
-        if not uuid.hex in self._ks.certs:
+        """Get the public key info for key registration"""
+        if uuid.hex not in self._ks.certs:
             return None
 
         cert = self._ks.certs[uuid.hex]
