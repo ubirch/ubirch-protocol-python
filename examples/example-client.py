@@ -1,5 +1,7 @@
+import base64
 import binascii
 import hashlib
+import json
 import logging
 import os
 import pickle
@@ -11,6 +13,7 @@ from uuid import UUID
 import requests
 
 import ubirch
+from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.INFO)
 logger = logging.getLogger()
@@ -67,19 +70,19 @@ if not keystore.exists_signing_key(uuid):
 
 # create an instance of the protocol with signature saving
 protocol = Proto(keystore, uuid)
+protocol.load(uuid)
 # create an instance of the ubirch API
 api = ubirch.API(env=env)
 api.set_authentication(uuid, auth)
 
 # register the devices identity
 if not api.is_identity_registered(uuid):
-    cert = keystore.get_certificate(uuid, legacy=True)
-    key_reg_msg = protocol.create_key_registration_message(cert, uuid)
-    r = api.register_identity(key_reg_msg)
+    key_registration = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, keystore.get_certificate(uuid))
+    r = api.register_identity(key_registration)
     if r.status_code == requests.codes.ok:
-        logger.info("registered new identity: {}".format(uuid))
+        logger.info("{}: identity registered".format(uuid))
     else:
-        logger.error("device registration failed: {}".format(uuid))
+        logger.error("{}: registration failed".format(uuid))
     logger.debug("registered: {}: {}".format(r.status_code, r.content))
 
 # create a payload message like being sent to the customer backend
@@ -126,18 +129,18 @@ logger.info("verified: {}: {}".format(r.status_code, r.content))
 
 protocol.persist(uuid)
 
-# # deregister the devices identity
-# if api.is_identity_registered(uuid):
-#     vk = keystore.find_verifying_key(uuid)
-#     sk = keystore.find_signing_key(uuid)
-#
-#     key_deregistration = str.encode(json.dumps({
-#         "publicKey": bytes.decode(base64.b64encode(vk.to_bytes())),
-#         "signature": bytes.decode(base64.b64encode(sk.sign(vk.to_bytes())))
-#     }))
-#     r = api.deregister_identity(key_deregistration)
-#     if r.status_code == requests.codes.ok:
-#         logger.info("deregistered identity: {}".format(uuid))
-#     else:
-#         logger.error("deregistration failed: {}".format(uuid))
-#     logger.debug("deregistered: {}: {}".format(r.status_code, r.content))
+# deregister the devices identity
+if api.is_identity_registered(uuid):
+    vk = keystore.find_verifying_key(uuid)
+    sk = keystore.find_signing_key(uuid)
+
+    key_deregistration = str.encode(json.dumps({
+        "publicKey": bytes.decode(base64.b64encode(vk.to_bytes())),
+        "signature": bytes.decode(base64.b64encode(sk.sign(vk.to_bytes())))
+    }))
+    r = api.deregister_identity(key_deregistration)
+    if r.status_code == requests.codes.ok:
+        logger.info("deregistered identity: {}".format(uuid))
+    else:
+        logger.error("deregistration failed: {}".format(uuid))
+    logger.debug("deregistered: {}: {}".format(r.status_code, r.content))

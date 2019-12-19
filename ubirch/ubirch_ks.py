@@ -16,7 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import base64
 from datetime import datetime, timedelta
 from logging import getLogger
 from os import urandom
@@ -112,7 +111,7 @@ class KeyStore(object):
         cert = self._ks.certs[uuid.hex]
         return VerifyingKey(cert.cert)
 
-    def get_certificate(self, uuid: UUID, legacy=False) -> dict or None:
+    def get_certificate(self, uuid: UUID) -> dict or None:
         """Get the public key info for key registration"""
         if uuid.hex not in self._ks.certs:
             return None
@@ -123,23 +122,12 @@ class KeyStore(object):
         not_before = datetime.fromtimestamp(cert.timestamp)
         # TODO fix handling of key validity
         not_after = created + timedelta(days=365)
-        if legacy:
-            return {
-                "algorithm": 'ECC_ED25519',
-                'created': str(datetime.utcfromtimestamp(int(created.timestamp())).isoformat() + ".000Z"),
-                'hwDeviceId': str(uuid),
-                'pubKey': base64.b64encode(vk.to_bytes()).decode(),
-                'pubKeyId': base64.b64encode(vk.to_bytes()).decode(),
-                'validNotAfter': str(datetime.utcfromtimestamp(int(not_after.timestamp())).isoformat() + ".000Z"),
-                'validNotBefore': str(datetime.utcfromtimestamp(int(not_before.timestamp())).isoformat() + ".000Z")
-            }
-        else:
-            return {
-                "algorithm": 'ECC_ED25519',
-                "created": int(created.timestamp()),
-                "hwDeviceId": uuid.bytes,
-                "pubKey": vk.to_bytes(),
-                "pubKeyId": vk.to_bytes(),
-                "validNotAfter": int(not_after.timestamp()),
-                "validNotBefore": int(not_before.timestamp())
-            }
+        return {
+            "algorithm": 'ECC_ED25519',
+            "created": int(created.timestamp()),
+            "hwDeviceId": uuid.bytes,
+            "pubKey": vk.to_bytes(),
+            "pubKeyId": vk.to_bytes(),
+            "validNotAfter": int(not_after.timestamp()),
+            "validNotBefore": int(not_before.timestamp())
+        }
