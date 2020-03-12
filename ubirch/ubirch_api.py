@@ -141,6 +141,7 @@ class API(object):
     def send(self, uuid: UUID, data: bytes) -> Response:
         """
         Send data to the ubirch authentication service (Niomon). Requires encoding before sending.
+        :param uuid: the sender's UUID
         :param data: the msgpack or JSON encoded data to send
         :return: the response from the server
         """
@@ -183,13 +184,14 @@ class API(object):
             url = self.get_url(VERIFICATION_SERVICE) + '/verify'
         r = requests.post(url,
                           headers={'Accept': 'application/json', 'Content-Type': 'text/plain'},
-                          data=base64.b64encode(data).decode())
+                          data=base64.b64encode(data).decode().rstrip('\n'))
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def send_data(self, uuid: UUID, data: bytes) -> Response:
         """
         Send data to the ubirch data service. Requires encoding before sending.
+        :param uuid: the sender's UUID
         :param data: the msgpack or JSON encoded data to send
         :return: the response from the server
         """
