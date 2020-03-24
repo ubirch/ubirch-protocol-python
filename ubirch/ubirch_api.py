@@ -19,11 +19,9 @@ import base64
 import binascii
 import json
 import logging
-import time
 from logging import getLogger
 from uuid import UUID
 
-import msgpack
 import requests
 from requests import Response
 
@@ -142,7 +140,8 @@ class API(object):
 
     def send(self, uuid: UUID, data: bytes) -> Response:
         """
-        Send data to the ubirch niomon service. Requires encoding before sending.
+        Send data to the ubirch authentication service (Niomon). Requires encoding before sending.
+        :param uuid: the sender's UUID
         :param data: the msgpack or JSON encoded data to send
         :return: the response from the server
         """
@@ -185,51 +184,35 @@ class API(object):
             url = self.get_url(VERIFICATION_SERVICE) + '/verify'
         r = requests.post(url,
                           headers={'Accept': 'application/json', 'Content-Type': 'text/plain'},
-                          data=base64.b64encode(data).decode())
+                          data=base64.b64encode(data).decode().rstrip('\n'))
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
-    def data_send_mpack(self, uuid: UUID, data: dict) -> (Response, bytes):
+    def send_data(self, uuid: UUID, data: bytes) -> Response:
         """
-        Send a data map to the ubirch simple data service. Adds UUID and timestamp
-        to the message and packs it as msgpack formatted message
-        :param data: the data map to send
-        :return: the response from the server, the msgpack formatted message
+        Send data to the ubirch data service. Requires encoding before sending.
+        :param uuid: the sender's UUID
+        :param data: the msgpack or JSON encoded data to send
+        :return: the response from the server
         """
-        logger.debug("sending data to ubirch data service [msgpack]: {}".format(json.dumps(data)))
-        msg = [
-            str(uuid),
-            0,
-            int(time.time()),
-            data
-        ]
-        serialized = msgpack.packb(msg)
-        logger.debug("msgpack message: {}".format(binascii.hexlify(serialized)))
-        r = requests.post(self.get_url(DATA_SERVICE) + '/msgPack',
-                          headers=self._update_authentication(uuid, {}),
-                          data=binascii.hexlify(serialized))
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r, serialized
+        if data.startswith(b'{'):
+            return self._send_data_json(uuid, data)
+        else:
+            return self._send_data_mpack(uuid, data)
 
-    def data_send_json(self, uuid: UUID, data: dict) -> (Response, bytes):
-        """
-        Send a data map to the ubirch simple data service. Adds UUID and timestamp
-        to the message and packs it as compact sorted json formatted message
-        :param data: the data map to send
-        :return: the response from the server, the compact sorted json formatted message
-        """
-        logger.debug("sending data to ubirch data service [json]: {}".format(json.dumps(data)))
-        msg_map = {
-            'uuid': str(uuid),
-            'msg_type': 0,
-            'timestamp': int(time.time()),
-            'data': data
-        }
-        # create a compact rendering of the message to ensure determinism when creating the hash
-        serialized = json.dumps(msg_map, separators=(',', ':'), sort_keys=True).encode()
+    def _send_data_json(self, uuid: UUID, data: bytes):
+        logger.debug("sending data [json]: {}".format(data))
         json_header = {'Content-Type': 'application/json'}
         r = requests.post(self.get_url(DATA_SERVICE) + '/json',
                           headers=self._update_authentication(uuid, json_header),
-                          data=serialized)
+                          data=data)
         logger.debug("{}: {}".format(r.status_code, r.content))
-        return r, serialized
+        return r
+
+    def _send_data_mpack(self, uuid: UUID, data: bytes) -> Response:
+        logger.debug("sending data [msgpack]: {}".format(binascii.hexlify(data)))
+        r = requests.post(self.get_url(DATA_SERVICE) + '/msgPack',
+                          headers=self._update_authentication(uuid, {}),
+                          data=binascii.hexlify(data))
+        logger.debug("{}: {}".format(r.status_code, r.content))
+        return r
