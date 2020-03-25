@@ -20,4 +20,4 @@ CHAINED_MESSAGES = [
 
 for i, message in enumerate(CHAINED_MESSAGES):
     print("verifying message {}".format(i))
-    vk.verify(message[-64:], hashlib.sha256(message[0:-66]).digest(), hashfunc=hashlib.sha256)
+    vk.verify(message[-64:], message[0:-66], hashfunc=hashlib.sha256)
