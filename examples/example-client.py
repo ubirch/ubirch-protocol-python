@@ -52,36 +52,6 @@ class Proto(ubirch.Protocol):
 
 ########################################################################
 
-
-def pack_data_message(uuid: UUID, data: dict) -> (bytes, bytes):
-    """
-    Generate a message for the ubirch data service.
-    :param data: a map containing the data to be sent
-    :return: a msgpack formatted array with the device UUID, message type, timestamp, data and hash
-    :return: the hash of the data message
-    """
-    msg_type = 1
-
-    message = {
-        'uuid': str(uuid),
-        'msg_type': msg_type,
-        'timestamp': int(time.time()),
-        'data': data
-    }
-
-    # create a compact rendering of the message to ensure determinism when creating the hash
-    serialized = json.dumps(message, separators=(',', ':'), sort_keys=True).encode()
-
-    # calculate hash of message
-    message_hash = hashlib.sha512(serialized).digest()
-
-    # append hash to message
-    message.update({'hash': binascii.b2a_base64(message_hash).decode().rstrip('\n')})
-
-    # return serialized message and hash
-    return json.dumps(message, separators=(',', ':'), sort_keys=True).encode(), message_hash
-
-
 auth = os.getenv("UBIRCH_AUTH")
 if len(sys.argv) < 2 or auth is None:
     print("usage:")
@@ -111,26 +81,38 @@ if not api.is_identity_registered(uuid):
     key_registration = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, keystore.get_certificate(uuid))
     r = api.register_identity(key_registration)
     if r.status_code == codes.ok:
-        logger.info("{}: identity registered".format(uuid))
+        logger.info("{}: public key registered".format(uuid))
     else:
         logger.error("{}: registration failed".format(uuid))
     logger.debug("registered: {}: {}".format(r.status_code, r.content))
 
-# create a payload message like being sent to the customer backend
-payload = {
-    "ts": int(time.time()),
-    "v": random.randint(0, 100)
+# create a message like being sent to the customer backend
+rand_temp = random.randint(0, 100) / random.randint(1,
+                                                    5)  # get a floating-point number between 0.0 and 100.0 as temperature
+rand_hum = random.randint(0, 100)  # get a integer between 0 and 100 as relative humidity
+
+# include an ID and timestamp in the data message to ensure a unique hash
+message = {
+    'id': str(uuid),
+    'ts': int(time.time()),
+    'data': {
+        't': "{:.2f}".format(rand_temp),
+        "h": "{:d}".format(rand_hum)
+    }
 }
 
-# create a data message for the ubirch data service
-message, message_hash = pack_data_message(uuid, {'v': payload})
+# create a compact rendering of the message to ensure determinism when creating the hash
+serialized = json.dumps(message, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
 
-# send data to data service
-logger.info("sending data: {}".format(message))
-r = api.send_data(uuid, message)
-logger.info("response: {}: {}".format(r.status_code, r.content))
+# calculate the hash of the message
+message_hash = hashlib.sha256(serialized).digest()
 
-# create a new protocol message with the hashed message
+# todo # send the message to data service
+# logger.info("sending data: {}".format(message))
+# r = api.send_data(uuid, serialized)
+# logger.info("response: {}: {}".format(r.status_code, r.content))
+
+# create a new protocol message with the hash of the message
 upp = protocol.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
 
 # send protocol message to verification service
@@ -140,19 +122,19 @@ logger.info("response: {}: {}".format(r.status_code, binascii.hexlify(r.content)
 
 # verify that hash exists in backend
 logger.info("verifying hash with backend [quick check]")
-i = 0
+retries = 3
 while True:
-    time.sleep(0.1)
+    time.sleep(0.2)
     r = api.verify(message_hash, quick=True)
-    if r.status_code == 200 or i == 10: break
+    if r.status_code == 200 or retries == 0: break
     logger.info("Hash could not be verified yet. Retry...")
-    i += 1
-logger.info("verified: {}: {}".format(r.status_code, r.content))
+    retries -= 1
+logger.info("verification status code: {}: {}".format(r.status_code, r.content))
 
 # save last signature
 protocol.persist(uuid)
 
-# deregister the devices identity
+# deregister the devices public key at the key service
 if api.is_identity_registered(uuid):
     vk = keystore.find_verifying_key(uuid)
     sk = keystore.find_signing_key(uuid)
@@ -163,7 +145,7 @@ if api.is_identity_registered(uuid):
     }))
     r = api.deregister_identity(key_deregistration)
     if r.status_code == codes.ok:
-        logger.info("deregistered identity: {}".format(uuid))
+        logger.info("deregistered public key for identity: {}".format(uuid))
     else:
         logger.error("deregistration failed: {}".format(uuid))
     logger.debug("deregistered: {}: {}".format(r.status_code, r.content))
