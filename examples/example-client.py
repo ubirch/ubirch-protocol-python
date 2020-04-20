@@ -1,9 +1,7 @@
-import base64
 import binascii
 import hashlib
 import json
 import logging
-import os
 import pickle
 import random
 import sys
@@ -52,15 +50,25 @@ class Proto(ubirch.Protocol):
 
 ########################################################################
 
-auth = os.getenv("UBIRCH_AUTH")
-if len(sys.argv) < 2 or auth is None:
+
+def get_random_temperature() -> float:
+    """get a random floating-point number between 0.0 and 100.0 as temperature"""
+    return random.randint(0, 100) / float(random.randint(1, 5))
+
+
+def get_random_humidity():
+    """ get a random integer between 0 and 100 as relative humidity"""
+    return random.randint(0, 100)
+
+
+if len(sys.argv) < 3:
     print("usage:")
-    print("  export UBIRCH_AUTH=<ubirch-authorization-token>")
-    print("  python3 example-client.py [dev|demo|prod] <UUID>")
+    print("  python3 example-client.py [dev|demo|prod] <UUID> <ubirch-auth-token>")
     sys.exit(0)
 
 env = sys.argv[1]
 uuid = UUID(hex=sys.argv[2])
+auth = sys.argv[3]
 
 # create a keystore for the device
 keystore = ubirch.KeyStore(uuid.hex + ".jks", "test-keystore")
@@ -87,18 +95,18 @@ if not api.is_identity_registered(uuid):
     logger.debug("registered: {}: {}".format(r.status_code, r.content))
 
 # create a message like being sent to the customer backend
-rand_temp = random.randint(0, 100) / random.randint(1,
-                                                    5)  # get a floating-point number between 0.0 and 100.0 as temperature
-rand_hum = random.randint(0, 100)  # get a integer between 0 and 100 as relative humidity
+temp = get_random_temperature()
+hum = get_random_humidity()
 
 # include an ID and timestamp in the data message to ensure a unique hash
 message = {
-    'id': str(uuid),
-    'ts': int(time.time()),
+    'uuid': str(uuid),
+    'timestamp': int(time.time()),
     'data': {
-        't': "{:.2f}".format(rand_temp),
-        "h": "{:d}".format(rand_hum)
-    }
+        'T': "{:.3f}".format(temp),  # convert floats to strings with a constant number of decimal places
+        "H": "{:d}".format(hum)
+    },
+    'msg_type': 1,
 }
 
 # create a compact rendering of the message to ensure determinism when creating the hash
@@ -107,10 +115,10 @@ serialized = json.dumps(message, separators=(',', ':'), sort_keys=True, ensure_a
 # calculate the hash of the message
 message_hash = hashlib.sha256(serialized).digest()
 
-# todo # send the message to data service
-# logger.info("sending data: {}".format(message))
-# r = api.send_data(uuid, serialized)
-# logger.info("response: {}: {}".format(r.status_code, r.content))
+# send the message to data service
+logger.info("sending data: {}".format(message))
+r = api.send_data(uuid, serialized)
+logger.info("response: {}: {}".format(r.status_code, r.content))
 
 # create a new protocol message with the hash of the message
 upp = protocol.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
@@ -134,18 +142,18 @@ logger.info("verification status code: {}: {}".format(r.status_code, r.content))
 # save last signature
 protocol.persist(uuid)
 
-# deregister the devices public key at the key service
-if api.is_identity_registered(uuid):
-    vk = keystore.find_verifying_key(uuid)
-    sk = keystore.find_signing_key(uuid)
-
-    key_deregistration = str.encode(json.dumps({
-        "publicKey": bytes.decode(base64.b64encode(vk.to_bytes())),
-        "signature": bytes.decode(base64.b64encode(sk.sign(vk.to_bytes())))
-    }))
-    r = api.deregister_identity(key_deregistration)
-    if r.status_code == codes.ok:
-        logger.info("deregistered public key for identity: {}".format(uuid))
-    else:
-        logger.error("deregistration failed: {}".format(uuid))
-    logger.debug("deregistered: {}: {}".format(r.status_code, r.content))
+# # deregister the devices public key at the key service
+# if api.is_identity_registered(uuid):
+#     vk = keystore.find_verifying_key(uuid)
+#     sk = keystore.find_signing_key(uuid)
+#
+#     key_deregistration = str.encode(json.dumps({
+#         "publicKey": bytes.decode(base64.b64encode(vk.to_bytes())),
+#         "signature": bytes.decode(base64.b64encode(sk.sign(vk.to_bytes())))
+#     }))
+#     r = api.deregister_identity(key_deregistration)
+#     if r.status_code == codes.ok:
+#         logger.info("deregistered public key for identity: {}".format(uuid))
+#     else:
+#         logger.error("deregistration failed: {}".format(uuid))
+#     logger.debug("deregistered: {}: {}".format(r.status_code, r.content))
