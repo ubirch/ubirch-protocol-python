@@ -151,7 +151,7 @@ class API(object):
             return self._send_mpack(uuid, data)
 
     def _send_json(self, uuid: UUID, data: dict) -> Response:
-        payload = str.encode(json.dumps(data, sort_keys=True, separators=(',', ':')))
+        payload = str.encode(json.dumps(data, sort_keys=True, ensure_ascii=False, separators=(',', ':')))
         logger.debug("sending [json]: {}".format(payload))
         json_header = {
             'Content-Type': 'application/json'
