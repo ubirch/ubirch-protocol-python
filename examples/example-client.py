@@ -61,7 +61,7 @@ def get_random_humidity():
     return random.randint(0, 100)
 
 
-if len(sys.argv) < 3:
+if len(sys.argv) < 4:
     print("usage:")
     print("  python3 example-client.py [dev|demo|prod] <UUID> <ubirch-auth-token>")
     sys.exit(0)
