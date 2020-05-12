@@ -10,6 +10,10 @@ chained = 0x23
 upp = binascii.unhexlify("")  # you can paste the hex string representation of the UPP here instead of passing a file
 
 if not upp:
+    upp = binascii.a2b_base64(
+        "")  # you can paste the base64 string representation of the UPP here instead of passing a file
+
+if not upp:
     if len(sys.argv) < 2:
         print("usage:")
         print("python3 ./unpack.py <binary-file-name>")
