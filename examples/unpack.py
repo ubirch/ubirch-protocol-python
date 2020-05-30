@@ -41,16 +41,19 @@ if not upp:
         sys.exit(1)
 
 if not (upp[0] == 0x95 or upp[0] == 0x96):
-    print("argument \"{}\" is not a valid UPP".format(arg))
+    print("invalid UPP".format(arg))
     print(usage)
     sys.exit(1)
 
 # unpack msgpack formatted UPP
-try:
-    unpacked = msgpack.unpackb(upp, raw=False)
-except Exception:
-    # try legacy version
+if upp[1] >> 4 == 2:  # version 2
+    unpacked = msgpack.unpackb(upp)
+elif upp[1] >> 4 == 1:  # version 1 (legacy)
     unpacked = msgpack.unpackb(upp, raw=True)
+else:
+    print("invalid UPP version".format(arg))
+    print(usage)
+    sys.exit(1)
 
 version = unpacked[0]
 print("-    Version: 0x{:02x}".format(version))
