@@ -21,7 +21,7 @@ arg = sys.argv[1]
 try:
     with open(arg, "rb") as f:
         upp = f.read()
-except FileNotFoundError:
+except OSError:
     pass
 
 if not upp:
