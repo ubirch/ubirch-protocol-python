@@ -41,7 +41,7 @@ if not upp:
         sys.exit(1)
 
 if not (upp[0] == 0x95 or upp[0] == 0x96):
-    print("invalid UPP".format(arg))
+    print("invalid UPP")
     print(usage)
     sys.exit(1)
 
@@ -51,7 +51,7 @@ if upp[1] >> 4 == 2:  # version 2
 elif upp[1] >> 4 == 1:  # version 1 (legacy)
     unpacked = msgpack.unpackb(upp, raw=True)
 else:
-    print("invalid UPP version".format(arg))
+    print("invalid UPP version")
     print(usage)
     sys.exit(1)
 
@@ -64,6 +64,7 @@ print("-       UUID: {}".format(str(uuid)))
 if version == chained:
     prev_sign = unpacked[2]
     print("- prev.Sign.: {}".format(binascii.b2a_base64(prev_sign).decode().rstrip("\n")))
+    print("       [hex]: {:s} ({:d} bytes)".format(binascii.hexlify(prev_sign).decode(), len(prev_sign)))
 
 payload_type = unpacked[-3]
 print("-       Type: 0x{:02x}".format(payload_type))
@@ -71,8 +72,10 @@ print("-       Type: 0x{:02x}".format(payload_type))
 payload = unpacked[-2]
 if type(payload) is bytes:
     print("-    Payload: {:s}".format(binascii.b2a_base64(payload).decode().rstrip("\n")))
+    print("       [hex]: {:s} ({:d} bytes)".format(binascii.hexlify(payload).decode(), len(payload)))
 else:
     print("-    Payload: {:s}".format(repr(payload)))
 
 signature = unpacked[-1]
 print("-  Signature: {:s}".format(binascii.b2a_base64(signature).decode().rstrip("\n")))
+print("       [hex]: {:s} ({:d} bytes)".format(binascii.hexlify(signature).decode(), len(signature)))
