@@ -56,7 +56,7 @@ def get_random_temperature() -> float:
     return random.randint(0, 100) / float(random.randint(1, 5))
 
 
-def get_random_humidity():
+def get_random_humidity() -> int:
     """ get a random integer between 0 and 100 as relative humidity"""
     return random.randint(0, 100)
 
@@ -77,9 +77,10 @@ keystore = ubirch.KeyStore(uuid.hex + ".jks", "test-keystore")
 if not keystore.exists_signing_key(uuid):
     keystore.create_ed25519_keypair(uuid)
 
-# create an instance of the protocol with signature saving
+# create an instance of the protocol with signature saving and load previous signature
 protocol = Proto(keystore, uuid)
 protocol.load(uuid)
+
 # create an instance of the ubirch API
 api = ubirch.API(env=env)
 api.set_authentication(uuid, auth)
@@ -100,13 +101,13 @@ hum = get_random_humidity()
 
 # include an ID and timestamp in the data message to ensure a unique hash
 message = {
-    'uuid': str(uuid),
-    'timestamp': int(time.time()),
-    'data': {
-        'T': "{:.3f}".format(temp),  # convert floats to strings with a constant number of decimal places
+    "uuid": str(uuid),
+    "msg_type": 1,
+    "timestamp": int(time.time()),
+    "data": {
+        "T": "{:.3f}".format(temp),  # convert floats to strings with a constant number of decimal places
         "H": "{:d}".format(hum)
     },
-    'msg_type': 1,
 }
 
 # create a compact rendering of the message to ensure determinism when creating the hash
@@ -121,10 +122,18 @@ r = api.send_data(uuid, serialized)
 logger.info("response: {}: {}".format(r.status_code, r.content))
 
 # create a new protocol message with the hash of the message
+upp = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
+
+# send signed protocol message to authentication service
+logger.info("sending signed UPP: {}".format(binascii.hexlify(upp)))
+r = api.send(uuid, upp)
+logger.info("response: {}: {}".format(r.status_code, binascii.hexlify(r.content)))
+
+# create a new protocol message with the hash of the message
 upp = protocol.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
 
-# send protocol message to verification service
-logger.info("sending UPP: {}".format(binascii.hexlify(upp)))
+# send chained protocol message to authentication service
+logger.info("sending chained UPP: {}".format(binascii.hexlify(upp)))
 r = api.send(uuid, upp)
 logger.info("response: {}: {}".format(r.status_code, binascii.hexlify(r.content)))
 
