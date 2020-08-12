@@ -24,6 +24,7 @@ class Proto(ubirch.Protocol):
     def __init__(self, key_store: ubirch.KeyStore, uuid: UUID) -> None:
         super().__init__()
         self.__ks = key_store
+        self.load(uuid)
         logger.info("ubirch-protocol: device id: {}".format(uuid))
 
     def persist(self, uuid: UUID):
@@ -37,7 +38,7 @@ class Proto(ubirch.Protocol):
                 signatures = pickle.load(f)
                 logger.info("loaded {} known signatures".format(len(signatures)))
                 self.set_saved_signatures(signatures)
-        except:
+        except FileNotFoundError:
             logger.warning("no existing saved signatures")
             pass
 
@@ -77,17 +78,16 @@ keystore = ubirch.KeyStore(uuid.hex + ".jks", "test-keystore")
 if not keystore.exists_signing_key(uuid):
     keystore.create_ed25519_keypair(uuid)
 
-# create an instance of the protocol with signature saving and load previous signature
+# create an instance of the protocol with signature saving
 protocol = Proto(keystore, uuid)
-protocol.load(uuid)
-
 # create an instance of the ubirch API
 api = ubirch.API(env=env)
 api.set_authentication(uuid, auth)
 
 # register the devices identity
 if not api.is_identity_registered(uuid):
-    key_registration = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, keystore.get_certificate(uuid))
+    certificate = keystore.get_certificate(uuid)
+    key_registration = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
     r = api.register_identity(key_registration)
     if r.status_code == codes.ok:
         logger.info("{}: public key registered".format(uuid))
