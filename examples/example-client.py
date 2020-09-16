@@ -93,6 +93,7 @@ if not api.is_identity_registered(uuid):
         logger.info("{}: public key registered".format(uuid))
     else:
         logger.error("{}: registration failed".format(uuid))
+        sys.exit(1)
 
 # create a message like being sent to the customer backend
 # include an ID and timestamp in the data message to ensure a unique hash
@@ -120,6 +121,7 @@ if r.status_code == codes.ok:
     logger.info("UPP successfully sent. response: {}".format(binascii.hexlify(r.content).decode()))
 else:
     logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
+    sys.exit(1)
 
 # verify the backend response
 try:
@@ -127,6 +129,7 @@ try:
     logger.info("backend response signature successfully verified")
 except Exception as e:
     logger.error("backend response signature verification FAILED! {}".format(repr(e)))
+    sys.exit(1)
 
 # save last signature
 protocol.persist(uuid)
