@@ -80,11 +80,12 @@ if not keystore.exists_signing_key(uuid):
 
 # create an instance of the protocol with signature saving
 protocol = Proto(keystore, uuid)
-# create an instance of the ubirch API
+
+# create an instance of the UBIRCH API and set the auth token
 api = ubirch.API(env=env)
 api.set_authentication(uuid, auth)
 
-# register the devices identity
+# register the public key at the UBIRCH key service
 if not api.is_identity_registered(uuid):
     certificate = keystore.get_certificate(uuid)
     key_registration = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
@@ -96,17 +97,15 @@ if not api.is_identity_registered(uuid):
     logger.debug("registered: {}: {}".format(r.status_code, r.content))
 
 # create a message like being sent to the customer backend
-temp = get_random_temperature()
-hum = get_random_humidity()
-
 # include an ID and timestamp in the data message to ensure a unique hash
 message = {
     "uuid": str(uuid),
     "msg_type": 1,
     "timestamp": int(time.time()),
     "data": {
-        "T": "{:.3f}".format(temp),  # convert floats to strings with a constant number of decimal places
-        "H": "{:d}".format(hum)
+        # convert floats to strings with a constant number of decimal places
+        "T": "{:.3f}".format(get_random_temperature()),
+        "H": "{:d}".format(get_random_humidity())
     },
 }
 
@@ -116,40 +115,32 @@ serialized = json.dumps(message, separators=(',', ':'), sort_keys=True, ensure_a
 # calculate the hash of the message
 message_hash = hashlib.sha256(serialized).digest()
 
-# send the message to data service
+# (optional) send the message to UBIRCH data service
 logger.info("sending data: {}".format(message))
 r = api.send_data(uuid, serialized)
 logger.info("response: {}: {}".format(r.status_code, r.content))
 
-# create a new protocol message with the hash of the message
-upp = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
-
-# send signed protocol message to authentication service
-logger.info("sending signed UPP: {}".format(binascii.hexlify(upp)))
-r = api.send(uuid, upp)
-logger.info("response: {}: {}".format(r.status_code, binascii.hexlify(r.content)))
-
-# create a new protocol message with the hash of the message
+# create a new chained protocol message with the hash of the message
 upp = protocol.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
 
-# send chained protocol message to authentication service
+# send chained protocol message to UBIRCH authentication service
 logger.info("sending chained UPP: {}".format(binascii.hexlify(upp)))
 r = api.send(uuid, upp)
 logger.info("response: {}: {}".format(r.status_code, binascii.hexlify(r.content)))
 
-# verify that hash exists in backend
+# save last signature
+protocol.persist(uuid)
+
+# (optional) verify that hash exists in UBIRCH backend
 logger.info("verifying hash with backend [quick check]")
 retries = 3
 while True:
-    time.sleep(0.2)
+    time.sleep(0.2)  # wait until hash is verifiable in backend
     r = api.verify(message_hash, quick=True)
     if r.status_code == 200 or retries == 0: break
     logger.info("Hash could not be verified yet. Retry...")
     retries -= 1
 logger.info("verification status code: {}: {}".format(r.status_code, r.content))
-
-# save last signature
-protocol.persist(uuid)
 
 # # deregister the devices public key at the key service
 # if api.is_identity_registered(uuid):
