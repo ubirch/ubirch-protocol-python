@@ -8,6 +8,7 @@ import sys
 import time
 from uuid import UUID
 
+from ed25519 import VerifyingKey
 from requests import codes
 
 import ubirch
@@ -20,11 +21,24 @@ logger = logging.getLogger()
 ########################################################################
 # Implement the ubirch-protocol with signing and saving the signatures
 class Proto(ubirch.Protocol):
+    UUID_PROD = UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
+    PUB_PROD = VerifyingKey("ef8048ad06c0285af0177009381830c46cec025d01d86085e75a4f0041c2e690", encoding='hex')
 
     def __init__(self, key_store: ubirch.KeyStore, uuid: UUID) -> None:
         super().__init__()
         self.__ks = key_store
+
+        # check if the device already has keys or generate a new pair
+        if not keystore.exists_signing_key(uuid):
+            keystore.create_ed25519_keypair(uuid)
+
+        # check if the keystore already has the backend key for verification or insert verifying key
+        if not self.__ks.exists_verifying_key(self.UUID_PROD):
+            self.__ks.insert_ed25519_verifying_key(self.UUID_PROD, self.PUB_PROD)
+
+        # load last signature for device
         self.load(uuid)
+
         logger.info("ubirch-protocol: device id: {}".format(uuid))
 
     def persist(self, uuid: UUID):
@@ -51,21 +65,17 @@ class Proto(ubirch.Protocol):
 
 ########################################################################
 
-if len(sys.argv) < 4:
+if len(sys.argv) < 3:
     print("usage:")
-    print("  python3 example-client.py [dev|demo|prod] <UUID> <ubirch-auth-token>")
+    print("  python3 example-client.py <UUID> <ubirch-auth-token>")
     sys.exit(0)
 
-env = sys.argv[1]
-uuid = UUID(hex=sys.argv[2])
-auth = sys.argv[3]
+env = "prod"
+uuid = UUID(hex=sys.argv[1])
+auth = sys.argv[2]
 
 # create a keystore for the device
-keystore = ubirch.KeyStore(uuid.hex + ".jks", "test-keystore")
-
-# check if the device already has keys or generate a new pair
-if not keystore.exists_signing_key(uuid):
-    keystore.create_ed25519_keypair(uuid)
+keystore = ubirch.KeyStore("demo-device.jks", "keystore")
 
 # create an instance of the protocol with signature saving
 protocol = Proto(keystore, uuid)
@@ -110,6 +120,13 @@ if r.status_code == codes.ok:
     logger.info("UPP successfully sent. response: {}".format(binascii.hexlify(r.content).decode()))
 else:
     logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
+
+# verify the backend response
+try:
+    protocol.message_verify(r.content)
+    logger.info("backend response signature successfully verified")
+except Exception as e:
+    logger.error("backend response signature verification FAILED! {}".format(repr(e)))
 
 # save last signature
 protocol.persist(uuid)
