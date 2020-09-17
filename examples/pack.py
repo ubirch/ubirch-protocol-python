@@ -52,7 +52,7 @@ if len(sys.argv) < 2:
 uuid = UUID(hex=sys.argv[1])
 
 # create a keystore for the device
-keystore = ubirch.KeyStore(uuid.hex + ".jks", "test-keystore")
+keystore = ubirch.KeyStore("demo-device.jks", "keystore")
 
 # check if the device already has keys or generate a new pair
 if not keystore.exists_signing_key(uuid):
