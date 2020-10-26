@@ -79,8 +79,8 @@ class KeyStore(object):
 
     def insert_ed25519_keypair(self, uuid: UUID, vk: VerifyingKey, sk: SigningKey) -> (VerifyingKey, SigningKey):
         """Store an existing ED25519 key pair in the key store."""
-        if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
-            raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
+        # if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
+        #     raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
         self.insert_ed25519_verifying_key(uuid, vk)
         self.insert_ed25519_signing_key(uuid, sk)
@@ -128,11 +128,12 @@ class KeyStore(object):
             "hwDeviceId": str(uuid),
             "pubKey": base64.b64encode(vk.to_bytes()).decode(),
             "pubKeyId": base64.b64encode(vk.to_bytes()).decode(),
+            "prevPubKeyId": prevPubKeyId,
             "validNotAfter": str(datetime.utcfromtimestamp(int(not_after.timestamp())).isoformat() + ".000Z"),
             "validNotBefore": str(datetime.utcfromtimestamp(int(not_before.timestamp())).isoformat() + ".000Z")
         }
 
-        if prevPubKeyId is not None:
-            c["prevPubKeyId"] = prevPubKeyId
+        if prevPubKeyId is None:
+            del c["prevPubKeyId"]
 
         return c

@@ -87,5 +87,9 @@ logger.info(json.dumps(key_registration))
 r = api.register_identity(json.dumps(key_registration).encode())
 if r.status_code == codes.ok:
     logger.info("{}: public key updated".format(uuid))
+
+    keystore.insert_ed25519_keypair(uuid=uuid, vk=keystore.find_verifying_key(new_key_id),
+                                    sk=keystore.find_signing_key(new_key_id))
+
 else:
     logger.error("{}: key update failed".format(uuid))
