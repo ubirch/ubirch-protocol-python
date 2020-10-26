@@ -49,7 +49,7 @@ class API(object):
             requests_log.propagate = True
 
         self._services = {
-            KEY_SERVICE: "https://key.{}.ubirch.com/api/keyService/v1/pubkey".format(env),
+            KEY_SERVICE: "https://identity.{}.ubirch.com/api/keyService/v1/pubkey".format(env),
             NIOMON_SERVICE: "https://niomon.{}.ubirch.com/".format(env),
             VERIFICATION_SERVICE: "https://verify.{}.ubirch.com/api/upp".format(env),
             DATA_SERVICE: "https://data.{}.ubirch.com/v1".format(env)
