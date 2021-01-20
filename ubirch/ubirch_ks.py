@@ -68,8 +68,8 @@ class KeyStore(object):
             logger.warning("creating new key store: {}".format(self._ks_file))
             self._ks = jks.KeyStore.new("jks", [])
 
-    def insert_ed25519_signing_key(self, uuid, sk: ed25519.SigningKey):
-        """Insert an existing ED25519 signing key."""
+    def insert_ed25519_signing_key(self, uuid: UUID, sk: ed25519.SigningKey):
+        """Store an existing ED25519 signing key in the key store."""
         # encode the ED25519 private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
         private_key_info.setComponentByName('version', 'v1')
@@ -81,12 +81,13 @@ class KeyStore(object):
         pke = jks.PrivateKeyEntry.new(alias=str(uuid.hex), certs=[], key=pkey_pkcs8)
         self._ks.entries['pke_' + uuid.hex] = pke
 
-    def insert_ed25519_verifying_key(self, uuid, vk: ed25519.VerifyingKey):
-        # store verifying key in certificate store
+    def insert_ed25519_verifying_key(self, uuid: UUID, vk: ed25519.VerifyingKey):
+        """Store an existing ED25519 verifying key in the key store."""
         self._ks.entries[uuid.hex] = ED25519Certificate(uuid.hex, vk)
 
-    def insert_ed25519_keypair(self, uuid: UUID, vk: ed25519.VerifyingKey, sk: ed25519.SigningKey) -> (ed25519.VerifyingKey, ed25519.SigningKey):
-        """Insert an existing ED25519 key pair into the key store."""
+    def insert_ed25519_keypair(self, uuid: UUID, vk: ed25519.VerifyingKey, sk: ed25519.SigningKey) -> (
+    ed25519.VerifyingKey, ed25519.SigningKey):
+        """Store an existing ED25519 key pair in the key store."""
         if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
@@ -116,17 +117,17 @@ class KeyStore(object):
 
     def insert_ecdsa_verifying_key(self, uuid, vk: ecdsa.VerifyingKey):
         # store verifying key in certificate store
-        self._ks.entries[uuid.hex] = ED25519Certificate(uuid.hex, vk)
+        self._ks.entries[uuid.hex] = ECDSACertificate(uuid.hex, vk)
 
     def insert_ecdsa_keypair(self, uuid: UUID, vk: ecdsa.VerifyingKey, sk: ecdsa.SigningKey) -> (ecdsa.VerifyingKey, ecdsa.SigningKey):
         """Insert an existing ECDSA key pair into the key store."""
         if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
-        self.insert_ed25519_verifying_key(uuid, vk)
-        self.insert_ed25519_signing_key(uuid, sk)
+        self.insert_ecdsa_verifying_key(uuid, vk)
+        self.insert_ecdsa_signing_key(uuid, sk)
         self._ks.save(self._ks_file, self._ks_password)
-        logger.info("inserted new key pair for {}: {}".format(uuid.hex, bytes.decode(vk.to_string())))
+        logger.info("inserted new key pair for {}: {}".format(uuid.hex, vk.to_string().decode()))
         return (vk, sk)
 
     def create_ecdsa_keypair(self, uuid: UUID, curve: ecdsa.curves.Curve = ecdsa.NIST256p, hashfunc=hashlib.sha256) -> (ecdsa.VerifyingKey, ecdsa.SigningKey):
@@ -147,7 +148,7 @@ class KeyStore(object):
     def find_signing_key(self, uuid: UUID) -> ed25519.SigningKey or ecdsa.SigningKey:
         """Find the signing key for this UUID."""
         sk = self._ks.private_keys['pke_' + uuid.hex]
-        if sk._algorithm_oid == EDDSA_OID:
+        if sk._algorithm_oid == EDDSA_OID:  # FIXME sk._algorithm_oid is None
             return ed25519.SigningKey(sk.pkey)
         elif sk._algorithm_oid == ECDSA_OID:
             return ecdsa.SigningKey(sk.pkey)
@@ -158,10 +159,14 @@ class KeyStore(object):
         """Find the verifying key for this UUID."""
         cert = self._ks.certs[uuid.hex]
 
-        if cert.
-        return VerifyingKey(cert.cert)
+        # try:
+        #     vk = ed25519.VerifyingKey(cert.cert)
+        # except
+
+        return ed25519.VerifyingKey(cert.cert)
 
     def get_certificate(self, uuid: UUID) -> dict or None:
+        """Get the public key info for key registration"""
         if not uuid.hex in self._ks.certs:
             return None
 
@@ -172,7 +177,7 @@ class KeyStore(object):
         # TODO fix handling of key validity
         not_after = created + timedelta(days=365)
         return {
-            "algorithm": 'ECC_ED25519',
+            "algorithm": 'ECC_ED25519',  # TODO if ECDSA 'ecdsa-p256v1'
             "created": int(created.timestamp()),
             "hwDeviceId": uuid.bytes,
             "pubKey": vk.to_bytes(),
