@@ -213,7 +213,7 @@ class TestUbirchProtocolSIM(unittest.TestCase):
         unpacked = p.message_verify(message)
         logger.debug(repr(unpacked))
 
-        self.assertEqual(vk, binascii.hexlify(unpacked[3][b'pubKey']).decode())
+        self.assertEqual(vk, binascii.hexlify(unpacked[3]['pubKey']).decode())
 
     def test_verify_signed_message_sim_v2(self):
         loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
