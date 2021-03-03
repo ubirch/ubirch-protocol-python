@@ -18,6 +18,8 @@ import hashlib
 import logging
 from abc import abstractmethod
 from uuid import UUID
+from ed25519 import BadSignatureError
+from ecdsa.keys import BadSignatureError as BadSignatureErrorEcdsa
 
 import msgpack
 
@@ -26,13 +28,56 @@ logger = logging.getLogger(__name__)
 # ubirch-protocol constants
 UBIRCH_PROTOCOL_VERSION = 2
 
-PLAIN = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x01)
-SIGNED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x02)
+PLAIN   = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x01)
+SIGNED  = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x02)
 CHAINED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x03)
 
 UBIRCH_PROTOCOL_TYPE_BIN = 0x00
 UBIRCH_PROTOCOL_TYPE_REG = 0x01
 UBIRCH_PROTOCOL_TYPE_HSK = 0x02
+
+# for use with the "get_unpacked_index" function
+UNPACKED_UPP_FIELD_VERSION  = 0
+UNPACKED_UPP_FIELD_UUID     = 1
+UNPACKED_UPP_FIELD_PREV_SIG = 2
+UNPACKED_UPP_FIELD_TYPE     = 3
+UNPACKED_UPP_FIELD_PAYLOAD  = 4
+UNPACKED_UPP_FIELD_SIG      = 5
+
+# lookup tables for fields in unpacked upps (used by the "get_unpacked_index" function)
+
+# message without any signatures
+#    0    |   1  |   2  |    3
+# --------|------|------|--------
+# VERSION | UUID | TYPE | PAYLOAD
+UNPACKED_UNSIGNED_UPP_INDEX_TABLE = [-1, -1, -1, -1, -1, -1]
+UNPACKED_UNSIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_VERSION] = 0
+UNPACKED_UNSIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_UUID]    = 1
+UNPACKED_UNSIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_TYPE]    = 2
+UNPACKED_UNSIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_PAYLOAD] = 3
+
+# message without the previous signature, contains a message signature
+#    0    |   1  |   2  |    3    |     4
+# --------|------|------|---------|-----------
+# VERSION | UUID | TYPE | PAYLOAD | SIGNATURE
+UNPACKED_SIGNED_UPP_INDEX_TABLE = [-1, -1, -1, -1, -1, -1]
+UNPACKED_SIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_VERSION] = 0
+UNPACKED_SIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_UUID]    = 1
+UNPACKED_SIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_TYPE]    = 2
+UNPACKED_SIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_PAYLOAD] = 3
+UNPACKED_SIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_SIG]     = 4
+
+# message with all signatures
+#    0    |   1  |        2       |   3  |    4    |     5
+# --------|------|----------------|------|---------|----------
+# VERSION | UUID | PREV-SIGNATURE | TYPE | PAYLOAD | SIGNATURE
+UNPACKED_CHAINED_UPP_INDEX_TABLE = [-1, -1, -1, -1, -1, -1]
+UNPACKED_CHAINED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_VERSION]  = 0
+UNPACKED_CHAINED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_UUID]     = 1
+UNPACKED_CHAINED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_PREV_SIG] = 2
+UNPACKED_CHAINED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_TYPE]     = 3
+UNPACKED_CHAINED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_PAYLOAD]  = 4
+UNPACKED_CHAINED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_SIG]      = 5
 
 
 class Protocol(object):
@@ -182,26 +227,80 @@ class Protocol(object):
         """
         return self._verify(uuid, self._hash(message), signature)
 
-    def message_verify(self, message: bytes) -> list:
+    def unpack_upp(self, msgpackUPP: bytes) -> list:
         """
-        Verify the integrity of the message and decode the contents.
-        Throws an exception if the message is not verifiable.
+        Unpack a UPP (msgpack)
+        Throws an exception if the UPP can't be unpacked
+        Returns the unpacked upp as a list
         :param message: the msgpack encoded message
+        :return: the unpacked message
+        """
+        # check for the UPP version
+        if msgpackUPP[1] >> 4 == 2:  # version 2
+            legacy = False
+        elif msgpackUPP[1] >> 4 == 1:  # version 1 (legacy)
+            legacy = True
+        else:
+            raise ValueError("Invalid UPP version byte: 0x%02x" % msgpackUPP[1])
+
+        # unpack the msgpack
+        return msgpack.unpackb(msgpackUPP, raw=False)
+
+    def get_unpacked_index(self, versionByte: int, targetField: int) -> int:
+        """
+        Get the index of a given target field for a UPP with the given version byte
+        Throws a ValueError if the version byte (lower four bits) is invalid
+        :param versioByte: the first byte of an unpacked upp (first element of the list)
+        :param targetField: one off "UNPACKED_UPP_*"
+        :return: the index of the field on success
+        """
+        # check the lower four bits of the version byte
+        lowerFour = versionByte & 0x0f
+
+        if lowerFour == 0x01:
+            return UNPACKED_UNSIGNED_UPP_INDEX_TABLE[targetField]
+        elif lowerFour == 0x02:
+            return UNPACKED_SIGNED_UPP_INDEX_TABLE[targetField]
+        elif lowerFour == 0x03:
+            return UNPACKED_CHAINED_UPP_INDEX_TABLE[targetField]
+        else:
+            # unknown lower four bits; error
+            raise ValueError("Invalid lower four bits of the UPP version byte: %s" % bin(lowerFour))
+
+    def verfiy_signature(self, msgpackUPP: bytes, unpackedUPP: list = None) -> True:
+        """
+        Verify the integrity of the message and decode the contents
+        Throws an exception if the version byte of the upp is invalid (ValueError)
+        Throws an exception if the upp doesn't contain a signature (ValueError)
+        :param msgpackUPP: the msgpack encoded message
+        :param unpackedUPP: (optional) if not provided, the function will unpack the upp itself
         :return: the decoded message
         """
-        if len(message) < 70:
-            raise Exception("message format wrong (size < 70 bytes): {}".format(len(message)))
+        # check whether the UPP has to be unpacked
+        if unpackedUPP == None:
+            unpackedUPP = self.unpack_upp(msgpackUPP)
 
-        unpacker = msgpack.Unpacker()
-        unpacker.feed(message)
+        # get the indexes for the needed fields
+        uuidIndex      = self.get_unpacked_index(unpackedUPP[0], UNPACKED_UPP_FIELD_UUID)
+        signatureIndex = self.get_unpacked_index(unpackedUPP[0], UNPACKED_UPP_FIELD_SIG)
 
-        unpacked = []
-        # unpack all entries, except the last one, remember the byte index for signature verification
-        for n in range(0, unpacker.read_array_header() - 1):
-            unpacked.append(unpacker.unpack())
-        signatureIndex = unpacker.tell()
-        unpacked.append(unpacker.unpack())
+        # check if a valid signature index was returned
+        if signatureIndex == -1:
+            raise ValueError("The UPP doesn't contain a signature. Version byte: %s" % bin(unpackedUPP[0]))
 
-        # verify the message using extracted values
-        self._prepare_and_verify(UUID(bytes=unpacked[1]), message[0:signatureIndex], unpacked[-1])
-        return unpacked
+        # verify the message
+        try:
+            # arg1: the uuid
+            # arg2: the message (all bytes in front of the signature (64 bytes + 1 bytes msgpack header))
+            # arg3: the signature
+            self._prepare_and_verify(
+                UUID(bytes=unpackedUPP[uuidIndex]),
+                msgpackUPP[0:-(2 + len(unpackedUPP[signatureIndex]))],
+                unpackedUPP[signatureIndex]
+            )
+        except BadSignatureError:
+            return False
+        except BadSignatureErrorEcdsa:
+            return False
+
+        return True
