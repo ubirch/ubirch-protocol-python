@@ -116,7 +116,7 @@ message = {
 serialized = json.dumps(message, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
 
 # hash the message
-message_hash = hashlib.sha256(serialized).digest()
+message_hash = hashlib.sha512(serialized).digest()
 logger.info("message hash: {}".format(binascii.b2a_base64(message_hash).decode().rstrip("\n")))
 
 # create a new chained protocol message with the message hash
