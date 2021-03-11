@@ -21,6 +21,10 @@ logger = logging.getLogger()
 ########################################################################
 # Implement the ubirch-protocol with signing and saving the signatures
 class Proto(ubirch.Protocol):
+    UUID_DEV = UUID(hex="9d3c78ff-22f3-4441-a5d1-85c636d486ff")
+    PUB_DEV = VerifyingKey("a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66", encoding='hex')
+    UUID_DEMO = UUID(hex="07104235-1892-4020-9042-00003c94b60b")
+    PUB_DEMO = VerifyingKey("39ff77632b034d0eba6d219c2ff192e9f24916c9a02672acb49fd05118aad251", encoding='hex')
     UUID_PROD = UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
     PUB_PROD = VerifyingKey("ef8048ad06c0285af0177009381830c46cec025d01d86085e75a4f0041c2e690", encoding='hex')
 
@@ -33,6 +37,10 @@ class Proto(ubirch.Protocol):
             keystore.create_ed25519_keypair(uuid)
 
         # check if the keystore already has the backend key for verification or insert verifying key
+        if not self.__ks.exists_verifying_key(self.UUID_DEV):
+            self.__ks.insert_ed25519_verifying_key(self.UUID_DEV, self.PUB_DEV)
+        if not self.__ks.exists_verifying_key(self.UUID_DEMO):
+            self.__ks.insert_ed25519_verifying_key(self.UUID_DEMO, self.PUB_DEMO)
         if not self.__ks.exists_verifying_key(self.UUID_PROD):
             self.__ks.insert_ed25519_verifying_key(self.UUID_PROD, self.PUB_PROD)
 
@@ -65,14 +73,14 @@ class Proto(ubirch.Protocol):
 
 ########################################################################
 
-if len(sys.argv) < 3:
+if len(sys.argv) < 4:
     print("usage:")
-    print("  python3 example-client.py <UUID> <ubirch-auth-token>")
+    print("  python3 example-client.py <env> <UUID> <ubirch-auth-token>")
     sys.exit(0)
 
-env = "prod"
-uuid = UUID(hex=sys.argv[1])
-auth = sys.argv[2]
+env = sys.argv[1]
+uuid = UUID(hex=sys.argv[2])
+auth = sys.argv[3]
 
 # create a keystore for the device
 keystore = ubirch.KeyStore("demo-device.jks", "keystore")
