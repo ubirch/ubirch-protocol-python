@@ -4,8 +4,8 @@ from uuid import UUID
 
 import msgpack
 
-signed = 0x22
-chained = 0x23
+signed = 0x02
+chained = 0x03
 
 usage = " usage:\n" \
         " python3 ./unpack.py [ <binary-file-name> | <UPP(hex)> | <UPP(base64)> ]"
@@ -51,9 +51,12 @@ if upp[1] >> 4 == 2:  # version 2
 elif upp[1] >> 4 == 1:  # version 1 (legacy)
     unpacked = msgpack.unpackb(upp, raw=True)
 else:
-    print("invalid UPP version")
+    print("unsupported UPP version")
     print(usage)
     sys.exit(1)
+
+print("   hex: {}".format(binascii.hexlify(upp).decode()))
+print("base64: {}".format(binascii.b2a_base64(upp).decode()))
 
 version = unpacked[0]
 print("-    Version: 0x{:02x}".format(version))
@@ -61,7 +64,7 @@ print("-    Version: 0x{:02x}".format(version))
 uuid = UUID(binascii.hexlify(unpacked[1]).decode())
 print("-       UUID: {}".format(str(uuid)))
 
-if version == chained:
+if version & 0x0F == chained:
     prev_sign = unpacked[2]
     print("- prev.Sign.: {}".format(binascii.b2a_base64(prev_sign).decode().rstrip("\n")))
     print("       [hex]: {:s} ({:d} bytes)".format(binascii.hexlify(prev_sign).decode(), len(prev_sign)))
