@@ -1,4 +1,4 @@
-import base64
+import binascii
 import hashlib
 import json
 
@@ -15,12 +15,14 @@ print("rendered data:\n\t{}\n".format(serialized.decode()))
 
 # calculate hash of message
 data_hash = hashlib.sha256(serialized).digest()
-print("hash [base64]:\n\t{}\n".format(base64.b64encode(data_hash).decode()))
+print("hash [base64]:\n\t{}\n".format(binascii.b2a_base64(data_hash, newline=False).decode()))
 
 # verify existence of the hash in the UBIRCH backend
-r = requests.post(url=VERIFICATION_SERVICE,
-                  headers={'Accept': 'application/json', 'Content-Type': 'text/plain'},
-                  data=base64.b64encode(data_hash).decode().rstrip('\n'))
+r = requests.post(
+    url=VERIFICATION_SERVICE,
+    headers={'Accept': 'application/json', 'Content-Type': 'text/plain'},
+    data=binascii.b2a_base64(data_hash, newline=False)
+)
 
 if 200 <= r.status_code < 300:
     print("verification successful:\n\t{}\n".format(r.content.decode()))

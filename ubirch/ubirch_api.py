@@ -126,18 +126,6 @@ class API(object):
     def _deregister_identity_mpack(self, key_deregistration: bytes) -> Response:
         raise NotImplementedError("msgpack identity deregistration not supported yet")
 
-    def trust_identity_json(self, signed_trust: dict) -> Response:
-        logger.debug("trust an identity [json]: {}".format(signed_trust))
-        r = requests.post(self.get_url(KEY_SERVICE) + '/trust', json=signed_trust)
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r
-
-    def get_trusted_identities_json(self, get_trusted: dict) -> Response:
-        logger.debug("get trusted identities [json]: {}".format(get_trusted))
-        r = requests.get(self.get_url(KEY_SERVICE) + '/trusted', json=get_trusted)
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r
-
     def send(self, uuid: UUID, data: bytes) -> Response:
         """
         Send data to the ubirch authentication service (Niomon). Requires encoding before sending.
