@@ -45,8 +45,8 @@ class Proto(ubirch.Protocol):
 
 if len(sys.argv) < 2:
     print("usage:")
-    print("  python3 ./pack.py <UUID>")
-    print("  e.g.: python3 ./pack.py 56bd9b85-6c6e-4a24-bf71-f2ac2de10183")
+    print("  python3 pack.py <UUID>")
+    print("  e.g.: python3 pack.py 56bd9b85-6c6e-4a24-bf71-f2ac2de10183")
     sys.exit(0)
 
 uuid = UUID(hex=sys.argv[1])

@@ -8,7 +8,7 @@ signed = 0x02
 chained = 0x03
 
 usage = " usage:\n" \
-        " python3 ./unpack.py [ <binary-file-name> | <UPP(hex)> | <UPP(base64)> ]"
+        " python3 unpack.py [ <binary-file-name> | <UPP(hex)> | <UPP(base64)> ]"
 
 if len(sys.argv) < 2:
     print(usage)
