@@ -59,7 +59,7 @@ if not keystore.exists_signing_key(uuid):
     keystore.create_ed25519_keypair(uuid)
 
 logger.info("public key [base64]: {}".format(
-    binascii.b2a_base64(keystore.find_verifying_key(uuid).to_bytes()).decode().rstrip('\n')))
+    binascii.b2a_base64(keystore.find_verifying_key(uuid).to_bytes(), newline=False).decode()))
 
 # create an instance of the protocol with signature saving
 protocol = Proto(keystore)
