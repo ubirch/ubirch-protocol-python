@@ -134,7 +134,7 @@ class UbirchClient:
                 logger.info("{}: public key registered".format(self.uuid))
             else:
                 logger.error("{}: registration failed".format(self.uuid))
-                sys.exit(1)
+                sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
 
     def createUPP(self, message: dict) -> bytes:
         """ creates an UPP from a given message """
@@ -162,7 +162,7 @@ class UbirchClient:
         if response.status_code != codes.ok:
             logger.error("Sending UPP failed! response: ({}) {}".format(response.status_code,
                                                                         binascii.hexlify(response.content).decode()))
-            sys.exit(1)
+            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
 
         logger.info("UPP successfully sent. response: {}".format(binascii.hexlify(response.content).decode()))
 
@@ -174,7 +174,7 @@ class UbirchClient:
             logger.error("Error unpacking the response UPP: '%s'" % str(response.content))
             logger.exception(e)
 
-            sys.exit(1)
+            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
 
         # get the index of the signature and previous signature
         sigIndex = self.protocol.get_unpacked_index(unpackedUPP[0], ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_SIG)
@@ -184,7 +184,7 @@ class UbirchClient:
         # check if a valid index for the signature was returned
         if sigIndex == -1:
             logger.error("The message returned by the backend doesn't contain a signature!")
-            sys.exit(1)
+            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
 
         # verify that the response came from the backend
         try:
@@ -193,12 +193,12 @@ class UbirchClient:
         except Exception as e:
             logger.error("Backend response signature verification FAILED!")
             logger.exception(e)
-            sys.exit(1)
+            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
 
         # check if a valid index for the previous signature was returned
         if prevSigIndex == -1:
             logger.error("The message returned by the backend doesn't contain a previous signature!")
-            sys.exit(1)
+            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
 
         # unpack the previously sent upp; assume that it is a valid chained upp
         unpackedPrevUpp = self.protocol.unpack_upp(self.currentUPP)
@@ -208,7 +208,7 @@ class UbirchClient:
             logger.error("The previous signature in the response UPP doesn't match the signature of our UPP!")
             logger.error("Previous signature in the response UPP: %s" % str(unpackedUPP[prevSigIndex].hex()))
             logger.error("Actual signature of our UPP: %s" % str(unpackedPrevUpp[prevSigIndex].hex()))
-            sys.exit(1)
+            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle/log in main()
         else:
             logger.info("Matching previous signature!")
 
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("usage:")
         print("  python3 example-client.py <UUID> <ubirch-auth-token> [ubirch-env]")
-        sys.exit(1)
+        sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
 
     # extract cli arguments
     env = sys.argv[3] if len(sys.argv) > 3 else DEFAULT_UBIRCH_ENV
