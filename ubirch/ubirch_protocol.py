@@ -18,18 +18,18 @@ import hashlib
 import logging
 from abc import abstractmethod
 from uuid import UUID
-from ed25519 import BadSignatureError
-from ecdsa.keys import BadSignatureError as BadSignatureErrorEcdsa
 
 import msgpack
+from ecdsa.keys import BadSignatureError as BadSignatureErrorEcdsa
+from ed25519 import BadSignatureError
 
 logger = logging.getLogger(__name__)
 
 # ubirch-protocol constants
 UBIRCH_PROTOCOL_VERSION = 2
 
-PLAIN   = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x01)
-SIGNED  = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x02)
+PLAIN = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x01)
+SIGNED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x02)
 CHAINED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x03)
 
 UBIRCH_PROTOCOL_TYPE_BIN = 0x00
@@ -244,7 +244,7 @@ class Protocol(object):
             raise ValueError("Invalid UPP version byte: 0x%02x" % msgpackUPP[1])
 
         # unpack the msgpack
-        return msgpack.unpackb(msgpackUPP, raw=False)
+        return msgpack.unpackb(msgpackUPP, raw=legacy)
 
     def get_unpacked_index(self, versionByte: int, targetField: int) -> int:
         """
@@ -267,6 +267,8 @@ class Protocol(object):
             # unknown lower four bits; error
             raise ValueError("Invalid lower four bits of the UPP version byte: %s" % bin(lowerFour))
 
+    # FIXME: do not unpack UPP before signature verification!
+    #  -> def verfiy_signature(self, uuid: UUID, msgpackUPP: bytes) -> True:
     def verfiy_signature(self, msgpackUPP: bytes, unpackedUPP: list = None) -> True:
         """
         Verify the integrity of the message and decode the contents

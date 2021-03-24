@@ -166,6 +166,7 @@ class UbirchClient:
 
         logger.info("UPP successfully sent. response: {}".format(binascii.hexlify(response.content).decode()))
 
+        # FIXME do not unpack before signature is verified
         # unpack the UPP
         try:
             unpackedUPP = self.protocol.unpack_upp(response.content)
