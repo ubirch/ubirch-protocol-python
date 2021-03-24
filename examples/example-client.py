@@ -230,7 +230,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("usage:")
         print("  python3 example-client.py <UUID> <ubirch-auth-token> [ubirch-env]")
-        sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
+        sys.exit(1)
 
     # extract cli arguments
     env = sys.argv[3] if len(sys.argv) > 3 else DEFAULT_UBIRCH_ENV
