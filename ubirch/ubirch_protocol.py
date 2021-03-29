@@ -277,41 +277,23 @@ class Protocol(object):
             return (msgpackUPP[:-66], msgpackUPP[-64:])
         except IndexError:
             raise ValueError("The UPP-msgpack is too short: %d bytes" % len(msgpackUPP))
+
     #  -> def verfiy_signature(self, uuid: UUID, msgpackUPP: bytes) -> True:
-    def verfiy_signature(self, msgpackUPP: bytes, unpackedUPP: list = None) -> True:
+    def verfiy_signature(self, uuid: UUID, msgpackUPP: bytes) -> bool:
         """
         Verify the integrity of the message and decode the contents
-        Throws an exception if the version byte of the upp is invalid (ValueError)
-        Throws an exception if the upp doesn't contain a signature (ValueError)
+        Raises an value error when the message is too short
         :param msgpackUPP: the msgpack encoded message
         :param unpackedUPP: (optional) if not provided, the function will unpack the upp itself
         :return: the decoded message
         """
-        # check whether the UPP has to be unpacked
-        if unpackedUPP == None:
-            unpackedUPP = self.unpack_upp(msgpackUPP)
-
-        # get the indexes for the needed fields
-        uuidIndex      = self.get_unpacked_index(unpackedUPP[0], UNPACKED_UPP_FIELD_UUID)
-        signatureIndex = self.get_unpacked_index(unpackedUPP[0], UNPACKED_UPP_FIELD_SIG)
-
-        # check if a valid signature index was returned
-        if signatureIndex == -1:
-            raise ValueError("The UPP doesn't contain a signature. Version byte: %s" % bin(unpackedUPP[0]))
+        # separate the message from the signature
+        msg, sig = self.upp_msgpack_split_signature(msgpackUPP)
 
         # verify the message
         try:
-            # arg1: the uuid
-            # arg2: the message (all bytes in front of the signature (64 bytes + 1 bytes msgpack header))
-            # arg3: the signature
-            self._prepare_and_verify(
-                UUID(bytes=unpackedUPP[uuidIndex]),
-                msgpackUPP[0:-(2 + len(unpackedUPP[signatureIndex]))],
-                unpackedUPP[signatureIndex]
-            )
-        except BadSignatureError:
-            return False
-        except BadSignatureErrorEcdsa:
+            self._prepare_and_verify(uuid, msg, sig)
+        except (BadSignatureError, BadSignatureErrorEcdsa):
             return False
 
         return True
