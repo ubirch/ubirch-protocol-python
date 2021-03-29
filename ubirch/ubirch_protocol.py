@@ -267,7 +267,16 @@ class Protocol(object):
             # unknown lower four bits; error
             raise ValueError("Invalid lower four bits of the UPP version byte: %s" % bin(lowerFour))
 
-    # FIXME: do not unpack UPP before signature verification!
+    def upp_msgpack_split_signature(self, msgpackUPP) -> (bytes, bytes):
+        """
+        Separate the signature from the msgpack
+        :param msgpackUPP: the msgpack encoded upp
+        :return: a tuple consiting of the message without the signature and the signature
+        """
+        try:
+            return (msgpackUPP[:-66], msgpackUPP[-64:])
+        except IndexError:
+            raise ValueError("The UPP-msgpack is too short: %d bytes" % len(msgpackUPP))
     #  -> def verfiy_signature(self, uuid: UUID, msgpackUPP: bytes) -> True:
     def verfiy_signature(self, msgpackUPP: bytes, unpackedUPP: list = None) -> True:
         """
