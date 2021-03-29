@@ -100,22 +100,25 @@ class UbirchClient:
 
         # a variable to store the current upp
         self.currentUPP = None
+        self.currentSig = None
 
     def run(self, data: dict):
         """ create and send a ubirch protocol message; verify the response """
         # create the upp
         self.currentUPP = self.createUPP(data)
+        _, self.currentSig = self.protocol.upp_msgpack_split_signature(self.currentUPP)
 
         logging.info("Created UPP: %s" % str(self.currentUPP.hex()))
 
         # send the upp and handle the response
         resp = self.sendUPP(self.currentUPP)
+        
         self.handleBackendResponse(resp)
-
+        
         # the handle function is expected to sys.exit() on any kind of error - assume success
         logging.info("Successfully sent the UPP and verified the response!")
 
-        # save last signature
+        # save last signatures
         self.protocol.persist(self.uuid)
 
     def checkRegisterPubkey(self):
@@ -134,7 +137,8 @@ class UbirchClient:
                 logger.info("{}: public key registered".format(self.uuid))
             else:
                 logger.error("{}: registration failed".format(self.uuid))
-                sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
+                
+                raise Exception("Failed to register the public key!")
 
     def createUPP(self, message: dict) -> bytes:
         """ creates an UPP from a given message """
@@ -153,7 +157,7 @@ class UbirchClient:
         # send chained protocol message to UBIRCH authentication service
         return self.api.send(self.uuid, upp)
 
-    def handleBackendResponse(self, response: Response):
+    def handleBackendResponse(self, response: Response) -> bool:
         """ handles the response object returned by sendUPP """
         # check the http status code
         #
@@ -162,53 +166,30 @@ class UbirchClient:
         if response.status_code != codes.ok:
             logger.error("Sending UPP failed! response: ({}) {}".format(response.status_code,
                                                                         binascii.hexlify(response.content).decode()))
-            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
+            
+            raise(Exception("Exiting due to failure sending the UPP to the backend!"))
 
         logger.info("UPP successfully sent. response: {}".format(binascii.hexlify(response.content).decode()))
 
-        # FIXME do not unpack before signature is verified
-        # unpack the UPP
-        try:
-            unpackedUPP = self.protocol.unpack_upp(response.content)
-        except Exception as e:
-            logger.error("Error unpacking the response UPP: '%s'" % str(response.content))
-            logger.exception(e)
-
-            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
-
-        # get the index of the signature and previous signature
-        sigIndex = self.protocol.get_unpacked_index(unpackedUPP[0], ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_SIG)
-        prevSigIndex = self.protocol.get_unpacked_index(unpackedUPP[0],
-                                                        ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_PREV_SIG)
-
-        # check if a valid index for the signature was returned
-        if sigIndex == -1:
-            logger.error("The message returned by the backend doesn't contain a signature!")
-            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
-
         # verify that the response came from the backend
-        try:
-            self.protocol.verfiy_signature(response.content)
+        if self.protocol.verfiy_signature(UBIRCH_UUIDS[self.env], response.content) == True:
             logger.info("Backend response signature successfully verified!")
-        except Exception as e:
+        else:
             logger.error("Backend response signature verification FAILED!")
-            logger.exception(e)
-            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
+            
+            raise(Exception("Exiting due to failed signature verification!"))
 
-        # check if a valid index for the previous signature was returned
-        if prevSigIndex == -1:
-            logger.error("The message returned by the backend doesn't contain a previous signature!")
-            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle in main()
-
-        # unpack the previously sent upp; assume that it is a valid chained upp
-        unpackedPrevUpp = self.protocol.unpack_upp(self.currentUPP)
+        # unpack the received upp to get its previous signature
+        unpacked = self.protocol.unpack_upp(response.content)
+        prevSig = unpacked[self.protocol.get_unpacked_index(unpacked[0], ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_PREV_SIG)]
 
         # verfiy that the response contains the signature of our upp
-        if unpackedPrevUpp[sigIndex] != unpackedUPP[prevSigIndex]:
+        if self.currentSig != prevSig:
             logger.error("The previous signature in the response UPP doesn't match the signature of our UPP!")
-            logger.error("Previous signature in the response UPP: %s" % str(unpackedUPP[prevSigIndex].hex()))
-            logger.error("Actual signature of our UPP: %s" % str(unpackedPrevUpp[prevSigIndex].hex()))
-            sys.exit(1)  # FIXME do not exit from client methods. throw exception and handle/log in main()
+            logger.error("Previous signature in the response UPP: %s" % str(prevSig.hex()))
+            logger.error("Actual signature of our UPP: %s" % str(self.currentSig.hex()))
+            
+            raise(Exception("Exiting due to a non-matching signature in the response UPP!"))
         else:
             logger.info("Matching previous signature!")
 
@@ -245,4 +226,9 @@ if __name__ == "__main__":
 
     # todo >> send data message to data service / cloud / customer backend here <<
 
-    client.run(data)
+    try:
+        client.run(data)
+    except Exception as e:
+        logger.exception(e)
+
+        sys.exit(1)
