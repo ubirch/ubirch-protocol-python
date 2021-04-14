@@ -6,6 +6,8 @@ import pickle
 import random
 import sys
 import time
+import queue #TODO: add to the requirements
+from paho.mqtt import client as mqtt_client #TODO: add mqtt to the requirements file (?)
 from uuid import UUID
 
 from ed25519 import VerifyingKey
@@ -73,17 +75,95 @@ class Proto(ubirch.Protocol):
 
 ########################################################################
 
+########################################################################
+# Functions for managing MQTT data
+# MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
+mqtt_msg_queue = queue.Queue()
+broker = '192.168.1.81'
+port = 1883
+topic = "/ubirch/rsconnectdata/temperature"
+client_id = f'ubirch-mqtt-client-example'
+def get_dataset():
+    if mqtt_msg_queue.empty():
+        return None
+
+    # get messages received so far from queue and assemble info into dict
+    messages_list = []
+    while not mqtt_msg_queue.empty():
+        message_item = mqtt_msg_queue.get()
+        message_ts = message_item["msg_ts_ms"]
+        message_obj = message_item["msg"]
+        message_dict = {
+            "msg_ts_ms": message_ts,
+            "msg_topic": message_obj.topic,
+            "msg_payload": message_obj.payload.decode("utf-8"), #TODO: this assumes that the payload is always UTF-8 string, add check/handling or different encoding
+            "msg_qos": message_obj.qos,
+            "msg_retain": message_obj.retain,
+            "msg_mid": message_obj.mid
+        }
+        messages_list.append(message_dict)
+
+    # assemble dataset by joining extra info and message list
+    dataset= {
+        "id": str(uuid),
+        "ts": int(time.time()), # timestamp of dataset is in seconds
+        "msgs": messages_list
+    }
+
+    return dataset
+
+def connect_mqtt():
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            logger.info("sucessfully connected to MQTT Broker")
+        else:
+            logger.error("failed to connect to MQTT Broker, return code %d\n", rc)
+    # Set Connecting Client ID
+    client = mqtt_client.Client(client_id)
+    # client.username_pw_set(username, password)
+    client.on_connect = on_connect
+    client.connect(broker, port)
+    return client
+
+def subscribe(client: mqtt_client):
+    def on_message(client, userdata, msg):
+        logger.debug("received MQTT with payload: {}".format(msg.payload.decode()))
+        message_data ={
+            "msg_ts_ms": int(time.time()*1000.0), # the timestamp for messages is in milliseconds
+            "msg":msg,
+        }
+        mqtt_msg_queue.put(message_data) #put event data in queue
+    
+    logger.debug("subscribing to topic {}".format(topic))
+    client.subscribe(topic,qos=1) #set QOS depending on your network/needed reliability
+    client.on_message = on_message
+########################################################################
+
 if len(sys.argv) < 4:
     print("usage:")
-    print("  python3 example-client.py <env> <UUID> <ubirch-auth-token>")
+    print("  python3 example-client-mqtt.py <env> <UUID> <ubirch-auth-token>")
     sys.exit(0)
 
 env = sys.argv[1]
 uuid = UUID(hex=sys.argv[2])
 auth = sys.argv[3]
 
+client = connect_mqtt()
+subscribe(client)
+
+last_send = time.time()
+while True:
+    client.loop()
+    if time.time()-last_send > 10:
+        last_send = time.time()
+        print("---DATA IN BUFFER---")
+        print(json.dumps(get_dataset()))
+        print()
+
+sys.exit(0)
+
 # create a keystore for the device
-keystore = ubirch.KeyStore("demo-device.jks", "keystore")
+keystore = ubirch.KeyStore("mqtt-device.jks", "keystorepassword")
 
 # create an instance of the protocol with signature saving
 protocol = Proto(keystore, uuid)
@@ -105,15 +185,12 @@ if not api.is_identity_registered(uuid):
 
 # create a message like being sent to the customer backend
 # include an ID and timestamp in the data message to ensure a unique hash
-message = {
-    "id": str(uuid),
-    "ts": int(time.time()),
-    "data": "{:d}".format(random.randint(0, 100))
-}
+dataset = get_dataset()
 # >> send data to customer backend <<
+#TODO: save data locally for tests (no customer backend atm)
 
 # create a compact rendering of the message to ensure determinism when creating the hash
-serialized = json.dumps(message, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
+serialized = json.dumps(dataset, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
 
 # hash the message
 message_hash = hashlib.sha512(serialized).digest()
