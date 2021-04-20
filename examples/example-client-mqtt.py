@@ -7,7 +7,7 @@ import random
 import sys
 import time
 import persistqueue #TODO: add to the requirements
-from paho.mqtt import client as mqtt_client #TODO: add mqtt to the requirements file
+from paho.mqtt import client as mqtt_client #TODO: add to the requirements file
 from uuid import UUID
 
 from ed25519 import VerifyingKey
@@ -78,13 +78,38 @@ class Proto(ubirch.Protocol):
 ########################################################################
 # Functions for managing MQTT data
 # MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
-PATH_MACHINEDATA_QUEUE = "machinedataqueue"
-machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
 broker = '192.168.1.81'
 port = 1883
 topic = "/ubirch/rsconnectdata/temperature"
 mqtt_client_id = f'ubirch-mqtt-client-example'
 
+def mqtt_connect():
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            logger.info("sucessfully connected to MQTT Broker")
+        else:
+            logger.error("failed to connect to MQTT Broker, return code %d\n", rc)
+    # Set Connecting Client ID
+    client = mqtt_client.Client(mqtt_client_id)
+    # client.username_pw_set(username, password)
+    client.on_connect = on_connect
+    client.connect(broker, port)
+    return client
+
+def mqtt_subscribe(client: mqtt_client):
+    def on_message(client, userdata, msg):
+        logger.debug("received MQTT with payload: {}".format(msg.payload.decode()))
+        queueMessage(msg)
+    
+    logger.debug("subscribing to topic {}".format(topic))
+    client.subscribe(topic,qos=1) #set QOS depending on your network/needed reliability
+    client.on_message = on_message
+########################################################################
+
+########################################################################
+# queueing/sealing section
+PATH_MACHINEDATA_QUEUE = "machinedataqueue"
+machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
 def queueMessage(msgObject):
     """
     Receives a machine data message from the protocol callbacks and formats it into a dict. Also adds metainformation like timestamp.
@@ -118,38 +143,57 @@ def queueMessage(msgObject):
 
     return
 
-    #add message to queue for aggregating and sealing later
+PATH_SEND_QUEUE = "sendqueue"
+senddata = persistqueue.Queue(PATH_SEND_QUEUE)
+def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
+    """
+    Gets data from the machine data queue, aggregates it into a datablock (string json in this example) and creates a matching upp (bytes) for sealing the data.
+    Then puts both block and upp into the sending queue and removes the data from the machinedata queue.
+    """
+    if machinedata.empty(): #if there is no data available, do not create a block
+        return
+    creationTime = int(time.time()) # remember the timestamp when the block was created and sealed in seconds
 
-    # dataset= {
-    #     "id": str(uuid),
-    #     "ts": int(time.time()), # timestamp of dataset is in seconds
-    #     "msgs": messages_list
-    # }
+    #get data from queue and assemble message list
+    messages_list = [] #this will become a list of the message dictionaries
+    while not machinedata.empty():
+        messages_list.append(machinedata.get())
 
-    # return dataset
+    #add block metadata
+    datablock_dict= {
+        "id": str(uuid),
+        "ts": creationTime, # timestamp of datablock creation in seconds
+        "msgs": messages_list
+    }
 
-def mqtt_connect():
-    def on_connect(client, userdata, flags, rc):
-        if rc == 0:
-            logger.info("sucessfully connected to MQTT Broker")
-        else:
-            logger.error("failed to connect to MQTT Broker, return code %d\n", rc)
-    # Set Connecting Client ID
-    client = mqtt_client.Client(mqtt_client_id)
-    # client.username_pw_set(username, password)
-    client.on_connect = on_connect
-    client.connect(broker, port)
-    return client
+    #convert to json: create a compact rendering of the message to ensure determinism when creating the hash later
+    datablock_json = json.dumps(datablock_dict, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
+    logger.info("created datablock: {}".format(datablock_json))
 
-def mqtt_subscribe(client: mqtt_client):
-    def on_message(client, userdata, msg):
-        logger.debug("received MQTT with payload: {}".format(msg.payload.decode()))
-        queueMessage(msg)
-    
-    logger.debug("subscribing to topic {}".format(topic))
-    client.subscribe(topic,qos=1) #set QOS depending on your network/needed reliability
-    client.on_message = on_message
+    # hash the data block
+    message_hash = hashlib.sha512(datablock_json).digest()
+    logger.info("datablock hash: {}".format(binascii.b2a_base64(message_hash, newline=False).decode()))
+
+    # critical section start: at this point we will have created an upp but not updated the queue yet, so a crash here
+    # might lead to a broken chain
+
+    # create a new chained protocol message with the message hash
+    upp = ubirchProtocol.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
+
+    # add data to send queue and remove it from machinedata queue
+    # we use a tupel to indicate data type id (used in send funtion later to determine endpoint)
+    senddata.put(("datablock",datablock_json))
+    senddata.put(("upp",upp))
+    machinedata.task_done
+    # critical section end
+
+    logger.info("UPP: {}".format(binascii.hexlify(upp).decode()))
+
+    return
+
 ########################################################################
+
+
 
 if len(sys.argv) < 4:
     print("usage:")
@@ -162,14 +206,6 @@ auth = sys.argv[3]
 
 mqtt_client = mqtt_connect()
 mqtt_subscribe(mqtt_client)
-
-last_send = time.time()
-while True:
-    mqtt_client.loop()
-    if time.time()-last_send > 10:
-        last_send = time.time()
-        print("machinedataqueue: {}".format(machinedata.qsize()))
-sys.exit(0)
 
 # create a keystore for the device
 keystore = ubirch.KeyStore("mqtt-device.jks", "keystorepassword")
@@ -192,22 +228,27 @@ if not api.is_identity_registered(uuid):
         logger.error("{}: registration failed".format(uuid))
         sys.exit(1)
 
+last_send = time.time()
+while True:
+    mqtt_client.loop()
+    if time.time()-last_send > 10:
+        last_send = time.time()
+        print("machinedataqueue: {}".format(machinedata.qsize()))
+        sealDatablock(protocol,uuid)
+        print("machinedataqueue: {}".format(machinedata.qsize()))
+sys.exit(0)
+
+
+
 # create a message like being sent to the customer backend
 # include an ID and timestamp in the data message to ensure a unique hash
 dataset = get_dataset()
 # >> send data to customer backend <<
 #TODO: save data locally for tests (no customer backend atm)
 
-# create a compact rendering of the message to ensure determinism when creating the hash
-serialized = json.dumps(dataset, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
 
-# hash the message
-message_hash = hashlib.sha512(serialized).digest()
-logger.info("message hash: {}".format(binascii.b2a_base64(message_hash, newline=False).decode()))
 
-# create a new chained protocol message with the message hash
-upp = protocol.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
-logger.info("UPP: {}".format(binascii.hexlify(upp).decode()))
+
 
 # send chained protocol message to UBIRCH authentication service
 r = api.send(uuid, upp)
