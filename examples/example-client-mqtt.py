@@ -107,7 +107,7 @@ def mqtt_subscribe(client: mqtt_client):
 ########################################################################
 
 ########################################################################
-# queueing/sealing section
+# queueing/sealing/sending section
 PATH_MACHINEDATA_QUEUE = "machinedataqueue"
 machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
 def queueMessage(msgObject):
@@ -144,7 +144,7 @@ def queueMessage(msgObject):
     return
 
 PATH_SEND_QUEUE = "sendqueue"
-senddata = persistqueue.Queue(PATH_SEND_QUEUE)
+backenddata = persistqueue.Queue(PATH_SEND_QUEUE)
 def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
     """
     Gets data from the machine data queue, aggregates it into a datablock (string json in this example) and creates a matching upp (bytes) for sealing the data.
@@ -174,22 +174,76 @@ def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
     message_hash = hashlib.sha512(datablock_json).digest()
     logger.info("datablock hash: {}".format(binascii.b2a_base64(message_hash, newline=False).decode()))
 
-    # critical section start: at this point we will have created an upp but not updated the queue yet, so a crash here
-    # might lead to a broken chain
-
     # create a new chained protocol message with the message hash
     upp = ubirchProtocol.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
 
     # add data to send queue and remove it from machinedata queue
     # we use a tupel to indicate data type id (used in send funtion later to determine endpoint)
-    senddata.put(("datablock",datablock_json))
-    senddata.put(("upp",upp))
-    machinedata.task_done
-    # critical section end
+    backenddata.put(("datablock",datablock_json))
+    backenddata.put(("upp",upp))
+    machinedata.task_done    
+    # persist the last signature to disk, as the data and upp is safely stored now
+    protocol.persist(uuid)
 
     logger.info("UPP: {}".format(binascii.hexlify(upp).decode()))
 
     return
+
+def sendData(protocol:Proto, api:ubirch.API):
+    logger.debug("Started sending backend data")
+    sendFails = 0
+    while sendFails < 10:
+
+        if backenddata.empty(): # we managed to send all items
+            return True
+        
+        # get and send next item
+        (dataType, data) = backenddata.get()
+        if dataType == "upp":
+            if sendUPP(protocol,api,data):
+                backenddata.task_done()
+                sendFails = 0
+            else:
+                sendFails += 1
+        elif dataType == "datablock":
+            if sendDatablock(data):
+                backenddata.task_done()
+                sendFails = 0
+            else:
+                sendFails += 1
+        else:
+            logger.error("sending data type '{}' not implemented".format(dataType))
+            raise NotImplementedError
+
+    # if we reach this point sending failed too often
+    return False
+
+def sendUPP(protocol:Proto, api:ubirch.API, upp:bytes)-> bool:
+    """
+    Sends UPP to ubirch backend, returns true in case of success.
+    """
+    # send upp to UBIRCH backend service
+    r = api.send(uuid, upp)
+    if r.status_code == codes.ok:
+        logger.info("UPP successfully sent. response: {}".format(binascii.hexlify(r.content).decode()))
+    else:
+        logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
+        return False
+
+    # verify the backend response
+    try:
+        protocol.message_verify(r.content)
+        logger.info("backend response signature successfully verified")
+    except Exception as e:
+        logger.error("backend response signature verification FAILED! {}".format(repr(e)))
+        raise Exception("ubirch backend response signature verification failed")
+
+    return True
+
+def sendDatablock(datablock:str):
+    logger.error("No customer data backend implemented. Moving on...")
+    return True
+
 
 ########################################################################
 
@@ -228,43 +282,15 @@ if not api.is_identity_registered(uuid):
         logger.error("{}: registration failed".format(uuid))
         sys.exit(1)
 
-last_send = time.time()
+lastSealDatablock = time.time()
 while True:
     mqtt_client.loop()
-    if time.time()-last_send > 10:
-        last_send = time.time()
-        print("machinedataqueue: {}".format(machinedata.qsize()))
+
+    if time.time()-lastSealDatablock > 10: #time for sealing next block?        
         sealDatablock(protocol,uuid)
-        print("machinedataqueue: {}".format(machinedata.qsize()))
+        lastSealDatablock = time.time()
+
+    if not backenddata.empty(): # data for sending available?
+        if not sendData(protocol,api):
+            logger.error("sending backend data failed")
 sys.exit(0)
-
-
-
-# create a message like being sent to the customer backend
-# include an ID and timestamp in the data message to ensure a unique hash
-dataset = get_dataset()
-# >> send data to customer backend <<
-#TODO: save data locally for tests (no customer backend atm)
-
-
-
-
-
-# send chained protocol message to UBIRCH authentication service
-r = api.send(uuid, upp)
-if r.status_code == codes.ok:
-    logger.info("UPP successfully sent. response: {}".format(binascii.hexlify(r.content).decode()))
-else:
-    logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
-    sys.exit(1)
-
-# verify the backend response
-try:
-    protocol.message_verify(r.content)
-    logger.info("backend response signature successfully verified")
-except Exception as e:
-    logger.error("backend response signature verification FAILED! {}".format(repr(e)))
-    sys.exit(1)
-
-# save last signature
-protocol.persist(uuid)
