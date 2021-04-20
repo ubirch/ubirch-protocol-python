@@ -99,10 +99,10 @@ def mqtt_connect():
 
 def mqtt_subscribe(client: mqtt_client):
     def on_message(client, userdata, msg):
-        logger.debug("received MQTT with payload: {}".format(msg.payload.decode()))
+        logger.info("received MQTT: topic: {}, payload: {}".format(msg.topic, msg.payload.decode()))
         queueMessage(msg)
     
-    logger.debug("subscribing to topic {}".format(topic))
+    logger.info("subscribing to topic {}".format(topic))
     client.subscribe(topic,qos=1) #set QOS depending on your network/needed reliability
     client.on_message = on_message
 ########################################################################
@@ -187,7 +187,8 @@ def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
     # persist the last signature to disk, as the data and upp is safely stored now
     protocol.persist(uuid)
 
-    logger.info("UPP: {}".format(binascii.hexlify(upp).decode()))
+    logger.info("created UPP for datablock")
+    logger.debug("UPP: {}".format(binascii.hexlify(upp).decode()))
 
     return
 
@@ -227,7 +228,8 @@ def sendUPP(protocol:Proto, api:ubirch.API, upp:bytes)-> bool:
     # send upp to UBIRCH backend service
     r = api.send(uuid, upp)
     if r.status_code == codes.ok:
-        logger.info("UPP successfully sent. response: {}".format(binascii.hexlify(r.content).decode()))
+        logger.info("UPP successfully sent")
+        logger.debug("UPP backend response: {}".format(binascii.hexlify(r.content).decode()))
     else:
         logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
         return False
@@ -245,7 +247,7 @@ def sendUPP(protocol:Proto, api:ubirch.API, upp:bytes)-> bool:
 PATH_SENT_DATABLOCKS = "/tmp/sentdatablocks"
 def sendDatablock(datablock:str):
     storeLocation = PATH_SENT_DATABLOCKS
-    logger.error("No customer data backend implemented. Storing data locally in {}".format(storeLocation))
+    logger.warning("No customer data backend implemented. Storing data locally in {}".format(storeLocation))
     #we use the current (=storage time) timestamp as filename for a simple mock backend
     filename = str(int(time.time())) + '.json'
     fullpath = os.path.join(PATH_SENT_DATABLOCKS, filename)
