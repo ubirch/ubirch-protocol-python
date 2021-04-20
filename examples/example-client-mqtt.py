@@ -6,6 +6,7 @@ import pickle
 import random
 import sys
 import time
+import os
 import persistqueue #TODO: add to the requirements
 from paho.mqtt import client as mqtt_client #TODO: add to the requirements file
 from uuid import UUID
@@ -16,7 +17,7 @@ from requests import codes
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN
 
-logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.INFO)
 logger = logging.getLogger()
 
 
@@ -108,7 +109,7 @@ def mqtt_subscribe(client: mqtt_client):
 
 ########################################################################
 # queueing/sealing/sending section
-PATH_MACHINEDATA_QUEUE = "machinedataqueue"
+PATH_MACHINEDATA_QUEUE = "/tmp/machinedataqueue"
 machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
 def queueMessage(msgObject):
     """
@@ -143,7 +144,7 @@ def queueMessage(msgObject):
 
     return
 
-PATH_SEND_QUEUE = "sendqueue"
+PATH_SEND_QUEUE = "/tmp/sendqueue"
 backenddata = persistqueue.Queue(PATH_SEND_QUEUE)
 def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
     """
@@ -167,11 +168,12 @@ def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
     }
 
     #convert to json: create a compact rendering of the message to ensure determinism when creating the hash later
-    datablock_json = json.dumps(datablock_dict, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
-    logger.info("created datablock: {}".format(datablock_json))
+    datablock_json = json.dumps(datablock_dict, separators=(',', ':'), sort_keys=True, ensure_ascii=False)#.encode()
+    logger.info("created datablock with {} messages".format(len(messages_list)))
+    logger.debug("datablock content: {}".format(datablock_json))
 
     # hash the data block
-    message_hash = hashlib.sha512(datablock_json).digest()
+    message_hash = hashlib.sha512(datablock_json.encode('utf-8')).digest()
     logger.info("datablock hash: {}".format(binascii.b2a_base64(message_hash, newline=False).decode()))
 
     # create a new chained protocol message with the message hash
@@ -190,7 +192,7 @@ def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
     return
 
 def sendData(protocol:Proto, api:ubirch.API):
-    logger.debug("Started sending backend data")
+    logger.info("attempting to send {} backend data items".format(backenddata.qsize()))
     sendFails = 0
     while sendFails < 10:
 
@@ -240,8 +242,21 @@ def sendUPP(protocol:Proto, api:ubirch.API, upp:bytes)-> bool:
 
     return True
 
+PATH_SENT_DATABLOCKS = "/tmp/sentdatablocks"
 def sendDatablock(datablock:str):
-    logger.error("No customer data backend implemented. Moving on...")
+    storeLocation = PATH_SENT_DATABLOCKS
+    logger.error("No customer data backend implemented. Storing data locally in {}".format(storeLocation))
+    #we use the current (=storage time) timestamp as filename for a simple mock backend
+    filename = str(int(time.time())) + '.json'
+    fullpath = os.path.join(PATH_SENT_DATABLOCKS, filename)
+
+    directory = os.path.dirname(fullpath)
+    if not os.path.exists(directory):
+        os.mkdir(directory)
+
+    with open(fullpath, 'w') as output_file:
+        output_file.write(datablock)
+
     return True
 
 
@@ -293,4 +308,3 @@ while True:
     if not backenddata.empty(): # data for sending available?
         if not sendData(protocol,api):
             logger.error("sending backend data failed")
-sys.exit(0)
