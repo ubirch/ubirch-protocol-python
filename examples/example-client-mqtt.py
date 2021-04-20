@@ -6,8 +6,8 @@ import pickle
 import random
 import sys
 import time
-import queue #TODO: add to the requirements
-from paho.mqtt import client as mqtt_client #TODO: add mqtt to the requirements file (?)
+import persistqueue #TODO: add to the requirements
+from paho.mqtt import client as mqtt_client #TODO: add mqtt to the requirements file
 from uuid import UUID
 
 from ed25519 import VerifyingKey
@@ -78,61 +78,73 @@ class Proto(ubirch.Protocol):
 ########################################################################
 # Functions for managing MQTT data
 # MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
-mqtt_msg_queue = queue.Queue()
+PATH_MACHINEDATA_QUEUE = "machinedataqueue"
+machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
 broker = '192.168.1.81'
 port = 1883
 topic = "/ubirch/rsconnectdata/temperature"
-client_id = f'ubirch-mqtt-client-example'
-def get_dataset():
-    if mqtt_msg_queue.empty():
-        return None
+mqtt_client_id = f'ubirch-mqtt-client-example'
 
-    # get messages received so far from queue and assemble info into dict
-    messages_list = []
-    while not mqtt_msg_queue.empty():
-        message_item = mqtt_msg_queue.get()
-        message_ts = message_item["msg_ts_ms"]
-        message_obj = message_item["msg"]
-        message_dict = {
-            "msg_ts_ms": message_ts,
-            "msg_topic": message_obj.topic,
-            "msg_payload": message_obj.payload.decode("utf-8"), #TODO: this assumes that the payload is always UTF-8 string, add check/handling or different encoding
-            "msg_qos": message_obj.qos,
-            "msg_retain": message_obj.retain,
-            "msg_mid": message_obj.mid
+def queueMessage(msgObject):
+    """
+    Receives a machine data message from the protocol callbacks and formats it into a dict. Also adds metainformation like timestamp.
+    Then appends the message dict to the queue.
+    """
+    queueingTime = int(time.time()*1000.0) # remember the timestamp when the message was queued in milliseconds
+
+    #convert message contents to dict depending on type, we need a dict for pickling/file backup queue support
+    msgType = type(msgObject).__name__
+    if msgType == "MQTTMessage":
+        message_content_dict = {
+            "msg_topic": msgObject.topic,
+            "msg_payload": msgObject.payload.decode("utf-8"), #TODO: assumes that the payload is always UTF-8 string. add check/handling or different encoding e.g. base 64
+            "msg_qos": msgObject.qos,
+            "msg_retain": msgObject.retain,
+            "msg_mid": msgObject.mid
         }
-        messages_list.append(message_dict)
+    else:
+        logger.error("queueMessage: unknown type of message for queueing: {}".format(msgType))
+        raise NotImplementedError
 
-    # assemble dataset by joining extra info and message list
-    dataset= {
-        "id": str(uuid),
-        "ts": int(time.time()), # timestamp of dataset is in seconds
-        "msgs": messages_list
+    #assemble message dict from metadata and message content
+    message_dict ={
+        "msg_queue_ts_ms": queueingTime, 
+        "msg_type":msgType,
+        "msg_content":message_content_dict
     }
 
-    return dataset
+    logger.debug("queueing message: {}".format(message_dict))
+    machinedata.put(message_dict)
 
-def connect_mqtt():
+    return
+
+    #add message to queue for aggregating and sealing later
+
+    # dataset= {
+    #     "id": str(uuid),
+    #     "ts": int(time.time()), # timestamp of dataset is in seconds
+    #     "msgs": messages_list
+    # }
+
+    # return dataset
+
+def mqtt_connect():
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             logger.info("sucessfully connected to MQTT Broker")
         else:
             logger.error("failed to connect to MQTT Broker, return code %d\n", rc)
     # Set Connecting Client ID
-    client = mqtt_client.Client(client_id)
+    client = mqtt_client.Client(mqtt_client_id)
     # client.username_pw_set(username, password)
     client.on_connect = on_connect
     client.connect(broker, port)
     return client
 
-def subscribe(client: mqtt_client):
+def mqtt_subscribe(client: mqtt_client):
     def on_message(client, userdata, msg):
         logger.debug("received MQTT with payload: {}".format(msg.payload.decode()))
-        message_data ={
-            "msg_ts_ms": int(time.time()*1000.0), # the timestamp for messages is in milliseconds
-            "msg":msg,
-        }
-        mqtt_msg_queue.put(message_data) #put event data in queue
+        queueMessage(msg)
     
     logger.debug("subscribing to topic {}".format(topic))
     client.subscribe(topic,qos=1) #set QOS depending on your network/needed reliability
@@ -148,18 +160,15 @@ env = sys.argv[1]
 uuid = UUID(hex=sys.argv[2])
 auth = sys.argv[3]
 
-client = connect_mqtt()
-subscribe(client)
+mqtt_client = mqtt_connect()
+mqtt_subscribe(mqtt_client)
 
 last_send = time.time()
 while True:
-    client.loop()
+    mqtt_client.loop()
     if time.time()-last_send > 10:
         last_send = time.time()
-        print("---DATA IN BUFFER---")
-        print(json.dumps(get_dataset()))
-        print()
-
+        print("machinedataqueue: {}".format(machinedata.qsize()))
 sys.exit(0)
 
 # create a keystore for the device
