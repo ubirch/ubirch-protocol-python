@@ -109,7 +109,7 @@ def mqtt_subscribe(client: mqtt_client):
 
 ########################################################################
 # queueing/sealing/sending section
-PATH_MACHINEDATA_QUEUE = "/tmp/machinedataqueue"
+PATH_MACHINEDATA_QUEUE = "machinedataqueue"
 machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
 def queueMessage(msgObject):
     """
@@ -144,7 +144,7 @@ def queueMessage(msgObject):
 
     return
 
-PATH_SEND_QUEUE = "/tmp/sendqueue"
+PATH_SEND_QUEUE = "sendqueue"
 backenddata = persistqueue.Queue(PATH_SEND_QUEUE)
 def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
     """
@@ -183,7 +183,7 @@ def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
     # we use a tupel to indicate data type id (used in send funtion later to determine endpoint)
     backenddata.put(("datablock",datablock_json))
     backenddata.put(("upp",upp))
-    machinedata.task_done    
+    machinedata.task_done()
     # persist the last signature to disk, as the data and upp is safely stored now
     protocol.persist(uuid)
 
@@ -195,7 +195,7 @@ def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
 def sendData(protocol:Proto, api:ubirch.API):
     logger.info("attempting to send {} backend data items".format(backenddata.qsize()))
     sendFails = 0
-    while sendFails < 10:
+    while sendFails < 3:
 
         if backenddata.empty(): # we managed to send all items
             return True
@@ -208,12 +208,14 @@ def sendData(protocol:Proto, api:ubirch.API):
                 sendFails = 0
             else:
                 sendFails += 1
+                backenddata.put((dataType, data)) # put item back for next try
         elif dataType == "datablock":
             if sendDatablock(data):
                 backenddata.task_done()
                 sendFails = 0
             else:
                 sendFails += 1
+                backenddata.put((dataType, data)) # put item back for next try
         else:
             logger.error("sending data type '{}' not implemented".format(dataType))
             raise NotImplementedError
@@ -225,13 +227,17 @@ def sendUPP(protocol:Proto, api:ubirch.API, upp:bytes)-> bool:
     """
     Sends UPP to ubirch backend, returns true in case of success.
     """
-    # send upp to UBIRCH backend service
-    r = api.send(uuid, upp)
-    if r.status_code == codes.ok:
-        logger.info("UPP successfully sent")
-        logger.debug("UPP backend response: {}".format(binascii.hexlify(r.content).decode()))
-    else:
-        logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
+    try:
+        # send upp to UBIRCH backend service
+        r = api.send(uuid, upp)
+        if r.status_code == codes.ok:
+            logger.info("UPP successfully sent")
+            logger.debug("UPP backend response: {}".format(binascii.hexlify(r.content).decode()))
+        else:
+            logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
+            return False
+    except Exception as e:
+        logger.error("sending UPP failed: {}".format(repr(e)))
         return False
 
     # verify the backend response
@@ -244,7 +250,7 @@ def sendUPP(protocol:Proto, api:ubirch.API, upp:bytes)-> bool:
 
     return True
 
-PATH_SENT_DATABLOCKS = "/tmp/sentdatablocks"
+PATH_SENT_DATABLOCKS = "sentdatablocks"
 def sendDatablock(datablock:str):
     storeLocation = PATH_SENT_DATABLOCKS
     logger.warning("No customer data backend implemented. Storing data locally in {}".format(storeLocation))
