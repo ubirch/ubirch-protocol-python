@@ -7,6 +7,7 @@ import random
 import sys
 import time
 import os
+import shelve #TODO: add to requirements
 import persistqueue #TODO: add to the requirements
 from paho.mqtt import client as mqtt_client #TODO: add to the requirements file
 from uuid import UUID
@@ -144,114 +145,197 @@ def queueMessage(msgObject):
 
     return
 
-PATH_SEND_QUEUE = "sendqueue"
-backenddata = persistqueue.Queue(PATH_SEND_QUEUE)
-def sealDatablock(ubirchProtocol:Proto, uuid:UUID):
+PATH_SEAL_QUEUE = "sealqueue"
+sealQueue = persistqueue.Queue(PATH_SEAL_QUEUE)
+def aggregateData():
     """
-    Gets data from the machine data queue, aggregates it into a datablock (string json in this example) and creates a matching upp (bytes) for sealing the data.
-    Then puts both block and upp into the sending queue and removes the data from the machinedata queue.
+    Gets data from the machine data queue and aggregates it into a datablock with some metadata.
+    Then puts the block into the sealing queue and removes the data from the machinedata queue.
     """
-    if machinedata.empty(): #if there is no data available, do not create a block
+    BLOCKNR_NAME = 'blocknumber'
+
+    if machinedata.empty(): #if there is no data available, do not create a new block
+        logger.info("no data to aggregate")
         return
-    creationTime = int(time.time()) # remember the timestamp when the block was created and sealed in seconds
+
+    blockCreationTime = int(time.time()) # remember the timestamp when the block was created (in seconds)
 
     #get data from queue and assemble message list
     messages_list = [] #this will become a list of the message dictionaries
     while not machinedata.empty():
         messages_list.append(machinedata.get())
 
+    #load block number from disk
+    blocknumber = 0
+    try:
+        with shelve.open(BLOCKNR_NAME) as db:
+            blocknumber = db[BLOCKNR_NAME]
+            blocknumber += 1
+    except Exception as e:
+        logger.error("loading previous block number failed, defaulting to zero. Exception was: {}".format(repr(e)))        
+
     #add block metadata
     datablock_dict= {
-        "id": str(uuid),
-        "ts": creationTime, # timestamp of datablock creation in seconds
-        "msgs": messages_list
+        "block_nr": blocknumber,
+        "block_ts": blockCreationTime, # timestamp of datablock creation in seconds
+        "block_msgs": messages_list
     }
 
-    #convert to json: create a compact rendering of the message to ensure determinism when creating the hash later
-    datablock_json = json.dumps(datablock_dict, separators=(',', ':'), sort_keys=True, ensure_ascii=False)#.encode()
     logger.info("created datablock with {} messages".format(len(messages_list)))
-    logger.debug("datablock content: {}".format(datablock_json))
+    logger.debug("datablock content: {}".format(datablock_dict))
 
-    # hash the data block
-    message_hash = hashlib.sha512(datablock_json.encode('utf-8')).digest()
-    logger.info("datablock hash: {}".format(binascii.b2a_base64(message_hash, newline=False).decode()))
-
-    # create a new chained protocol message with the message hash
-    upp = ubirchProtocol.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
-
-    # add data to send queue and remove it from machinedata queue
-    # we use a tupel to indicate data type id (used in send funtion later to determine endpoint)
-    backenddata.put(("datablock",datablock_json))
-    backenddata.put(("upp",upp))
+    # put new block into sealing queue and persist our changes to the machinedata queue and block number
+    sealQueue.put(datablock_dict)
+    with shelve.open(BLOCKNR_NAME) as db:
+        db[BLOCKNR_NAME] = blocknumber
     machinedata.task_done()
-    # persist the last signature to disk, as the data and upp is safely stored now
-    protocol.persist(uuid)
-
-    logger.info("created UPP for datablock")
-    logger.debug("UPP: {}".format(binascii.hexlify(upp).decode()))
 
     return
 
-def sendData(protocol:Proto, api:ubirch.API):
-    logger.info("attempting to send {} backend data items".format(backenddata.qsize()))
+PATH_SEND_BLOCK_QUEUE = "sendblockqueue"
+sendDatablocksQueue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE)
+def sealDatablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
+    """
+    Takes blocks of aggregated data from the seal queue, serializes the data, sends a matching UPP to the ubirch backend,
+    and finally adds the (now sealed and anchored) serialized data to the "customer backend" sending queue.
+    Returns when the queue is empty or sending the UPP fails. Sending will then be tried again on next run.
+    """
+    while not sealQueue.empty():
+        # get data block from seal queue, keep a backup for putting back in case of failure
+        original_datablock_dict = sealQueue.get()
+        datablock_dict = original_datablock_dict
+
+        logger.info("sealing data block number {}".format(datablock_dict['block_nr']))
+
+        # add metadata
+        sealTime = int(time.time()) #TODO: check if we might need ms precision for seal timestamp
+        datablock_dict['seal_ts'] = sealTime
+        datablock_dict['uuid'] = str(uuid)
+
+        # convert to json: create a compact rendering of the message to ensure determinism when creating the hash later
+        datablock_json = json.dumps(datablock_dict, separators=(',', ':'), sort_keys=True, ensure_ascii=False)
+
+        # make sure we can go back to this point in the UPP signature chaining later in case of problems with the UPP/sending
+        protocol.persist(uuid)
+
+        UPPsentOK = sendUPP(protocol, api, uuid, datablock_json)
+
+        if UPPsentOK == True:
+            #everything is OK: queue sealed customer data for sending later and persist the last signature of the sent UPP
+            sendDatablocksQueue.put(datablock_json)
+            protocol.persist(uuid)
+            sealQueue.task_done() # persist our changes to the sealing queue
+        elif UPPsentOK == False:
+            # we are unable to send the UPP (at the moment), put block back and restore UPP signature chain, then return
+            sealQueue.put(original_datablock_dict)
+            protocol.load(uuid)
+            return
+        else:
+            raise ValueError
+            
+    return
+
+def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> bool:
+    """
+    Sends UPP to ubirch backend, returns true in case of success response from
+    backend. Also reasonably handles some of the most important backend responses/errors.
+    """
+    MAX_FAILS = 3
+
+    if not isinstance(datablock_json, str):
+        raise ValueError("Expected serialized json string for creating UPP")
+
+    # hash the data block
+    block_hash = hashlib.sha512(datablock_json.encode('utf-8')).digest()
+
+    logger.info("sending UPP for data block with hash: {}".format(binascii.b2a_base64(block_hash, newline=False).decode()))
+    logger.debug("datablock serialized content: {}".format(datablock_json))
+
+    # create a new chained protocol message with the data block hash
+    # we can only do this exactly once here, as persisting the signature chain is handled
+    # in the calling function, and it expects only one new chained UPP to be generated
+    upp = protocol.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, block_hash)
+    logger.debug("UPP: {}".format(binascii.hexlify(upp).decode()))
+
+    #send the UPP to the ubirch backend
+    fails = 0
+    while fails < MAX_FAILS:
+        try:
+            # send upp to UBIRCH backend service
+            r = api.send(uuid, upp)
+            if r.status_code == 200: # backend says everything was OK
+                logger.debug("'OK' backend response to UPP: {}".format(binascii.hexlify(r.content).decode()))
+                try: # to verify the backend response                
+                    unpackedResponseUPP = protocol.message_verify(r.content)
+                    logger.info("backend response signature successfully verified")
+                    logger.debug("unpacked response UPP: {}".format(unpackedResponseUPP))
+                    
+                    #TODO: check that signature from backend response actually matches signature of sent UPP
+                    
+                    # all checks passed, return success
+                    logger.info("UPP successfully sent")
+                    return True
+                except Exception as e:
+                    logger.error("backend response verification FAILED! {}".format(repr(e)))
+            elif r.status_code == 409: # conflict: UPP with this hash already exists
+                if backendUPPIdentical(block_hash,upp,api):
+                    logger.warning("identical UPP was already present in backend")
+                    return True # this exact UPP is already at backend, we are done
+                else:
+                    logger.error("sending UPP failed: UPP hash already in use")
+                    # hash collision: there is a different UPP already with this hash, so we cannot anchor this UPP,
+                    # we will try again later (which should work because the new seal timestamp leads to a new hash)
+                    return False 
+            else:
+                logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
+        except Exception as e:
+            logger.error("sending UPP failed: {}".format(repr(e)))
+        fails += 1
+    
+    #at this point we have used up all our tries, give up
+    return False
+
+def backendUPPIdentical(hash: bytes, upp: bytes, api: ubirch.API) -> bool:
+    """
+    NOT IMPLEMENTED.
+    Checks if a UPP with a certain hash is already in backend and identical to the provided UPP.
+    Returns true or false. Must check backend response signature.
+    """
+    #TODO: implement
+    raise NotImplementedError
+
+def sendDatablocks():
+    """
+    Sends all previously sealed and anchored data waiting in the queue to the customer backend.
+    """
+    logger.info("attempting to send {} data blocks to customer backend".format(sendDatablocksQueue.qsize()))
     sendFails = 0
     while sendFails < 3:
 
-        if backenddata.empty(): # we managed to send all items
+        if sendDatablocksQueue.empty(): # we managed to send all items
+            logger.info("all data blocks sent sucessfully")
             return True
         
         # get and send next item
-        (dataType, data) = backenddata.get()
-        if dataType == "upp":
-            if sendUPP(protocol,api,data):
-                backenddata.task_done()
-                sendFails = 0
-            else:
-                sendFails += 1
-                backenddata.put((dataType, data)) # put item back for next try
-        elif dataType == "datablock":
-            if sendDatablock(data):
-                backenddata.task_done()
-                sendFails = 0
-            else:
-                sendFails += 1
-                backenddata.put((dataType, data)) # put item back for next try
+        blockdata = sendDatablocksQueue.get()
+        if sendDatablockToCustomerBackend(blockdata):
+            sendDatablocksQueue.task_done()
+            sendFails = 0
         else:
-            logger.error("sending data type '{}' not implemented".format(dataType))
-            raise NotImplementedError
+            sendFails += 1
+            sendDatablocksQueue.put(blockdata) # put item back for next try
+            logger.error("sending data block failed")
+
 
     # if we reach this point sending failed too often
+    logger.error("giving up on sending data blocks to customer backend")
     return False
 
-def sendUPP(protocol:Proto, api:ubirch.API, upp:bytes)-> bool:
-    """
-    Sends UPP to ubirch backend, returns true in case of success.
-    """
-    try:
-        # send upp to UBIRCH backend service
-        r = api.send(uuid, upp)
-        if r.status_code == codes.ok:
-            logger.info("UPP successfully sent")
-            logger.debug("UPP backend response: {}".format(binascii.hexlify(r.content).decode()))
-        else:
-            logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
-            return False
-    except Exception as e:
-        logger.error("sending UPP failed: {}".format(repr(e)))
-        return False
-
-    # verify the backend response
-    try:
-        protocol.message_verify(r.content)
-        logger.info("backend response signature successfully verified")
-    except Exception as e:
-        logger.error("backend response signature verification FAILED! {}".format(repr(e)))
-        raise Exception("ubirch backend response signature verification failed")
-
-    return True
-
 PATH_SENT_DATABLOCKS = "sentdatablocks"
-def sendDatablock(datablock:str):
+def sendDatablockToCustomerBackend(datablock:str):
+    """
+    A mock send function to simulate the customer backend.
+    """
     storeLocation = PATH_SENT_DATABLOCKS
     logger.warning("No customer data backend implemented. Storing data locally in {}".format(storeLocation))
     #we use the current (=storage time) timestamp as filename for a simple mock backend
@@ -277,10 +361,13 @@ if len(sys.argv) < 4:
     print("  python3 example-client-mqtt.py <env> <UUID> <ubirch-auth-token>")
     sys.exit(0)
 
+logger.info("client started")
+
 env = sys.argv[1]
 uuid = UUID(hex=sys.argv[2])
 auth = sys.argv[3]
 
+logger.info("connecting MQTT")
 mqtt_client = mqtt_connect()
 mqtt_subscribe(mqtt_client)
 
@@ -294,6 +381,7 @@ protocol = Proto(keystore, uuid)
 api = ubirch.API(env=env)
 api.set_authentication(uuid, auth)
 
+logger.info("checking key registration")
 # register the public key at the UBIRCH key service
 if not api.is_identity_registered(uuid):
     certificate = keystore.get_certificate(uuid)
@@ -305,14 +393,22 @@ if not api.is_identity_registered(uuid):
         logger.error("{}: registration failed".format(uuid))
         sys.exit(1)
 
-lastSealDatablock = time.time()
+logger.info("starting main loop")
+lastAggregateData = time.time()
+lastSealBlocks = time.time()
 while True:
     mqtt_client.loop()
 
-    if time.time()-lastSealDatablock > 10: #time for sealing next block?        
-        sealDatablock(protocol,uuid)
-        lastSealDatablock = time.time()
+    if time.time()-lastAggregateData > 10: #time for aggregating received data into next block?        
+        aggregateData()
+        lastAggregateData = time.time()
 
-    if not backenddata.empty(): # data for sending available?
-        if not sendData(protocol,api):
-            logger.error("sending backend data failed")
+    if time.time()-lastSealBlocks > 10: #time for sealing and anchoring the blocks?        
+        if not sealQueue.empty():
+            sealDatablocks(protocol,api,uuid)
+        else:  
+            logger.info("sealing time but no data to seal")
+        lastSealBlocks = time.time()
+
+    if not sendDatablocksQueue.empty(): # data for sending to customer backend available?
+       sendDatablocks()
