@@ -102,7 +102,10 @@ class OPCUASubscriptionCallback(object):
 
     def datachange_notification(self, node, val, data):
         logger.info(f"OPC-UA: received notification: node: {node}, value: {val}")
-        logger.info(data)
+        logger.debug(data.subscription_data)
+        logger.debug(data.monitored_item)
+        queueMessage(data) # hand the received data over to the queue function
+        
 
 
 def opcua_connect():
@@ -180,6 +183,7 @@ def queueMessage(msgObject):
 
     #convert message contents to dict depending on type, we need a dict for pickling/file backup queue support
     msgType = type(msgObject).__name__
+    # MQTT
     if msgType == "MQTTMessage":
         message_content_dict = {
             "msg_topic": msgObject.topic,
@@ -187,6 +191,15 @@ def queueMessage(msgObject):
             "msg_qos": msgObject.qos,
             "msg_retain": msgObject.retain,
             "msg_mid": msgObject.mid
+        }
+    # OPC-UA
+    elif msgType == "DataChangeNotif": # TODO: maybe find a way to make it more clear that this type belongs to OPC-UA?
+        message_content_dict = {
+            "msg_node": str(msgObject.subscription_data.node),
+            "msg_value": msgObject.monitored_item.Value.Value.Value,
+            "msg_src_ts_ms": int(msgObject.monitored_item.Value.SourceTimestamp.timestamp()*1000), # source timestamp with ms precision
+            "msg_srv_ts_ms": int(msgObject.monitored_item.Value.ServerTimestamp.timestamp()*1000), # server timestamp with ms precision
+            "msg_status": str(msgObject.monitored_item.Value.StatusCode)
         }
     else:
         logger.error("queueMessage: unknown type of message for queueing: {}".format(msgType))
@@ -481,6 +494,7 @@ except KeyboardInterrupt:
     pass
 except Exception as e:
     logger.error(f"Exception during main loop: {repr(e)}")
+    raise
 
 logger.info("shutting down")
 mqtt_client.disconnect()
