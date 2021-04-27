@@ -10,6 +10,7 @@ import os
 import shelve #TODO: add to requirements
 import persistqueue #TODO: add to the requirements
 from paho.mqtt import client as mqtt_client #TODO: add to the requirements file
+from asyncua.sync import Client as opcua_client #TODO: add to requirements (pip3 install asyncua)
 from uuid import UUID
 
 from ed25519 import VerifyingKey
@@ -18,6 +19,7 @@ from requests import codes
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN
 
+logging.getLogger("asyncua").setLevel(logging.WARNING) # reduce verbosity of the import opc ua module
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.INFO)
 logger = logging.getLogger()
 
@@ -78,6 +80,50 @@ class Proto(ubirch.Protocol):
 ########################################################################
 
 ########################################################################
+# OPC-UA section
+# partly based on the examples from https://github.com/FreeOpcUa/opcua-asyncio
+OPCUA_ADDRESS = "opc.tcp://192.168.1.81:4840/"
+OPCUA_NAMESPACE = "urn:wago-com:codesys-provider"
+OPCUA_NODE = "s=|var|RSConnect.Application.GVL_OPCUA.Input1"
+class OPCUASubscriptionCallback(object):
+
+    """
+    Subscription Handler. To receive events from server for a subscription
+    data_change and event methods are called directly from receiving thread.
+    Do not do expensive, slow or network operation there. Create another
+    thread if you need to do such a thing
+    """
+
+    def datachange_notification(self, node, val, data):
+        logger.info(f"received OPC-UA: node: {node}, value: {val}")
+
+
+def opcua_connect():
+
+    client = opcua_client(OPCUA_ADDRESS)
+    client.connect()
+    # TODO: find out how to check if connection was established successfully and log result
+
+    return client
+
+def opcua_subscribe(client:opcua_client):
+
+    # get the namespace index
+    idx = client.get_namespace_index(OPCUA_NAMESPACE)
+
+    # get the node to subscribe to
+    node = client.get_node(f"ns={idx};" + OPCUA_NODE)
+    logger.info(f"OPC-UA: subscribing to: {node}")
+
+    # subscribe to the node
+    subscriptionHandler = OPCUASubscriptionCallback()
+    sub = client.create_subscription(500, subscriptionHandler)
+    handle = sub.subscribe_data_change(node)
+    time.sleep(0.1)
+########################################################################
+
+
+########################################################################
 # Functions for managing MQTT data
 # MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
 broker = '192.168.1.81'
@@ -88,7 +134,7 @@ mqtt_client_id = f'ubirch-mqtt-client-example'
 def mqtt_connect():
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
-            logger.info("sucessfully connected to MQTT Broker")
+            logger.info("successfully connected to MQTT Broker")
         else:
             logger.error("failed to connect to MQTT Broker, return code %d\n", rc)
     # Set Connecting Client ID
@@ -313,7 +359,7 @@ def sendDatablocks():
     while sendFails < 3:
 
         if sendDatablocksQueue.empty(): # we managed to send all items
-            logger.info("all data blocks sent sucessfully")
+            logger.info("all data blocks sent successfully")
             return True
         
         # get and send next item
@@ -367,6 +413,10 @@ env = sys.argv[1]
 uuid = UUID(hex=sys.argv[2])
 auth = sys.argv[3]
 
+logger.info("connecting OPC-UA")
+opcua_client = opcua_connect()
+opcua_subscribe(opcua_client)
+
 logger.info("connecting MQTT")
 mqtt_client = mqtt_connect()
 mqtt_subscribe(mqtt_client)
@@ -396,19 +446,29 @@ if not api.is_identity_registered(uuid):
 logger.info("starting main loop")
 lastAggregateData = time.time()
 lastSealBlocks = time.time()
-while True:
-    mqtt_client.loop()
 
-    if time.time()-lastAggregateData > 10: #time for aggregating received data into next block?        
-        aggregateData()
-        lastAggregateData = time.time()
+try:
+    while True:
+        mqtt_client.loop()
 
-    if time.time()-lastSealBlocks > 10: #time for sealing and anchoring the blocks?        
-        if not sealQueue.empty():
-            sealDatablocks(protocol,api,uuid)
-        else:  
-            logger.info("sealing time but no data to seal")
-        lastSealBlocks = time.time()
+        if time.time()-lastAggregateData > 10: #time for aggregating received data into next block?        
+            aggregateData()
+            lastAggregateData = time.time()
 
-    if not sendDatablocksQueue.empty(): # data for sending to customer backend available?
-       sendDatablocks()
+        if time.time()-lastSealBlocks > 10: #time for sealing and anchoring the blocks?        
+            if not sealQueue.empty():
+                sealDatablocks(protocol,api,uuid)
+            else:  
+                logger.info("sealing time but no data to seal")
+            lastSealBlocks = time.time()
+
+        if not sendDatablocksQueue.empty(): # data for sending to customer backend available?
+            sendDatablocks()
+except KeyboardInterrupt:
+    pass
+except Exception as e:
+    logger.error(f"Exception: {repr(e)}")
+
+logger.info("shutting down")
+mqtt_client.disconnect()
+opcua_client.disconnect()
