@@ -492,10 +492,7 @@ try:
             sendDatablocks()
 except KeyboardInterrupt:
     pass
-except Exception as e:
-    logger.error(f"Exception during main loop: {repr(e)}")
-    raise
-
-logger.info("shutting down")
-mqtt_client.disconnect()
-opcua_client.disconnect()
+finally:
+    logger.info("shutting down")
+    mqtt_client.disconnect()
+    opcua_client.disconnect()
