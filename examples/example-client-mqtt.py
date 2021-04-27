@@ -64,10 +64,10 @@ class Proto(ubirch.Protocol):
         try:
             with open(uuid.hex + ".sig", "rb") as f:
                 signatures = pickle.load(f)
-                logger.info("loaded {} known signatures".format(len(signatures)))
+                logger.info("ubirch-protocol: loaded {} known signatures".format(len(signatures)))
                 self.set_saved_signatures(signatures)
         except FileNotFoundError:
-            logger.warning("no existing saved signatures")
+            logger.warning("ubirch-protocol: no existing saved signatures")
             pass
 
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
@@ -84,7 +84,13 @@ class Proto(ubirch.Protocol):
 # partly based on the examples from https://github.com/FreeOpcUa/opcua-asyncio
 OPCUA_ADDRESS = "opc.tcp://192.168.1.81:4840/"
 OPCUA_NAMESPACE = "urn:wago-com:codesys-provider"
-OPCUA_NODE = "s=|var|RSConnect.Application.GVL_OPCUA.Input1"
+OPCUA_NODES = [ "|var|RSConnect.Application.GVL_OPCUA.Input1",
+                "|var|RSConnect.Application.GVL_OPCUA.Input2",
+                "|var|RSConnect.Application.GVL_OPCUA.output1_visu",
+                "|var|RSConnect.Application.GVL_OPCUA.counter_input",
+                "|var|RSConnect.Application.GVL_OPCUA.counter_output",
+                "|var|RSConnect.Application.GVL_OPCUA.temperature1"]
+
 class OPCUASubscriptionCallback(object):
 
     """
@@ -95,14 +101,18 @@ class OPCUASubscriptionCallback(object):
     """
 
     def datachange_notification(self, node, val, data):
-        logger.info(f"received OPC-UA: node: {node}, value: {val}")
+        logger.info(f"OPC-UA: received notification: node: {node}, value: {val}")
+        logger.info(data)
 
 
 def opcua_connect():
 
     client = opcua_client(OPCUA_ADDRESS)
-    client.connect()
-    # TODO: find out how to check if connection was established successfully and log result
+    try:
+        client.connect()
+        logger.info("OPC-UA: successfully connected")
+    except Exception as e:
+        logger.error(f"OPC-UA connection failed: {repr(e)}")
 
     return client
 
@@ -111,15 +121,17 @@ def opcua_subscribe(client:opcua_client):
     # get the namespace index
     idx = client.get_namespace_index(OPCUA_NAMESPACE)
 
-    # get the node to subscribe to
-    node = client.get_node(f"ns={idx};" + OPCUA_NODE)
-    logger.info(f"OPC-UA: subscribing to: {node}")
-
-    # subscribe to the node
+    #set up subscription basics
     subscriptionHandler = OPCUASubscriptionCallback()
-    sub = client.create_subscription(500, subscriptionHandler)
-    handle = sub.subscribe_data_change(node)
-    time.sleep(0.1)
+    sub = client.create_subscription(50, subscriptionHandler)
+
+    # get the nodes to subscribe to and do the subsciption
+    for nodename in OPCUA_NODES:
+        node = client.get_node(f"ns={idx};s=" + nodename)
+        logger.info(f"OPC-UA: subscribing to node: {nodename}")
+        handle = sub.subscribe_data_change(node)
+        time.sleep(0.1)
+
 ########################################################################
 
 
@@ -128,15 +140,15 @@ def opcua_subscribe(client:opcua_client):
 # MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
 broker = '192.168.1.81'
 port = 1883
-topic = "/ubirch/rsconnectdata/temperature"
-mqtt_client_id = f'ubirch-mqtt-client-example'
+topics = ["/ubirch/rsconnectdata/temperature"]
+mqtt_client_id = f'ubirch-client-example'
 
 def mqtt_connect():
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
-            logger.info("successfully connected to MQTT Broker")
+            logger.info("MQTT: successfully connected to broker")
         else:
-            logger.error("failed to connect to MQTT Broker, return code %d\n", rc)
+            logger.error("MQTT: failed to connect to broker, return code %d\n", rc)
     # Set Connecting Client ID
     client = mqtt_client.Client(mqtt_client_id)
     # client.username_pw_set(username, password)
@@ -146,11 +158,12 @@ def mqtt_connect():
 
 def mqtt_subscribe(client: mqtt_client):
     def on_message(client, userdata, msg):
-        logger.info("received MQTT: topic: {}, payload: {}".format(msg.topic, msg.payload.decode()))
+        logger.info("MQTT: received message: topic: {}, payload: {}".format(msg.topic, msg.payload.decode()))
         queueMessage(msg)
     
-    logger.info("subscribing to topic {}".format(topic))
-    client.subscribe(topic,qos=1) #set QOS depending on your network/needed reliability
+    for topic in topics:
+        logger.info("MQTT: subscribing to topic {}".format(topic))
+        client.subscribe(topic,qos=1) #set QOS depending on your network/needed reliability
     client.on_message = on_message
 ########################################################################
 
@@ -413,11 +426,11 @@ env = sys.argv[1]
 uuid = UUID(hex=sys.argv[2])
 auth = sys.argv[3]
 
-logger.info("connecting OPC-UA")
+logger.info("OPC-UA: connecting")
 opcua_client = opcua_connect()
 opcua_subscribe(opcua_client)
 
-logger.info("connecting MQTT")
+logger.info("MQTT: connecting")
 mqtt_client = mqtt_connect()
 mqtt_subscribe(mqtt_client)
 
@@ -431,7 +444,7 @@ protocol = Proto(keystore, uuid)
 api = ubirch.API(env=env)
 api.set_authentication(uuid, auth)
 
-logger.info("checking key registration")
+logger.info("ubirch-protocol: checking key registration")
 # register the public key at the UBIRCH key service
 if not api.is_identity_registered(uuid):
     certificate = keystore.get_certificate(uuid)
@@ -467,7 +480,7 @@ try:
 except KeyboardInterrupt:
     pass
 except Exception as e:
-    logger.error(f"Exception: {repr(e)}")
+    logger.error(f"Exception during main loop: {repr(e)}")
 
 logger.info("shutting down")
 mqtt_client.disconnect()
