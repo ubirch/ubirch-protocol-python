@@ -312,6 +312,7 @@ def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> boo
         raise ValueError("Expected serialized json string for creating UPP")
 
     # hash the data block
+    datablock_json = "{43523452345234234234}" #TODO: REMOVE ME: constant hash
     block_hash = hashlib.sha512(datablock_json.encode('utf-8')).digest()
 
     logger.info("sending UPP for data block with hash: {}".format(binascii.b2a_base64(block_hash, newline=False).decode()))
@@ -329,6 +330,9 @@ def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> boo
         try:
             # send upp to UBIRCH backend service
             r = api.send(uuid, upp)
+            if fails == 0: #TODO: REMOVE ME: simulate failed communication of response
+                logger.warning("faking communication error")
+                r.status_code = 500
             if r.status_code == 200: # backend says everything was OK
                 logger.debug("'OK' backend response to UPP: {}".format(binascii.hexlify(r.content).decode()))
                 try: # to verify the backend response                
@@ -344,15 +348,16 @@ def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> boo
                 except Exception as e:
                     logger.error("backend response verification FAILED! {}".format(repr(e)))
             elif r.status_code == 409: # conflict: UPP with this hash already exists
+                logger.warning("received 409/conflict from backend")
                 if backendUPPIdentical(block_hash,upp,api):
                     logger.warning("identical UPP was already present in backend")
                     return True # this exact UPP is already at backend, we are done
                 else:
-                    logger.error("sending UPP failed: UPP hash already in use")
+                    logger.error("sending UPP failed: UPP hash already in use by other UPP")
                     # hash collision: there is a different UPP already with this hash, so we cannot anchor this UPP,
                     # we will try again later (which should work because the new seal timestamp leads to a new hash)
                     return False 
-            else:
+            else: #all other status codes
                 logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
         except Exception as e:
             logger.error("sending UPP failed: {}".format(repr(e)))
@@ -361,14 +366,35 @@ def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> boo
     #at this point we have used up all our tries, give up
     return False
 
-def backendUPPIdentical(hash: bytes, upp: bytes, api: ubirch.API) -> bool:
+def backendUPPIdentical(local_upp_hash: bytes, local_upp: bytes, api: ubirch.API) -> bool:
     """
-    NOT IMPLEMENTED.
     Checks if a UPP with a certain hash is already in backend and identical to the provided UPP.
-    Returns true or false. Must check backend response signature.
+    Returns true or false. TODO: check backend response signature/authenticity.
     """
-    #TODO: implement
-    raise NotImplementedError
+    logger.debug(f"Checking for 'already at backend' for UPP with hash: {binascii.b2a_base64(local_upp_hash, newline=False).decode()}")
+    response = api.verify(local_upp_hash,quick=True) #TODO: we should use quick here, but the quick endpoint is buggy atm (always returns last UPP that niomon saw)
+    if response.status_code == 200:
+        try:
+            upp_info = json.loads(response.content)
+            logger.debug(f"Received UPP info from verify endpoint: {upp_info}")
+            backend_upp = binascii.a2b_base64(upp_info['upp'])
+            print(binascii.b2a_hex(local_upp_hash))
+            print(binascii.b2a_hex(backend_upp))
+            print(binascii.b2a_hex(local_upp))
+            if backend_upp == local_upp:
+                logger.info("backend UPP is identical")
+                return True
+            else:
+                logger.info("backend UPP is different")
+                return False
+
+        except Exception as e:
+            logger.error("error while checking local and backend UPP for equality")
+            raise
+    elif response.status_code == 404:
+        raise Exception("No UPP with this hash found (404), can't check for equality.")
+    else:
+        raise Exception(f"Error when checking if UPP is already at backend. Response code: {response.status_code}, Response content: {repr(response.content)}")
 
 def sendDatablocks():
     """
