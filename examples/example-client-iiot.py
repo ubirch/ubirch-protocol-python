@@ -172,8 +172,6 @@ def mqtt_subscribe(client: mqtt_client):
 
 ########################################################################
 # queueing/sealing/sending section
-PATH_MACHINEDATA_QUEUE = "machinedataqueue"
-machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
 def queueMessage(msgObject):
     """
     Receives a machine data message from the protocol callbacks and formats it into a dict. Also adds metainformation like timestamp.
@@ -217,14 +215,12 @@ def queueMessage(msgObject):
 
     return
 
-PATH_SEAL_QUEUE = "sealqueue"
-sealQueue = persistqueue.Queue(PATH_SEAL_QUEUE)
 def aggregateData():
     """
     Gets data from the machine data queue and aggregates it into a datablock with some metadata.
     Then puts the block into the sealing queue and removes the data from the machinedata queue.
     """
-    BLOCKNR_NAME = 'blocknumber'
+    BLOCKNR_NAME = uuid.hex+'-blocknumber' #TODO: fix use of global uuid
 
     if machinedata.empty(): #if there is no data available, do not create a new block
         logger.info("no data to aggregate")
@@ -264,8 +260,6 @@ def aggregateData():
 
     return
 
-PATH_SEND_BLOCK_QUEUE = "sendblockqueue"
-sendDatablocksQueue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE)
 def sealDatablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
     """
     Takes blocks of aggregated data from the seal queue, serializes the data, sends a matching UPP to the ubirch backend,
@@ -403,7 +397,6 @@ def sendDatablocks():
     logger.error("giving up on sending data blocks to customer backend")
     return False
 
-PATH_SENT_DATABLOCKS = "sentdatablocks"
 def sendDatablockToCustomerBackend(datablock:str):
     """
     A mock send function to simulate the customer backend.
@@ -438,6 +431,18 @@ logger.info("client started")
 env = sys.argv[1]
 uuid = UUID(hex=sys.argv[2])
 auth = sys.argv[3]
+
+#set up paths constants and global queues
+PATH_MACHINEDATA_QUEUE = uuid.hex+"-machinedataqueue"
+machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
+
+PATH_SEAL_QUEUE = uuid.hex+"-sealqueue"
+sealQueue = persistqueue.Queue(PATH_SEAL_QUEUE)
+
+PATH_SEND_BLOCK_QUEUE = uuid.hex+"-sendblockqueue"
+sendDatablocksQueue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE)
+
+PATH_SENT_DATABLOCKS = uuid.hex+"-sentdatablocks"
 
 logger.info("OPC-UA: connecting")
 opcua_client = opcua_connect()
