@@ -34,9 +34,10 @@ class Proto(ubirch.Protocol):
     UUID_PROD = UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
     PUB_PROD = VerifyingKey("ef8048ad06c0285af0177009381830c46cec025d01d86085e75a4f0041c2e690", encoding='hex')
 
-    def __init__(self, key_store: ubirch.KeyStore, uuid: UUID) -> None:
+    def __init__(self, key_store: ubirch.KeyStore, uuid: UUID, persistent_storage_path: str = "") -> None:
         super().__init__()
         self.__ks = key_store
+        self._persistent_storage_path = persistent_storage_path
 
         # check if the device already has keys or generate a new pair
         if not keystore.exists_signing_key(uuid):
@@ -57,12 +58,12 @@ class Proto(ubirch.Protocol):
 
     def persist(self, uuid: UUID):
         signatures = self.get_saved_signatures()
-        with open(uuid.hex + ".sig", "wb") as f:
+        with open(os.path.join(self._persistent_storage_path, uuid.hex+".sig"), "wb") as f:
             pickle.dump(signatures, f)
 
     def load(self, uuid: UUID):
         try:
-            with open(uuid.hex + ".sig", "rb") as f:
+            with open(os.path.join(self._persistent_storage_path, uuid.hex+".sig"), "rb") as f:
                 signatures = pickle.load(f)
                 logger.info("ubirch-protocol: loaded {} known signatures".format(len(signatures)))
                 self.set_saved_signatures(signatures)
@@ -105,8 +106,6 @@ class OPCUASubscriptionCallback(object):
         logger.debug(data.subscription_data)
         logger.debug(data.monitored_item)
         queueMessage(data) # hand the received data over to the queue function
-        
-
 
 def opcua_connect():
 
@@ -141,10 +140,10 @@ def opcua_subscribe(client:opcua_client):
 ########################################################################
 # Functions for managing MQTT data
 # MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
-broker = '192.168.1.81'
-port = 1883
-topics = ["/ubirch/rsconnectdata/temperature"]
-mqtt_client_id = f'ubirch-client-example'
+MQTT_ADDRESS = '192.168.1.81'
+MQTT_PORT = 1883
+MQTT_TOPICS = ["/ubirch/rsconnectdata/temperature"]
+MQTT_CLIENT_ID = f'ubirch-client-example-{random.randint(1,999)}' # add random id to avoid problems with multiple instances (client id must be unique)
 
 def mqtt_connect():
     def on_connect(client, userdata, flags, rc):
@@ -153,10 +152,10 @@ def mqtt_connect():
         else:
             logger.error("MQTT: failed to connect to broker, return code %d\n", rc)
     # Set Connecting Client ID
-    client = mqtt_client.Client(mqtt_client_id)
+    client = mqtt_client.Client(MQTT_CLIENT_ID)
     # client.username_pw_set(username, password)
     client.on_connect = on_connect
-    client.connect(broker, port)
+    client.connect(MQTT_ADDRESS, MQTT_PORT)
     return client
 
 def mqtt_subscribe(client: mqtt_client):
@@ -164,7 +163,7 @@ def mqtt_subscribe(client: mqtt_client):
         logger.info("MQTT: received message: topic: {}, payload: {}".format(msg.topic, msg.payload.decode()))
         queueMessage(msg)
     
-    for topic in topics:
+    for topic in MQTT_TOPICS:
         logger.info("MQTT: subscribing to topic {}".format(topic))
         client.subscribe(topic,qos=1) #set QOS depending on your network/needed reliability
     client.on_message = on_message
@@ -221,6 +220,7 @@ def aggregateData():
     Then puts the block into the sealing queue and removes the data from the machinedata queue.
     """
     BLOCKNR_NAME = uuid.hex+'-blocknumber' #TODO: fix use of global uuid
+    BLOCKNR_FULLPATH = os.path.join(PATH_PERSISTENT_STORAGE,BLOCKNR_NAME)
 
     if machinedata.empty(): #if there is no data available, do not create a new block
         logger.info("no data to aggregate")
@@ -236,7 +236,7 @@ def aggregateData():
     #load block number from disk
     blocknumber = 1 # number for very first block
     try:
-        with shelve.open(BLOCKNR_NAME) as db:
+        with shelve.open(BLOCKNR_FULLPATH) as db:
             blocknumber = db[BLOCKNR_NAME]
             blocknumber += 1
     except Exception as e:
@@ -254,7 +254,7 @@ def aggregateData():
 
     # put new block into sealing queue and persist our changes to the machinedata queue and block number
     sealQueue.put(datablock_dict)
-    with shelve.open(BLOCKNR_NAME) as db:
+    with shelve.open(BLOCKNR_FULLPATH) as db:
         db[BLOCKNR_NAME] = blocknumber
     machinedata.task_done()
 
@@ -437,7 +437,7 @@ def sendDatablockToCustomerBackend(datablock:str):
     A mock send function to simulate the customer backend.
     """
     storeLocation = PATH_SENT_DATABLOCKS
-    logger.warning("No customer data backend implemented. Storing data locally in {}".format(storeLocation))
+    logger.warning("No customer data backend implemented. Storing data locally.")
     #we use the current (=storage time) timestamp as filename for a simple mock backend
     filename = str(int(time.time()*1000)) + '.json' # msec timestamp plus pause to avoid duplicate filenames TODO: implement proper way of naming files
     time.sleep(0.010)
@@ -448,6 +448,7 @@ def sendDatablockToCustomerBackend(datablock:str):
         os.mkdir(directory)
 
     with open(fullpath, 'w') as output_file:
+        logger.debug(f"Saving to {fullpath}")
         output_file.write(datablock)
 
     return True
@@ -469,16 +470,17 @@ uuid = UUID(hex=sys.argv[2])
 auth = sys.argv[3]
 
 #set up paths constants and global queues
-PATH_MACHINEDATA_QUEUE = uuid.hex+"-machinedataqueue"
+PATH_PERSISTENT_STORAGE = os.path.expanduser("~/persist-ubirch-iiot-client/") # a path where the persistent data can be stored (queues, keys, last signatures, etc)
+PATH_MACHINEDATA_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-machinedataqueue")
 machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
 
-PATH_SEAL_QUEUE = uuid.hex+"-sealqueue"
+PATH_SEAL_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-sealqueue")
 sealQueue = persistqueue.Queue(PATH_SEAL_QUEUE)
 
-PATH_SEND_BLOCK_QUEUE = uuid.hex+"-sendblockqueue"
+PATH_SEND_BLOCK_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-sendblockqueue")
 sendDatablocksQueue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE)
 
-PATH_SENT_DATABLOCKS = uuid.hex+"-sentdatablocks"
+PATH_SENT_DATABLOCKS = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-sentdatablocks")
 
 logger.info("OPC-UA: connecting")
 opcua_client = opcua_connect()
@@ -489,10 +491,10 @@ mqtt_client = mqtt_connect()
 mqtt_subscribe(mqtt_client)
 
 # create a keystore for the device
-keystore = ubirch.KeyStore("mqtt-device.jks", "keystorepassword")
+keystore = ubirch.KeyStore(os.path.join(PATH_PERSISTENT_STORAGE, "iiot-device.jks"), "keystorepassword")
 
 # create an instance of the protocol with signature saving
-protocol = Proto(keystore, uuid)
+protocol = Proto(keystore, uuid,PATH_PERSISTENT_STORAGE)
 
 # create an instance of the UBIRCH API and set the auth token
 api = ubirch.API(env=env)
