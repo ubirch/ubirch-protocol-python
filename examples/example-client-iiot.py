@@ -217,7 +217,7 @@ def queueMessage(msgObject):
 
 def aggregateData():
     """
-    Gets data from the machine data queue and aggregates it into a datablock with some metadata.
+    Gets data from the machine data queue and aggregates it into a data block with some metadata.
     Then puts the block into the sealing queue and removes the data from the machinedata queue.
     """
     BLOCKNR_NAME = uuid.hex+'-blocknumber' #TODO: fix use of global uuid
@@ -234,23 +234,23 @@ def aggregateData():
         messages_list.append(machinedata.get())
 
     #load block number from disk
-    blocknumber = 0
+    blocknumber = 1 # number for very first block
     try:
         with shelve.open(BLOCKNR_NAME) as db:
             blocknumber = db[BLOCKNR_NAME]
             blocknumber += 1
     except Exception as e:
-        logger.error("loading previous block number failed, defaulting to zero. Exception was: {}".format(repr(e)))        
+        logger.error("loading previous block number failed, defaulting to one. Exception was: {}".format(repr(e)))        
 
     #add block metadata
     datablock_dict= {
         "block_nr": blocknumber,
-        "block_ts": blockCreationTime, # timestamp of datablock creation in seconds
+        "block_ts": blockCreationTime, # timestamp of data block creation in seconds
         "block_msgs": messages_list
     }
 
-    logger.info("created datablock with {} messages".format(len(messages_list)))
-    logger.debug("datablock content: {}".format(datablock_dict))
+    logger.info(f"created data block number {blocknumber} with {len(messages_list)} messages")
+    logger.debug("data block content: {}".format(datablock_dict))
 
     # put new block into sealing queue and persist our changes to the machinedata queue and block number
     sealQueue.put(datablock_dict)
@@ -266,6 +266,7 @@ def sealDatablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
     and finally adds the (now sealed and anchored) serialized data to the "customer backend" sending queue.
     Returns when the queue is empty or sending the UPP fails. Sending will then be tried again on next run.
     """
+    logger.info("attempting to seal {} data blocks".format(sealQueue.qsize()))
     while not sealQueue.empty():
         # get data block from seal queue, keep a backup for putting back in case of failure
         original_datablock_dict = sealQueue.get()
@@ -312,11 +313,11 @@ def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> boo
         raise ValueError("Expected serialized json string for creating UPP")
 
     # hash the data block
-    datablock_json = "{43523452345234234234}" #TODO: REMOVE ME: constant hash
+    #datablock_json = "{43523452345234234234}" #TODO: REMOVE ME: constant hash for simulating hash collisions
     block_hash = hashlib.sha512(datablock_json.encode('utf-8')).digest()
 
     logger.info("sending UPP for data block with hash: {}".format(binascii.b2a_base64(block_hash, newline=False).decode()))
-    logger.debug("datablock serialized content: {}".format(datablock_json))
+    logger.debug("data block serialized content: {}".format(datablock_json))
 
     # create a new chained protocol message with the data block hash
     # we can only do this exactly once here, as persisting the signature chain is handled
@@ -330,17 +331,28 @@ def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> boo
         try:
             # send upp to UBIRCH backend service
             r = api.send(uuid, upp)
-            if fails == 0: #TODO: REMOVE ME: simulate failed communication of response
-                logger.warning("faking communication error")
-                r.status_code = 500
+            # if fails == 0: #TODO: REMOVE ME: simulate failed communication of response
+            #     logger.warning("faking communication error")
+            #     r.status_code = 500
             if r.status_code == 200: # backend says everything was OK
                 logger.debug("'OK' backend response to UPP: {}".format(binascii.hexlify(r.content).decode()))
-                try: # to verify the backend response                
+                try: # to verify the backend response     
+                    #verify the signature of the backend response and unpack upp           
                     unpackedResponseUPP = protocol.message_verify(r.content)
                     logger.info("backend response signature successfully verified")
                     logger.debug("unpacked response UPP: {}".format(unpackedResponseUPP))
+                    # extract prev signature field (must match sent upp signature)
+                    backend_prev_signature = unpackedResponseUPP[2]
+                    logger.debug(f"response UPP prev. signature: {backend_prev_signature}")
+                    #get the signature of the sent upp by unpacking it
+                    unpackedSentUPP = protocol.message_verify(upp)
+                    sentUPPSignature = unpackedSentUPP[-1]
+                    logger.debug(f"sent UPP signature: {sentUPPSignature}")
+
+                    if sentUPPSignature != backend_prev_signature:
+                        raise Exception("UPP signature acknowledged by backend does not match sent UPP signature")
                     
-                    #TODO: check that signature from backend response actually matches signature of sent UPP
+                    logger.info("backend acknowledged UPP signature matches sent UPP signature")
                     
                     # all checks passed, return success
                     logger.info("UPP successfully sent")
@@ -372,20 +384,17 @@ def backendUPPIdentical(local_upp_hash: bytes, local_upp: bytes, api: ubirch.API
     Returns true or false. TODO: check backend response signature/authenticity.
     """
     logger.debug(f"Checking for 'already at backend' for UPP with hash: {binascii.b2a_base64(local_upp_hash, newline=False).decode()}")
-    response = api.verify(local_upp_hash,quick=True) #TODO: we should use quick here, but the quick endpoint is buggy atm (always returns last UPP that niomon saw)
+    response = api.verify(local_upp_hash,quick=False) #TODO: we should use quick here, but the quick endpoint is buggy atm (always returns last UPP that niomon saw)
     if response.status_code == 200:
         try:
             upp_info = json.loads(response.content)
             logger.debug(f"Received UPP info from verify endpoint: {upp_info}")
             backend_upp = binascii.a2b_base64(upp_info['upp'])
-            print(binascii.b2a_hex(local_upp_hash))
-            print(binascii.b2a_hex(backend_upp))
-            print(binascii.b2a_hex(local_upp))
             if backend_upp == local_upp:
-                logger.info("backend UPP is identical")
+                logger.info("backend UPP is identical") #TODO: change to debug when working
                 return True
             else:
-                logger.info("backend UPP is different")
+                logger.info("backend UPP is different") #TODO: change to debug when working
                 return False
 
         except Exception as e:
@@ -430,7 +439,8 @@ def sendDatablockToCustomerBackend(datablock:str):
     storeLocation = PATH_SENT_DATABLOCKS
     logger.warning("No customer data backend implemented. Storing data locally in {}".format(storeLocation))
     #we use the current (=storage time) timestamp as filename for a simple mock backend
-    filename = str(int(time.time())) + '.json'
+    filename = str(int(time.time()*1000)) + '.json' # msec timestamp plus pause to avoid duplicate filenames TODO: implement proper way of naming files
+    time.sleep(0.010)
     fullpath = os.path.join(PATH_SENT_DATABLOCKS, filename)
 
     directory = os.path.dirname(fullpath)
