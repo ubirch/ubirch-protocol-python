@@ -10,8 +10,8 @@ import os
 import getpass # TODO: add to requirements
 import shelve #TODO: add to requirements
 import persistqueue #TODO: add to the requirements
-from paho.mqtt import client as mqtt_client #TODO: add to the requirements file
-from asyncua.sync import Client as opcua_client #TODO: add to requirements (pip3 install asyncua)
+from paho.mqtt import client as MqttClient #TODO: add to the requirements file
+from asyncua.sync import Client as OpcuaClient #TODO: add to requirements (pip3 install asyncua)
 from uuid import UUID
 
 from ed25519 import VerifyingKey
@@ -84,17 +84,7 @@ class Proto(ubirch.Protocol):
 ########################################################################
 # OPC-UA section
 # partly based on the examples from https://github.com/FreeOpcUa/opcua-asyncio
-OPCUA_ADDRESS = "opc.tcp://192.168.1.81:4840/"
-OPCUA_NAMESPACE = "urn:wago-com:codesys-provider"
-OPCUA_NODES = [ "|var|RSConnect.Application.GVL_OPCUA.Input1",
-                "|var|RSConnect.Application.GVL_OPCUA.Input2",
-                "|var|RSConnect.Application.GVL_OPCUA.output1_visu",
-                "|var|RSConnect.Application.GVL_OPCUA.counter_input",
-                "|var|RSConnect.Application.GVL_OPCUA.counter_output",
-                "|var|RSConnect.Application.GVL_OPCUA.temperature1"]
-
 class OPCUASubscriptionCallback(object):
-
     """
     Subscription Handler. To receive events from server for a subscription
     data_change and event methods are called directly from receiving thread.
@@ -106,11 +96,13 @@ class OPCUASubscriptionCallback(object):
         logger.info(f"OPC-UA: received notification: node: {node}, value: {val}")
         logger.debug(data.subscription_data)
         logger.debug(data.monitored_item)
-        queueMessage(data) # hand the received data over to the queue function
+        queue_message(data) # hand the received data over to the queue function
 
-def opcua_connect():
+def opcua_connect(opcua_address:str)-> OpcuaClient:
+    """ Connect to an OPC-UA server at the given address. Returns client instance."""
 
-    client = opcua_client(OPCUA_ADDRESS)
+    logger.info(f"OPC-UA: connecting to {opcua_address}")
+    client = OpcuaClient(opcua_address)
     try:
         client.connect()
         logger.info("OPC-UA: successfully connected")
@@ -119,17 +111,21 @@ def opcua_connect():
 
     return client
 
-def opcua_subscribe(client:opcua_client):
+def opcua_subscribe(client:OpcuaClient, namespace:str, nodes: list):
+    """Subscribes to all nodes in the given list using the given client instance and namespace.
+    The nodes are expected as identifiers without leading 'ns=...' or 's=...' (These are added automatically.).
+    Example node name: '|var|Manufacturer.Application.GVL_OPCUA.Input1'.
+    """
 
     # get the namespace index
-    idx = client.get_namespace_index(OPCUA_NAMESPACE)
+    idx = client.get_namespace_index(namespace)
 
     #set up subscription basics
     subscriptionHandler = OPCUASubscriptionCallback()
     sub = client.create_subscription(50, subscriptionHandler)
 
     # get the nodes to subscribe to and do the subsciption
-    for nodename in OPCUA_NODES:
+    for nodename in nodes:
         node = client.get_node(f"ns={idx};s=" + nodename)
         logger.info(f"OPC-UA: subscribing to node: {nodename}")
         handle = sub.subscribe_data_change(node)
@@ -141,30 +137,30 @@ def opcua_subscribe(client:opcua_client):
 ########################################################################
 # Functions for managing MQTT data
 # MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
-MQTT_ADDRESS = '192.168.1.81'
-MQTT_PORT = 1883
-MQTT_TOPICS = ["/ubirch/rsconnectdata/temperature"]
-MQTT_CLIENT_ID = f'ubirch-client-example-{random.randint(1,999)}' # add random id to avoid problems with multiple instances (client id must be unique)
-
-def mqtt_connect():
+def mqtt_connect(address:str, port:int, client_id:str) -> MqttClient:
+    """ Connect to an MQTT broker using the address, port and client ID. Client ID must be unique on broker side.
+    Returns the client instance.
+    """
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             logger.info("MQTT: successfully connected to broker")
         else:
             logger.error("MQTT: failed to connect to broker, return code %d\n", rc)
     # Set Connecting Client ID
-    client = mqtt_client.Client(MQTT_CLIENT_ID)
+    client = MqttClient.Client(client_id)
     # client.username_pw_set(username, password)
     client.on_connect = on_connect
-    client.connect(MQTT_ADDRESS, MQTT_PORT)
+    logger.info(f"MQTT: connecting to {address+' port '+str(port)}")
+    client.connect(address, port)
     return client
 
-def mqtt_subscribe(client: mqtt_client):
+def mqtt_subscribe(client: MqttClient, topics: list):
+    """ Subscribe to all topics from the topics list using the given client."""
     def on_message(client, userdata, msg):
         logger.info("MQTT: received message: topic: {}, payload: {}".format(msg.topic, msg.payload.decode()))
-        queueMessage(msg)
+        queue_message(msg)
     
-    for topic in MQTT_TOPICS:
+    for topic in topics:
         logger.info("MQTT: subscribing to topic {}".format(topic))
         client.subscribe(topic,qos=1) #set QOS depending on your network/needed reliability
     client.on_message = on_message
@@ -172,41 +168,41 @@ def mqtt_subscribe(client: mqtt_client):
 
 ########################################################################
 # queueing/sealing/sending section
-def queueMessage(msgObject):
+def queue_message(msg_object):
     """
     Receives a machine data message from the protocol callbacks and formats it into a dict. Also adds metainformation like timestamp.
     Then appends the message dict to the queue.
     """
-    queueingTime = int(time.time()*1000.0) # remember the timestamp when the message was queued in milliseconds
+    queueing_time = int(time.time()*1000.0) # remember the timestamp when the message was queued in milliseconds
 
     #convert message contents to dict depending on type, we need a dict for pickling/file backup queue support
-    msgType = type(msgObject).__name__
+    msg_type = type(msg_object).__name__
     # MQTT
-    if msgType == "MQTTMessage":
+    if msg_type == "MQTTMessage":
         message_content_dict = {
-            "msg_topic": msgObject.topic,
-            "msg_payload": msgObject.payload.decode("utf-8"), #TODO: assumes that the payload is always UTF-8 string. add check/handling or different encoding e.g. base 64
-            "msg_qos": msgObject.qos,
-            "msg_retain": msgObject.retain,
-            "msg_mid": msgObject.mid
+            "msg_topic": msg_object.topic,
+            "msg_payload": msg_object.payload.decode("utf-8"), #TODO: assumes that the payload is always UTF-8 string. add check/handling or different encoding e.g. base 64
+            "msg_qos": msg_object.qos,
+            "msg_retain": msg_object.retain,
+            "msg_mid": msg_object.mid
         }
     # OPC-UA
-    elif msgType == "DataChangeNotif": # TODO: maybe find a way to make it more clear that this type belongs to OPC-UA?
+    elif msg_type == "DataChangeNotif": # TODO: maybe find a way to make it more clear that this type belongs to OPC-UA?
         message_content_dict = {
-            "msg_node": str(msgObject.subscription_data.node),
-            "msg_value": msgObject.monitored_item.Value.Value.Value,
-            "msg_src_ts_ms": int(msgObject.monitored_item.Value.SourceTimestamp.timestamp()*1000), # source timestamp with ms precision
-            "msg_srv_ts_ms": int(msgObject.monitored_item.Value.ServerTimestamp.timestamp()*1000), # server timestamp with ms precision
-            "msg_status": str(msgObject.monitored_item.Value.StatusCode)
+            "msg_node": str(msg_object.subscription_data.node),
+            "msg_value": msg_object.monitored_item.Value.Value.Value,
+            "msg_src_ts_ms": int(msg_object.monitored_item.Value.SourceTimestamp.timestamp()*1000), # source timestamp with ms precision
+            "msg_srv_ts_ms": int(msg_object.monitored_item.Value.ServerTimestamp.timestamp()*1000), # server timestamp with ms precision
+            "msg_status": str(msg_object.monitored_item.Value.StatusCode)
         }
     else:
-        logger.error("queueMessage: unknown type of message for queueing: {}".format(msgType))
+        logger.error("queue_message: unknown type of message for queueing: {}".format(msg_type))
         raise NotImplementedError
 
     #assemble message dict from metadata and message content
     message_dict ={
-        "msg_queue_ts_ms": queueingTime, 
-        "msg_type":msgType,
+        "msg_queue_ts_ms": queueing_time, 
+        "msg_type":msg_type,
         "msg_content":message_content_dict
     }
 
@@ -215,19 +211,21 @@ def queueMessage(msgObject):
 
     return
 
-def aggregateData():
+def aggregate_data(uuid: UUID,persistent_storage_path:str):
     """
     Gets data from the machine data queue and aggregates it into a data block with some metadata.
     Then puts the block into the sealing queue and removes the data from the machinedata queue.
+    The uuid is used to build the filename for persisting the block number.
+    Persisten storage path ist the folder where to save the block number.
     """
-    BLOCKNR_NAME = uuid.hex+'-blocknumber' #TODO: fix use of global uuid
-    BLOCKNR_FULLPATH = os.path.join(PATH_PERSISTENT_STORAGE,BLOCKNR_NAME)
+    BLOCKNR_NAME = uuid.hex+'-blocknumber'
+    BLOCKNR_FULLPATH = os.path.join(persistent_storage_path,BLOCKNR_NAME)
 
     if machinedata.empty(): #if there is no data available, do not create a new block
         logger.info("no data to aggregate")
         return
 
-    blockCreationTime = int(time.time()) # remember the timestamp when the block was created (in seconds)
+    block_creation_time = int(time.time()) # remember the timestamp when the block was created (in seconds)
 
     #get data from queue and assemble message list
     messages_list = [] #this will become a list of the message dictionaries
@@ -246,7 +244,7 @@ def aggregateData():
     #add block metadata
     datablock_dict= {
         "block_nr": blocknumber,
-        "block_ts": blockCreationTime, # timestamp of data block creation in seconds
+        "block_ts": block_creation_time, # timestamp of data block creation in seconds
         "block_msgs": messages_list
     }
 
@@ -254,30 +252,30 @@ def aggregateData():
     logger.debug("data block content: {}".format(datablock_dict))
 
     # put new block into sealing queue and persist our changes to the machinedata queue and block number
-    sealQueue.put(datablock_dict)
+    seal_queue.put(datablock_dict)
     with shelve.open(BLOCKNR_FULLPATH) as db:
         db[BLOCKNR_NAME] = blocknumber
     machinedata.task_done()
 
     return
 
-def sealDatablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
+def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
     """
     Takes blocks of aggregated data from the seal queue, serializes the data, sends a matching UPP to the ubirch backend,
     and finally adds the (now sealed and anchored) serialized data to the "customer backend" sending queue.
     Returns when the queue is empty or sending the UPP fails. Sending will then be tried again on next run.
     """
-    logger.info("attempting to seal {} data blocks".format(sealQueue.qsize()))
-    while not sealQueue.empty():
+    logger.info("attempting to seal {} data blocks".format(seal_queue.qsize()))
+    while not seal_queue.empty():
         # get data block from seal queue, keep a backup for putting back in case of failure
-        original_datablock_dict = sealQueue.get()
+        original_datablock_dict = seal_queue.get()
         datablock_dict = original_datablock_dict
 
         logger.info("sealing data block number {}".format(datablock_dict['block_nr']))
 
         # add metadata
-        sealTime = int(time.time()) #TODO: check if we might need ms precision for seal timestamp
-        datablock_dict['seal_ts'] = sealTime
+        seal_time = int(time.time()) #TODO: check if we might need ms precision for seal timestamp
+        datablock_dict['seal_ts'] = seal_time
         datablock_dict['uuid'] = str(uuid)
 
         # convert to json: create a compact rendering of the message to ensure determinism when creating the hash later
@@ -286,16 +284,16 @@ def sealDatablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
         # make sure we can go back to this point in the UPP signature chaining later in case of problems with the UPP/sending
         protocol.persist(uuid)
 
-        UPPsentOK = sendUPP(protocol, api, uuid, datablock_json)
+        upp_sent_ok = send_UPP(protocol, api, uuid, datablock_json)
 
-        if UPPsentOK == True:
+        if upp_sent_ok == True:
             #everything is OK: queue sealed customer data for sending later and persist the last signature of the sent UPP
-            sendDatablocksQueue.put(datablock_json)
+            send_datablocks_queue.put(datablock_json)
             protocol.persist(uuid)
-            sealQueue.task_done() # persist our changes to the sealing queue
-        elif UPPsentOK == False:
+            seal_queue.task_done() # persist our changes to the sealing queue
+        elif upp_sent_ok == False:
             # we are unable to send the UPP (at the moment), put block back and restore UPP signature chain, then return
-            sealQueue.put(original_datablock_dict)
+            seal_queue.put(original_datablock_dict)
             protocol.load(uuid)
             return
         else:
@@ -303,7 +301,7 @@ def sealDatablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
             
     return
 
-def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> bool:
+def send_UPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> bool:
     """
     Sends UPP to ubirch backend, returns true in case of success response from
     backend. Also reasonably handles some of the most important backend responses/errors.
@@ -339,18 +337,18 @@ def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> boo
                 logger.debug("'OK' backend response to UPP: {}".format(binascii.hexlify(r.content).decode()))
                 try: # to verify the backend response     
                     #verify the signature of the backend response and unpack upp           
-                    unpackedResponseUPP = protocol.message_verify(r.content)
+                    unpacked_response_UPP = protocol.message_verify(r.content)
                     logger.info("backend response signature successfully verified")
-                    logger.debug("unpacked response UPP: {}".format(unpackedResponseUPP))
+                    logger.debug("unpacked response UPP: {}".format(unpacked_response_UPP))
                     # extract prev signature field (must match sent upp signature)
-                    backend_prev_signature = unpackedResponseUPP[2]
+                    backend_prev_signature = unpacked_response_UPP[2]
                     logger.debug(f"response UPP prev. signature: {backend_prev_signature}")
                     #get the signature of the sent upp by unpacking it
-                    unpackedSentUPP = protocol.message_verify(upp)
-                    sentUPPSignature = unpackedSentUPP[-1]
-                    logger.debug(f"sent UPP signature: {sentUPPSignature}")
+                    unpacked_sent_UPP = protocol.message_verify(upp)
+                    sent_UPP_signature = unpacked_sent_UPP[-1]
+                    logger.debug(f"sent UPP signature: {sent_UPP_signature}")
 
-                    if sentUPPSignature != backend_prev_signature:
+                    if sent_UPP_signature != backend_prev_signature:
                         raise Exception("UPP signature acknowledged by backend does not match sent UPP signature")
                     
                     logger.info("backend acknowledged UPP signature matches sent UPP signature")
@@ -362,7 +360,7 @@ def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> boo
                     logger.error("backend response verification FAILED! {}".format(repr(e)))
             elif r.status_code == 409: # conflict: UPP with this hash already exists
                 logger.warning("received 409/conflict from backend")
-                if backendUPPIdentical(block_hash,upp,api):
+                if backend_UPP_identical(block_hash,upp,api):
                     logger.warning("identical UPP was already present in backend")
                     return True # this exact UPP is already at backend, we are done
                 else:
@@ -379,7 +377,7 @@ def sendUPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> boo
     #at this point we have used up all our tries, give up
     return False
 
-def backendUPPIdentical(local_upp_hash: bytes, local_upp: bytes, api: ubirch.API) -> bool:
+def backend_UPP_identical(local_upp_hash: bytes, local_upp: bytes, api: ubirch.API) -> bool:
     """
     Checks if a UPP with a certain hash is already in backend and identical to the provided UPP.
     Returns true or false. TODO: check backend response signature/authenticity.
@@ -406,26 +404,28 @@ def backendUPPIdentical(local_upp_hash: bytes, local_upp: bytes, api: ubirch.API
     else:
         raise Exception(f"Error when checking if UPP is already at backend. Response code: {response.status_code}, Response content: {repr(response.content)}")
 
-def sendDatablocks():
+def send_datablocks(destination:str)->bool:
     """
     Sends all previously sealed and anchored data waiting in the queue to the customer backend.
+    When the mock customer backend (filesystem storage) is used, destination is the folder in which the data is stored.
+    Returns true on success, false otherwise.
     """
-    logger.info("attempting to send {} data blocks to customer backend".format(sendDatablocksQueue.qsize()))
-    sendFails = 0
-    while sendFails < 3:
+    logger.info("attempting to send {} data blocks to customer backend".format(send_datablocks_queue.qsize()))
+    send_fails = 0
+    while send_fails < 3:
 
-        if sendDatablocksQueue.empty(): # we managed to send all items
+        if send_datablocks_queue.empty(): # we managed to send all items
             logger.info("all data blocks sent successfully")
             return True
         
         # get and send next item
-        blockdata = sendDatablocksQueue.get()
-        if sendDatablockToCustomerBackend(blockdata):
-            sendDatablocksQueue.task_done()
-            sendFails = 0
+        blockdata = send_datablocks_queue.get()
+        if send_data_to_customer_backend(blockdata, destination):
+            send_datablocks_queue.task_done()
+            send_fails = 0
         else:
-            sendFails += 1
-            sendDatablocksQueue.put(blockdata) # put item back for next try
+            send_fails += 1
+            send_datablocks_queue.put(blockdata) # put item back for next try
             logger.error("sending data block failed")
 
 
@@ -433,16 +433,17 @@ def sendDatablocks():
     logger.error("giving up on sending data blocks to customer backend")
     return False
 
-def sendDatablockToCustomerBackend(datablock:str):
+def send_data_to_customer_backend(datablock:str,store_path: str)-> bool:
     """
     A mock send function to simulate the customer backend.
+    Accepts the data block as a string (probably compact serialized JSON), and the storage path.
+    Returns true in case of success, raises exception in case of failure.
     """
-    storeLocation = PATH_SENT_DATABLOCKS
     logger.warning("No customer data backend implemented. Storing data locally.")
     #we use the current (=storage time) timestamp as filename for a simple mock backend
-    filename = str(int(time.time()*1000)) + '.json' # msec timestamp plus pause to avoid duplicate filenames TODO: implement proper way of naming files
+    filename = str(int(time.time()*1000)) + '.json' # msec timestamp plus pause to avoid duplicate filenames TODO: implement better way of naming files
     time.sleep(0.010)
-    fullpath = os.path.join(PATH_SENT_DATABLOCKS, filename)
+    fullpath = os.path.join(store_path, filename)
 
     directory = os.path.dirname(fullpath)
     if not os.path.exists(directory):
@@ -476,21 +477,36 @@ PATH_MACHINEDATA_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-machin
 machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
 
 PATH_SEAL_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-sealqueue")
-sealQueue = persistqueue.Queue(PATH_SEAL_QUEUE)
+seal_queue = persistqueue.Queue(PATH_SEAL_QUEUE)
 
 PATH_SEND_BLOCK_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-sendblockqueue")
-sendDatablocksQueue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE)
+send_datablocks_queue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE)
 
 PATH_SENT_DATABLOCKS = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-sentdatablocks")
 
-logger.info("OPC-UA: connecting")
-opcua_client = opcua_connect()
-opcua_subscribe(opcua_client)
+# OPC-UA
+OPCUA_ADDRESS = "opc.tcp://192.168.1.81:4840/"
+OPCUA_NAMESPACE = "urn:wago-com:codesys-provider"
+OPCUA_NODES = [ "|var|RSConnect.Application.GVL_OPCUA.Input1",
+                "|var|RSConnect.Application.GVL_OPCUA.Input2",
+                "|var|RSConnect.Application.GVL_OPCUA.output1_visu",
+                "|var|RSConnect.Application.GVL_OPCUA.counter_input",
+                "|var|RSConnect.Application.GVL_OPCUA.counter_output",
+                "|var|RSConnect.Application.GVL_OPCUA.temperature1"]
 
-logger.info("MQTT: connecting")
-mqtt_client = mqtt_connect()
-mqtt_subscribe(mqtt_client)
+opcua_client = opcua_connect(OPCUA_ADDRESS)
+opcua_subscribe(opcua_client, OPCUA_NAMESPACE,OPCUA_NODES)
 
+# MQTT
+MQTT_ADDRESS = '192.168.1.81'
+MQTT_PORT = 1883
+MQTT_TOPICS = ["/ubirch/rsconnectdata/temperature"]
+MQTT_CLIENT_ID = f'ubirch-client-example-{random.randint(1,999)}' # add random id to avoid problems with multiple instances (client id must be unique)
+
+mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID)
+mqtt_subscribe(mqtt_client, MQTT_TOPICS)
+
+# keystore, ubirch protocol and api
 # TODO: get the keystore password from config here
 keystorePassword = "keystorepassword"
 # if password is not set, assume that this is attended boot and prompt for it
@@ -518,26 +534,26 @@ if not api.is_identity_registered(uuid):
         sys.exit(1)
 
 logger.info("starting main loop")
-lastAggregateData = time.time()
-lastSealBlocks = time.time()
+last_aggregate_data = time.time()
+last_seal_blocks = time.time()
 
 try:
     while True:
         mqtt_client.loop()
 
-        if time.time()-lastAggregateData > 10: #time for aggregating received data into next block?        
-            aggregateData()
-            lastAggregateData = time.time()
+        if time.time()-last_aggregate_data > 10: #time for aggregating received data into next block?        
+            aggregate_data(uuid,PATH_PERSISTENT_STORAGE)
+            last_aggregate_data = time.time()
 
-        if time.time()-lastSealBlocks > 10: #time for sealing and anchoring the blocks?        
-            if not sealQueue.empty():
-                sealDatablocks(protocol,api,uuid)
+        if time.time()-last_seal_blocks > 10: #time for sealing and anchoring the blocks?        
+            if not seal_queue.empty():
+                seal_datablocks(protocol,api,uuid)
             else:  
                 logger.info("sealing time but no data to seal")
-            lastSealBlocks = time.time()
+            last_seal_blocks = time.time()
 
-        if not sendDatablocksQueue.empty(): # data for sending to customer backend available?
-            sendDatablocks()
+        if not send_datablocks_queue.empty(): # data for sending to customer backend available?
+            send_datablocks(PATH_SENT_DATABLOCKS)
 except KeyboardInterrupt:
     pass
 finally:
