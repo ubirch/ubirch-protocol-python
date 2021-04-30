@@ -7,6 +7,7 @@ import random
 import sys
 import time
 import os
+import getpass # TODO: add to requirements
 import shelve #TODO: add to requirements
 import persistqueue #TODO: add to the requirements
 from paho.mqtt import client as mqtt_client #TODO: add to the requirements file
@@ -490,8 +491,12 @@ logger.info("MQTT: connecting")
 mqtt_client = mqtt_connect()
 mqtt_subscribe(mqtt_client)
 
-# create a keystore for the device
-keystore = ubirch.KeyStore(os.path.join(PATH_PERSISTENT_STORAGE, "iiot-device.jks"), "keystorepassword")
+# TODO: get the keystore password from config here
+keystorePassword = "keystorepassword"
+# if password is not set, assume that this is attended boot and prompt for it
+if keystorePassword == None or keystorePassword == "":
+    keystorePassword = getpass.getpass("Please enter keystore password: ")
+keystore = ubirch.KeyStore(os.path.join(PATH_PERSISTENT_STORAGE, "iiot-device.jks"), keystorePassword)
 
 # create an instance of the protocol with signature saving
 protocol = Proto(keystore, uuid,PATH_PERSISTENT_STORAGE)
