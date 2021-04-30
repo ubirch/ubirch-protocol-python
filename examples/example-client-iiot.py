@@ -222,7 +222,7 @@ def aggregate_data(uuid: UUID,persistent_storage_path:str):
     BLOCKNR_FULLPATH = os.path.join(persistent_storage_path,BLOCKNR_NAME)
 
     if machinedata.empty(): #if there is no data available, do not create a new block
-        logger.info("no data to aggregate")
+        logger.info("no data to aggregate available")
         return
 
     block_creation_time = int(time.time()) # remember the timestamp when the block was created (in seconds)
@@ -265,6 +265,10 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
     and finally adds the (now sealed and anchored) serialized data to the "customer backend" sending queue.
     Returns when the queue is empty or sending the UPP fails. Sending will then be tried again on next run.
     """
+    if seal_queue.empty(): #if there is no data available, return
+        logger.info("no data to seal available")
+        return
+    
     logger.info("attempting to seal {} data blocks".format(seal_queue.qsize()))
     while not seal_queue.empty():
         # get data block from seal queue, keep a backup for putting back in case of failure
@@ -460,77 +464,97 @@ def send_data_to_customer_backend(datablock:str,store_path: str)-> bool:
 
 
 
-if len(sys.argv) < 4:
-    print("usage:")
-    print("  python3 example-client-mqtt.py <env> <UUID> <ubirch-auth-token>")
+if len(sys.argv) < 2:
+    print("example usage:")
+    print("  python3 example-client-iiot.py iiot-client-config.json")
     sys.exit(0)
 
 logger.info("client started")
 
-env = sys.argv[1]
-uuid = UUID(hex=sys.argv[2])
-auth = sys.argv[3]
+# configuration loading and general setup
+logger.info("loading config")
+with open(sys.argv[1], 'r') as f:
+    config = json.load(f)
 
-#set up paths constants and global queues
-PATH_PERSISTENT_STORAGE = os.path.expanduser("~/persist-ubirch-iiot-client/") # a path where the persistent data can be stored (queues, keys, last signatures, etc)
-PATH_MACHINEDATA_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-machinedataqueue")
+ENVIROMENT = config['api_enviroment']
+DEVICE_UUID = UUID(hex=config['api_device_id'])
+API_PASSWORD = config['api_password'] #password/auth token for the ubirch api
+
+# password for encrypting the key store on the disk
+try:
+    KEYSTORE_PASSWORD = config["keystore_password"]
+except KeyError:
+    KEYSTORE_PASSWORD = None
+
+logger.info(f'using endpoints at {ENVIROMENT}.ubirch.com')
+logger.info(f'device ID is {DEVICE_UUID}')
+
+AGGREGATE_INTERVAL = config['aggregate_interval']
+SEAL_INTERVAL = config['seal_interval']
+
+logger.info(f"aggregating every {AGGREGATE_INTERVAL} s and sealing every {SEAL_INTERVAL} s")
+
+PATH_PERSISTENT_STORAGE = os.path.expanduser(config['persistent_storage_location']) # a path where the persistent data can be stored (queues, keys, last signatures, etc)
+
+# set up path constants and global queues
+PATH_MACHINEDATA_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-machinedataqueue")
 machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
 
-PATH_SEAL_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-sealqueue")
+PATH_SEAL_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-sealqueue")
 seal_queue = persistqueue.Queue(PATH_SEAL_QUEUE)
 
-PATH_SEND_BLOCK_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-sendblockqueue")
+PATH_SEND_BLOCK_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-sendblockqueue")
 send_datablocks_queue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE)
 
-PATH_SENT_DATABLOCKS = os.path.join(PATH_PERSISTENT_STORAGE, uuid.hex+"-sentdatablocks")
+PATH_SENT_DATABLOCKS = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-sentdatablocks")
 
 # OPC-UA
-OPCUA_ADDRESS = "opc.tcp://192.168.1.81:4840/"
-OPCUA_NAMESPACE = "urn:wago-com:codesys-provider"
-OPCUA_NODES = [ "|var|RSConnect.Application.GVL_OPCUA.Input1",
-                "|var|RSConnect.Application.GVL_OPCUA.Input2",
-                "|var|RSConnect.Application.GVL_OPCUA.output1_visu",
-                "|var|RSConnect.Application.GVL_OPCUA.counter_input",
-                "|var|RSConnect.Application.GVL_OPCUA.counter_output",
-                "|var|RSConnect.Application.GVL_OPCUA.temperature1"]
+if config["opcua_enabled"]:
+    OPCUA_ADDRESS = config["opcua_address"]
+    OPCUA_NAMESPACE = config["opcua_namespace"]
+    OPCUA_NODES = config["opcua_nodes"]
 
-opcua_client = opcua_connect(OPCUA_ADDRESS)
-opcua_subscribe(opcua_client, OPCUA_NAMESPACE,OPCUA_NODES)
+    opcua_client = opcua_connect(OPCUA_ADDRESS)
+    opcua_subscribe(opcua_client, OPCUA_NAMESPACE,OPCUA_NODES)
+else:
+    opcua_client = None
 
 # MQTT
-MQTT_ADDRESS = '192.168.1.81'
-MQTT_PORT = 1883
-MQTT_TOPICS = ["/ubirch/rsconnectdata/temperature"]
-MQTT_CLIENT_ID = f'ubirch-client-example-{random.randint(1,999)}' # add random id to avoid problems with multiple instances (client id must be unique)
+if config["mqtt_enabled"]:
+    MQTT_ADDRESS = config["mqtt_address"]
+    MQTT_PORT = config["mqtt_port"]
+    MQTT_TOPICS = config["mqtt_topics"]
+    MQTT_CLIENT_ID = config["mqtt_client_id"]
 
-mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID)
-mqtt_subscribe(mqtt_client, MQTT_TOPICS)
+    mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID)
+    mqtt_subscribe(mqtt_client, MQTT_TOPICS)
+else:
+    mqtt_client = None
 
 # keystore, ubirch protocol and api
-# TODO: get the keystore password from config here
-keystorePassword = "keystorepassword"
 # if password is not set, assume that this is attended boot and prompt for it
-if keystorePassword == None or keystorePassword == "":
-    keystorePassword = getpass.getpass("Please enter keystore password: ")
-keystore = ubirch.KeyStore(os.path.join(PATH_PERSISTENT_STORAGE, "iiot-device.jks"), keystorePassword)
+if KEYSTORE_PASSWORD == None or KEYSTORE_PASSWORD == "":
+    time.sleep(0.5)
+    KEYSTORE_PASSWORD = getpass.getpass("Please enter keystore password: ")
+keystore = ubirch.KeyStore(os.path.join(PATH_PERSISTENT_STORAGE, "iiot-device.jks"), KEYSTORE_PASSWORD)
 
 # create an instance of the protocol with signature saving
-protocol = Proto(keystore, uuid,PATH_PERSISTENT_STORAGE)
+protocol = Proto(keystore, DEVICE_UUID,PATH_PERSISTENT_STORAGE)
 
 # create an instance of the UBIRCH API and set the auth token
-api = ubirch.API(env=env)
-api.set_authentication(uuid, auth)
+api = ubirch.API(env=ENVIROMENT)
+api.set_authentication(DEVICE_UUID, API_PASSWORD)
 
 logger.info("ubirch-protocol: checking key registration")
 # register the public key at the UBIRCH key service
-if not api.is_identity_registered(uuid):
-    certificate = keystore.get_certificate(uuid)
-    key_registration = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
+if not api.is_identity_registered(DEVICE_UUID):
+    certificate = keystore.get_certificate(DEVICE_UUID)
+    key_registration = protocol.message_signed(DEVICE_UUID, UBIRCH_PROTOCOL_TYPE_REG, certificate)
     r = api.register_identity(key_registration)
     if r.status_code == codes.ok:
-        logger.info("{}: public key registered".format(uuid))
+        logger.info("{}: public key registered".format(DEVICE_UUID))
     else:
-        logger.error("{}: registration failed".format(uuid))
+        logger.error("{}: registration failed".format(DEVICE_UUID))
         sys.exit(1)
 
 logger.info("starting main loop")
@@ -539,24 +563,26 @@ last_seal_blocks = time.time()
 
 try:
     while True:
-        mqtt_client.loop()
+        if mqtt_client is not None:
+            mqtt_client.loop()
 
-        if time.time()-last_aggregate_data > 10: #time for aggregating received data into next block?        
-            aggregate_data(uuid,PATH_PERSISTENT_STORAGE)
+        if time.time()-last_aggregate_data > AGGREGATE_INTERVAL: #time for aggregating received data into next block?        
+            aggregate_data(DEVICE_UUID,PATH_PERSISTENT_STORAGE)
             last_aggregate_data = time.time()
 
-        if time.time()-last_seal_blocks > 10: #time for sealing and anchoring the blocks?        
-            if not seal_queue.empty():
-                seal_datablocks(protocol,api,uuid)
-            else:  
-                logger.info("sealing time but no data to seal")
+        if time.time()-last_seal_blocks > SEAL_INTERVAL: #time for sealing and anchoring the blocks?
+            seal_datablocks(protocol,api,DEVICE_UUID)
             last_seal_blocks = time.time()
 
         if not send_datablocks_queue.empty(): # data for sending to customer backend available?
             send_datablocks(PATH_SENT_DATABLOCKS)
+        
+        time.sleep(0.0001)
 except KeyboardInterrupt:
     pass
 finally:
     logger.info("shutting down")
-    mqtt_client.disconnect()
-    opcua_client.disconnect()
+    if mqtt_client is not None:
+        mqtt_client.disconnect()
+    if opcua_client is not None:
+        opcua_client.disconnect()
