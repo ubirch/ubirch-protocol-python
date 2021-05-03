@@ -265,15 +265,15 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
     and finally adds the (now sealed and anchored) serialized data to the "customer backend" sending queue.
     Returns when the queue is empty or sending the UPP fails. Sending will then be tried again on next run.
     """
+    global seal_queue
     if seal_queue.empty(): #if there is no data available, return
         logger.info("no data to seal available")
         return
     
     logger.info("attempting to seal {} data blocks".format(seal_queue.qsize()))
     while not seal_queue.empty():
-        # get data block from seal queue, keep a backup for putting back in case of failure
-        original_datablock_dict = seal_queue.get()
-        datablock_dict = original_datablock_dict
+        # get data block from seal queue
+        datablock_dict = seal_queue.get()
 
         logger.info("sealing data block number {}".format(datablock_dict['block_nr']))
 
@@ -296,8 +296,18 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
             protocol.persist(uuid)
             seal_queue.task_done() # persist our changes to the sealing queue
         elif upp_sent_ok == False:
-            # we are unable to send the UPP (at the moment), put block back and restore UPP signature chain, then return
-            seal_queue.put(original_datablock_dict)
+            # we are unable to send the UPP (at the moment), restore seal queue from file and restore UPP signature chain, then return
+
+            # restore queue
+            # TODO: the queue part is a bit hacky as we simply re-initiialize the queue from disk.
+            # It would be better to just 'peek()' the element without removing it but that is not supported by persistqueue
+            # Putting the element back via put() is also not an option, as this changes block order from e.g. 1,2,3 to 2,3,1 when sending
+            # next time and that messes with the upp chain order. Might be worth asking for peek() implementation at the persistqueue repo.
+            logger.warning('reloading seal queue from disk')
+            seal_queue_path = seal_queue.path 
+            seal_queue = persistqueue.Queue(seal_queue_path)
+
+            # restore signature chain
             protocol.load(uuid)
             return
         else:
