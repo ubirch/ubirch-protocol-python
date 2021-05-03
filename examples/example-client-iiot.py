@@ -316,7 +316,6 @@ def send_UPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> bo
         raise ValueError("Expected serialized json string for creating UPP")
 
     # hash the data block
-    #datablock_json = "{43523452345234234234}" #TODO: REMOVE ME: constant hash for simulating hash collisions
     block_hash = hashlib.sha512(datablock_json.encode('utf-8')).digest()
 
     logger.info("sending UPP for data block with hash: {}".format(binascii.b2a_base64(block_hash, newline=False).decode()))
@@ -387,17 +386,17 @@ def backend_UPP_identical(local_upp_hash: bytes, local_upp: bytes, api: ubirch.A
     Returns true or false. TODO: check backend response signature/authenticity.
     """
     logger.debug(f"Checking for 'already at backend' for UPP with hash: {binascii.b2a_base64(local_upp_hash, newline=False).decode()}")
-    response = api.verify(local_upp_hash,quick=False) #TODO: we should use quick here, but the quick endpoint is buggy atm (always returns last UPP that niomon saw)
+    response = api.verify(local_upp_hash,quick=True)
     if response.status_code == 200:
         try:
             upp_info = json.loads(response.content)
             logger.debug(f"Received UPP info from verify endpoint: {upp_info}")
             backend_upp = binascii.a2b_base64(upp_info['upp'])
             if backend_upp == local_upp:
-                logger.info("backend UPP is identical") #TODO: change to debug when working
+                logger.debug("backend UPP is identical")
                 return True
             else:
-                logger.info("backend UPP is different") #TODO: change to debug when working
+                logger.debug("backend UPP is different")
                 return False
 
         except Exception as e:
