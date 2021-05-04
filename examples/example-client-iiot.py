@@ -7,11 +7,11 @@ import random
 import sys
 import time
 import os
-import getpass # TODO: add to requirements
-import shelve #TODO: add to requirements
-import persistqueue #TODO: add to the requirements
-from paho.mqtt import client as MqttClient #TODO: add to the requirements file
-from asyncua.sync import Client as OpcuaClient #TODO: add to requirements (pip3 install asyncua)
+import getpass
+import shelve
+import persistqueue
+from paho.mqtt import client as MqttClient
+from asyncua.sync import Client as OpcuaClient
 from uuid import UUID
 
 from ed25519 import VerifyingKey
@@ -181,13 +181,13 @@ def queue_message(msg_object):
     if msg_type == "MQTTMessage":
         message_content_dict = {
             "msg_topic": msg_object.topic,
-            "msg_payload": msg_object.payload.decode("utf-8"), #TODO: assumes that the payload is always UTF-8 string. add check/handling or different encoding e.g. base 64
+            "msg_payload": msg_object.payload.decode("utf-8"), # this assumes that the payload is always UTF-8 string. might need check/handling or different encoding e.g. base64 in other cases
             "msg_qos": msg_object.qos,
             "msg_retain": msg_object.retain,
             "msg_mid": msg_object.mid
         }
     # OPC-UA
-    elif msg_type == "DataChangeNotif": # TODO: maybe find a way to make it more clear that this type belongs to OPC-UA?
+    elif msg_type == "DataChangeNotif": # <-- This is an asyncua OPC-UA DataChangeNotification, whose object is a bit strangely named...
         message_content_dict = {
             "msg_node": str(msg_object.subscription_data.node),
             "msg_value": msg_object.monitored_item.Value.Value.Value,
@@ -278,7 +278,7 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
         logger.info("sealing data block number {}".format(datablock_dict['block_nr']))
 
         # add metadata
-        seal_time = int(time.time()) #TODO: check if we might need ms precision for seal timestamp
+        seal_time = int(time.time()*1000) #ms precision seal timestamp
         datablock_dict['seal_ts'] = seal_time
         datablock_dict['uuid'] = str(uuid)
 
@@ -343,9 +343,6 @@ def send_UPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> bo
         try:
             # send upp to UBIRCH backend service
             r = api.send(uuid, upp)
-            # if fails == 0: #TODO: REMOVE ME: simulate failed communication of response
-            #     logger.warning("faking communication error")
-            #     r.status_code = 500
             if r.status_code == 200: # backend says everything was OK
                 logger.debug("'OK' backend response to UPP: {}".format(binascii.hexlify(r.content).decode()))
                 try: # to verify the backend response     
@@ -454,7 +451,7 @@ def send_data_to_customer_backend(datablock:str,store_path: str)-> bool:
     """
     logger.warning("No customer data backend implemented. Storing data locally.")
     #we use the current (=storage time) timestamp as filename for a simple mock backend
-    filename = str(int(time.time()*1000)) + '.json' # msec timestamp plus pause to avoid duplicate filenames TODO: implement better way of naming files
+    filename = str(int(time.time()*1000)) + '.json' # msec timestamp plus pause to avoid duplicate filenames
     time.sleep(0.010)
     fullpath = os.path.join(store_path, filename)
 
