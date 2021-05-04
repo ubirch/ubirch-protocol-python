@@ -26,8 +26,15 @@ logger = logging.getLogger()
 
 
 ########################################################################
-# Implement the ubirch-protocol with signing and saving the signatures
+# uirch protocol section
 class Proto(ubirch.Protocol):
+    """
+    Implements the ubirch-protocol with signing and saving the signatures.
+    Accepts a keystore for saving key pairs, the UUID of the device, and a path where to store
+    persistent data, i.e. the last used signatures for chaining UPPs.
+    """
+
+    # public keys and UUIDs of the ubirch backend for verification of responses
     UUID_DEV = UUID(hex="9d3c78ff-22f3-4441-a5d1-85c636d486ff")
     PUB_DEV = VerifyingKey("a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66", encoding='hex')
     UUID_DEMO = UUID(hex="07104235-1892-4020-9042-00003c94b60b")
@@ -58,11 +65,13 @@ class Proto(ubirch.Protocol):
         logger.info("ubirch-protocol: device id: {}".format(uuid))
 
     def persist(self, uuid: UUID):
+        """Saves the last used signatures to disk."""
         signatures = self.get_saved_signatures()
         with open(os.path.join(self._persistent_storage_path, uuid.hex+".sig"), "wb") as f:
             pickle.dump(signatures, f)
 
     def load(self, uuid: UUID):
+        """Loads the last used signatures from disk. Issues a warning if file not found but continues."""
         try:
             with open(os.path.join(self._persistent_storage_path, uuid.hex+".sig"), "rb") as f:
                 signatures = pickle.load(f)
@@ -72,7 +81,7 @@ class Proto(ubirch.Protocol):
             logger.warning("ubirch-protocol: no existing saved signatures")
             pass
 
-    def _sign(self, uuid: UUID, message: bytes) -> bytes:
+    def _sign(self, uuid: UUID, message: bytes) -> bytes:        
         return self.__ks.find_signing_key(uuid).sign(message)
 
     def _verify(self, uuid: UUID, message: bytes, signature: bytes):
@@ -86,8 +95,9 @@ class Proto(ubirch.Protocol):
 # partly based on the examples from https://github.com/FreeOpcUa/opcua-asyncio
 class OPCUASubscriptionCallback(object):
     """
-    Subscription Handler. To receive events from server for a subscription
-    data_change and event methods are called directly from receiving thread.
+    This Subscription Handler handles reception of OPC-UA messages.
+    To receive events from a server for a subscription
+    data_change and event methods are called directly from the receiving thread.
     Do not do expensive, slow or network operation there. Create another
     thread if you need to do such a thing
     """
@@ -99,7 +109,7 @@ class OPCUASubscriptionCallback(object):
         queue_message(data) # hand the received data over to the queue function
 
 def opcua_connect(opcua_address:str)-> OpcuaClient:
-    """ Connect to an OPC-UA server at the given address. Returns client instance."""
+    """Connect to an OPC-UA server at the given address. Returns client instance."""
 
     logger.info(f"OPC-UA: connecting to {opcua_address}")
     client = OpcuaClient(opcua_address)
@@ -112,7 +122,8 @@ def opcua_connect(opcua_address:str)-> OpcuaClient:
     return client
 
 def opcua_subscribe(client:OpcuaClient, namespace:str, nodes: list):
-    """Subscribes to all nodes in the given list using the given client instance and namespace.
+    """
+    Subscribes to all nodes in the given list using the given client instance and namespace.
     The nodes are expected as identifiers without leading 'ns=...' or 's=...' (These are added automatically.).
     Example node name: '|var|Manufacturer.Application.GVL_OPCUA.Input1'.
     """
@@ -120,7 +131,7 @@ def opcua_subscribe(client:OpcuaClient, namespace:str, nodes: list):
     # get the namespace index
     idx = client.get_namespace_index(namespace)
 
-    #set up subscription basics
+    # set up subscription basics
     subscriptionHandler = OPCUASubscriptionCallback()
     sub = client.create_subscription(50, subscriptionHandler)
 
@@ -135,10 +146,11 @@ def opcua_subscribe(client:OpcuaClient, namespace:str, nodes: list):
 
 
 ########################################################################
-# Functions for managing MQTT data
+# MQTT section
 # MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
 def mqtt_connect(address:str, port:int, client_id:str) -> MqttClient:
-    """ Connect to an MQTT broker using the address, port and client ID. Client ID must be unique on broker side.
+    """
+    Connect to an MQTT broker using the address, port and client ID. Client ID must be unique on broker side.
     Returns the client instance.
     """
     def on_connect(client, userdata, flags, rc):
@@ -155,7 +167,7 @@ def mqtt_connect(address:str, port:int, client_id:str) -> MqttClient:
     return client
 
 def mqtt_subscribe(client: MqttClient, topics: list):
-    """ Subscribe to all topics from the topics list using the given client."""
+    """Subscribe to all topics from the topics list using the given client."""
     def on_message(client, userdata, msg):
         logger.info("MQTT: received message: topic: {}, payload: {}".format(msg.topic, msg.payload.decode()))
         queue_message(msg)
@@ -170,12 +182,12 @@ def mqtt_subscribe(client: MqttClient, topics: list):
 # queueing/sealing/sending section
 def queue_message(msg_object):
     """
-    Receives a machine data message from the protocol callbacks and formats it into a dict. Also adds metainformation like timestamp.
-    Then appends the message dict to the queue.
+    Receives a machine data message from the protocol callbacks and formats it into a dict according to its type.
+    Also adds metainformation like timestamp. Then appends the message dict to the machine data queue.
     """
     queueing_time = int(time.time()*1000.0) # remember the timestamp when the message was queued in milliseconds
 
-    #convert message contents to dict depending on type, we need a dict for pickling/file backup queue support
+    # convert message contents to dict depending on type, we need a dict for pickling/file backup queue support
     msg_type = type(msg_object).__name__
     # MQTT
     if msg_type == "MQTTMessage":
@@ -199,7 +211,7 @@ def queue_message(msg_object):
         logger.error("queue_message: unknown type of message for queueing: {}".format(msg_type))
         raise NotImplementedError
 
-    #assemble message dict from metadata and message content
+    # assemble message dict from metadata and message content
     message_dict ={
         "msg_queue_ts_ms": queueing_time, 
         "msg_type":msg_type,
@@ -221,18 +233,18 @@ def aggregate_data(uuid: UUID,persistent_storage_path:str):
     BLOCKNR_NAME = uuid.hex+'-blocknumber'
     BLOCKNR_FULLPATH = os.path.join(persistent_storage_path,BLOCKNR_NAME)
 
-    if machinedata.empty(): #if there is no data available, do not create a new block
+    if machinedata.empty(): # if there is no data available, do not create a new block
         logger.info("no data to aggregate available")
         return
 
     block_creation_time = int(time.time()) # remember the timestamp when the block was created (in seconds)
 
-    #get data from queue and assemble message list
+    # get data from queue and assemble message list
     messages_list = [] #this will become a list of the message dictionaries
     while not machinedata.empty():
         messages_list.append(machinedata.get())
 
-    #load block number from disk
+    # load block number from disk
     blocknumber = 1 # number for very first block
     try:
         with shelve.open(BLOCKNR_FULLPATH) as db:
@@ -241,7 +253,7 @@ def aggregate_data(uuid: UUID,persistent_storage_path:str):
     except Exception as e:
         logger.error("loading previous block number failed, defaulting to one. Exception was: {}".format(repr(e)))        
 
-    #add block metadata
+    # add block metadata
     datablock_dict= {
         "block_nr": blocknumber,
         "block_ts": block_creation_time, # timestamp of data block creation in seconds
@@ -263,7 +275,7 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
     """
     Takes blocks of aggregated data from the seal queue, serializes the data, sends a matching UPP to the ubirch backend,
     and finally adds the (now sealed and anchored) serialized data to the "customer backend" sending queue.
-    Returns when the queue is empty or sending the UPP fails. Sending will then be tried again on next run.
+    Returns when the queue is empty or sending the UPP fails. Sending will then be tried again on next call.
     """
     global seal_queue
     if seal_queue.empty(): #if there is no data available, return
@@ -291,7 +303,7 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
         upp_sent_ok = send_UPP(protocol, api, uuid, datablock_json)
 
         if upp_sent_ok == True:
-            #everything is OK: queue sealed customer data for sending later and persist the last signature of the sent UPP
+            # everything is OK: queue sealed customer data for sending later and persist the last signature of the sent UPP
             send_datablocks_queue.put(datablock_json)
             protocol.persist(uuid)
             seal_queue.task_done() # persist our changes to the sealing queue
@@ -318,7 +330,8 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
 def send_UPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> bool:
     """
     Sends UPP to ubirch backend, returns true in case of success response from
-    backend. Also reasonably handles some of the most important backend responses/errors.
+    backend. Will retry a few (3) times before giving up. Also reasonably handles some
+    of the most important backend responses/errors.
     """
     MAX_FAILS = 3
 
@@ -384,7 +397,7 @@ def send_UPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> bo
             logger.error("sending UPP failed: {}".format(repr(e)))
         fails += 1
     
-    #at this point we have used up all our tries, give up
+    # at this point we have used up all our tries, give up
     return False
 
 def backend_UPP_identical(local_upp_hash: bytes, local_upp: bytes, api: ubirch.API) -> bool:
@@ -416,7 +429,7 @@ def backend_UPP_identical(local_upp_hash: bytes, local_upp: bytes, api: ubirch.A
 
 def send_datablocks(destination:str)->bool:
     """
-    Sends all previously sealed and anchored data waiting in the queue to the customer backend.
+    Sends all previously sealed and anchored data waiting in the queue to the customer backend. Uses retries, aborts on 3 consecutive fails.
     When the mock customer backend (filesystem storage) is used, destination is the folder in which the data is stored.
     Returns true on success, false otherwise.
     """
@@ -450,7 +463,7 @@ def send_data_to_customer_backend(datablock:str,store_path: str)-> bool:
     Returns true in case of success, raises exception in case of failure.
     """
     logger.warning("No customer data backend implemented. Storing data locally.")
-    #we use the current (=storage time) timestamp as filename for a simple mock backend
+    # we use the current (= storage time) timestamp as filename for the simple mock backend
     filename = str(int(time.time()*1000)) + '.json' # msec timestamp plus pause to avoid duplicate filenames
     time.sleep(0.010)
     fullpath = os.path.join(store_path, filename)
@@ -469,10 +482,13 @@ def send_data_to_customer_backend(datablock:str,store_path: str)-> bool:
 ########################################################################
 
 
+#### start of main code section ###
+
 
 if len(sys.argv) < 2:
     print("example usage:")
     print("  python3 example-client-iiot.py iiot-client-config.json")
+    print("  See iiot-client-config_example.json for an example config.")
     sys.exit(0)
 
 logger.info("client started")
@@ -484,7 +500,7 @@ with open(sys.argv[1], 'r') as f:
 
 ENVIROMENT = config['api_enviroment']
 DEVICE_UUID = UUID(hex=config['api_device_id'])
-API_PASSWORD = config['api_password'] #password/auth token for the ubirch api
+API_PASSWORD = config['api_password'] # password/auth token for the ubirch api
 
 # password for encrypting the key store on the disk
 try:
@@ -504,17 +520,17 @@ PATH_PERSISTENT_STORAGE = os.path.expanduser(config['persistent_storage_location
 
 # set up path constants and global queues
 PATH_MACHINEDATA_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-machinedataqueue")
-machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE)
+machinedata = persistqueue.Queue(PATH_MACHINEDATA_QUEUE) # stores incoming data messages from the machine
 
 PATH_SEAL_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-sealqueue")
-seal_queue = persistqueue.Queue(PATH_SEAL_QUEUE)
+seal_queue = persistqueue.Queue(PATH_SEAL_QUEUE) # stores aggregated data blocks for sealing
 
 PATH_SEND_BLOCK_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-sendblockqueue")
-send_datablocks_queue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE)
+send_datablocks_queue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE) # stores data that has been sealed and anchored for transfer to customer backend
 
-PATH_SENT_DATABLOCKS = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-sentdatablocks")
+PATH_SENT_DATABLOCKS = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-sentdatablocks") # path used to store the data arriving at the mock customer backend
 
-# OPC-UA
+# OPC-UA setup
 if config["opcua_enabled"]:
     OPCUA_ADDRESS = config["opcua_address"]
     OPCUA_NAMESPACE = config["opcua_namespace"]
@@ -525,7 +541,7 @@ if config["opcua_enabled"]:
 else:
     opcua_client = None
 
-# MQTT
+# MQTT setup
 if config["mqtt_enabled"]:
     MQTT_ADDRESS = config["mqtt_address"]
     MQTT_PORT = config["mqtt_port"]
@@ -537,7 +553,7 @@ if config["mqtt_enabled"]:
 else:
     mqtt_client = None
 
-# keystore, ubirch protocol and api
+# set up keystore, ubirch protocol and ubirch api
 # if password is not set, assume that this is attended boot and prompt for it
 if KEYSTORE_PASSWORD == None or KEYSTORE_PASSWORD == "":
     time.sleep(0.5)
@@ -552,7 +568,7 @@ api = ubirch.API(env=ENVIROMENT)
 api.set_authentication(DEVICE_UUID, API_PASSWORD)
 
 logger.info("ubirch-protocol: checking key registration")
-# register the public key at the UBIRCH key service
+# register the public key at the UBIRCH key service if it is not already
 if not api.is_identity_registered(DEVICE_UUID):
     certificate = keystore.get_certificate(DEVICE_UUID)
     key_registration = protocol.message_signed(DEVICE_UUID, UBIRCH_PROTOCOL_TYPE_REG, certificate)
@@ -562,6 +578,8 @@ if not api.is_identity_registered(DEVICE_UUID):
     else:
         logger.error("{}: registration failed".format(DEVICE_UUID))
         sys.exit(1)
+else:
+    logger.info("{}: public key is already registered".format(DEVICE_UUID))
 
 logger.info("starting main loop")
 last_aggregate_data = time.time()
@@ -572,15 +590,15 @@ try:
         if mqtt_client is not None:
             mqtt_client.loop()
 
-        if time.time()-last_aggregate_data > AGGREGATE_INTERVAL: #time for aggregating received data into next block?        
-            aggregate_data(DEVICE_UUID,PATH_PERSISTENT_STORAGE)
+        if time.time()-last_aggregate_data > AGGREGATE_INTERVAL: # time for aggregating received data into next block?        
             last_aggregate_data = time.time()
+            aggregate_data(DEVICE_UUID,PATH_PERSISTENT_STORAGE)            
 
-        if time.time()-last_seal_blocks > SEAL_INTERVAL: #time for sealing and anchoring the blocks?
-            seal_datablocks(protocol,api,DEVICE_UUID)
+        if time.time()-last_seal_blocks > SEAL_INTERVAL: # time for sealing and anchoring the aggregated blocks?
             last_seal_blocks = time.time()
+            seal_datablocks(protocol,api,DEVICE_UUID)            
 
-        if not send_datablocks_queue.empty(): # data for sending to customer backend available?
+        if not send_datablocks_queue.empty(): # data which was previously sealed and anchored for sending to customer backend available?
             send_datablocks(PATH_SENT_DATABLOCKS)
         
         time.sleep(0.0001)
