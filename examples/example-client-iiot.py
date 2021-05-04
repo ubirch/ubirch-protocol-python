@@ -12,6 +12,7 @@ import shelve
 import persistqueue
 from paho.mqtt import client as MqttClient
 from asyncua.sync import Client as OpcuaClient
+from asyncua.sync import ThreadLoop
 from uuid import UUID
 
 from ed25519 import VerifyingKey
@@ -118,6 +119,8 @@ def opcua_connect(opcua_address:str)-> OpcuaClient:
         logger.info("OPC-UA: successfully connected")
     except Exception as e:
         logger.error(f"OPC-UA connection failed: {repr(e)}")
+        client.tloop.stop() # stop the client threadloop to avoid hang on exit
+        raise
 
     return client
 
@@ -531,27 +534,33 @@ send_datablocks_queue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE) # stores data 
 PATH_SENT_DATABLOCKS = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-sentdatablocks") # path used to store the data arriving at the mock customer backend
 
 # OPC-UA setup
+opcua_client = None
 if config["opcua_enabled"]:
     OPCUA_ADDRESS = config["opcua_address"]
     OPCUA_NAMESPACE = config["opcua_namespace"]
     OPCUA_NODES = config["opcua_nodes"]
 
-    opcua_client = opcua_connect(OPCUA_ADDRESS)
-    opcua_subscribe(opcua_client, OPCUA_NAMESPACE,OPCUA_NODES)
-else:
-    opcua_client = None
+    try:
+        opcua_client = opcua_connect(OPCUA_ADDRESS)
+        opcua_subscribe(opcua_client, OPCUA_NAMESPACE,OPCUA_NODES)
+    except Exception as e:
+        logger.error(f"could not connect/subscribe to OPC-UA: {repr(e)}")
+        sys.exit(1) 
 
 # MQTT setup
+mqtt_client = None
 if config["mqtt_enabled"]:
     MQTT_ADDRESS = config["mqtt_address"]
     MQTT_PORT = config["mqtt_port"]
     MQTT_TOPICS = config["mqtt_topics"]
     MQTT_CLIENT_ID = config["mqtt_client_id"]
 
-    mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID)
-    mqtt_subscribe(mqtt_client, MQTT_TOPICS)
-else:
-    mqtt_client = None
+    try:
+        mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID)
+        mqtt_subscribe(mqtt_client, MQTT_TOPICS)
+    except Exception as e:
+        logger.error(f"could not connect/subscribe to MQTT: {repr(e)}")
+        sys.exit(1)
 
 # set up keystore, ubirch protocol and ubirch api
 # if password is not set, assume that this is attended boot and prompt for it
@@ -610,3 +619,4 @@ finally:
         mqtt_client.disconnect()
     if opcua_client is not None:
         opcua_client.disconnect()
+        opcua_client.tloop.stop()
