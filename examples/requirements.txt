@@ -1,0 +1,10 @@
+asyncua==0.9.14
+requests==2.22.0
+ed25519==1.5
+persist_queue==0.6.0
+ubirch_protocol==3.0.0
+ecdsa==0.16.1
+msgpack_python==0.5.6
+paho_mqtt==1.5.1
+persistqueue==0.1.6
+secrets==1.0.2
