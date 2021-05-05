@@ -240,7 +240,7 @@ def aggregate_data(uuid: UUID,persistent_storage_path:str):
         logger.info("no data to aggregate available")
         return
 
-    block_creation_time = int(time.time()) # remember the timestamp when the block was created (in seconds)
+    block_creation_time = int(time.time()*1000) # remember the timestamp when the block was created (in milliseconds)
 
     # get data from queue and assemble message list
     messages_list = [] #this will become a list of the message dictionaries
@@ -259,7 +259,7 @@ def aggregate_data(uuid: UUID,persistent_storage_path:str):
     # add block metadata
     datablock_dict= {
         "block_nr": blocknumber,
-        "block_ts": block_creation_time, # timestamp of data block creation in seconds
+        "block_ts_ms": block_creation_time, # timestamp of data block creation in milliseconds
         "block_msgs": messages_list
     }
 
@@ -294,7 +294,7 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
 
         # add metadata
         seal_time = int(time.time()*1000) #ms precision seal timestamp
-        datablock_dict['seal_ts'] = seal_time
+        datablock_dict['seal_ts_ms'] = seal_time
         datablock_dict['uuid'] = str(uuid)
 
         # convert to json: create a compact rendering of the message to ensure determinism when creating the hash later
