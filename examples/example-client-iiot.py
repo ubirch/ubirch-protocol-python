@@ -159,14 +159,24 @@ def mqtt_connect(address:str, port:int, client_id:str) -> MqttClient:
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             logger.info("MQTT: successfully connected to broker")
+            mqtt_subscribe(client, MQTT_TOPICS) # TODO: find a better way of resubscribing without using global topics variable
         else:
             logger.error("MQTT: failed to connect to broker, return code %d\n", rc)
+
+    def on_disconnect(client, userdata, rc):
+        if rc !=0:
+            logger.error("MQTT: unexpected disconnect")
+
     # Set Connecting Client ID
     client = MqttClient.Client(client_id)
     # client.username_pw_set(username, password)
     client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
+    client.reconnect_delay_set(min_delay=1, max_delay=10)
+
     logger.info(f"MQTT: connecting to {address+' port '+str(port)}")
     client.connect(address, port)
+    client.loop_start() # make mqtt client start processing traffic on its own in seperate thread
     return client
 
 def mqtt_subscribe(client: MqttClient, topics: list):
@@ -564,7 +574,7 @@ if config["mqtt_enabled"]:
     while not connected_ok:
         try:
             mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID)
-            mqtt_subscribe(mqtt_client, MQTT_TOPICS)
+            # (subscribing is handled in on_connect callback)
             connected_ok = True
         except Exception as e:
             logger.error(f"could not connect/subscribe to MQTT: {repr(e)}")
@@ -606,8 +616,7 @@ last_seal_blocks = time.time()
 
 try:
     while True:
-        if mqtt_client is not None:
-            mqtt_client.loop()
+        # receiving MQTT and OPC-UA is handled in callbacks, so no related code here
 
         if time.time()-last_aggregate_data > AGGREGATE_INTERVAL: # time for aggregating received data into next block?        
             last_aggregate_data = time.time()
