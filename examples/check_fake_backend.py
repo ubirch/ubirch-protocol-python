@@ -17,7 +17,7 @@ def get_UPP(payload_hash:bytes,api: ubirch.API):
     if response.status_code == 200:
         try:
             upp_info = json.loads(response.content)
-            #print(f"Received UPP info from verify endpoint: {upp_info}")
+            #print(f"Received UPP info from verify endpoint:\n {upp_info}\n")            
             backend_upp = binascii.a2b_base64(upp_info['upp'])
             return backend_upp
 
