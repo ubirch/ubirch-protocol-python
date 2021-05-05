@@ -540,12 +540,17 @@ if config["opcua_enabled"]:
     OPCUA_NAMESPACE = config["opcua_namespace"]
     OPCUA_NODES = config["opcua_nodes"]
 
-    try:
-        opcua_client = opcua_connect(OPCUA_ADDRESS)
-        opcua_subscribe(opcua_client, OPCUA_NAMESPACE,OPCUA_NODES)
-    except Exception as e:
-        logger.error(f"could not connect/subscribe to OPC-UA: {repr(e)}")
-        sys.exit(1) 
+    connected_ok = False
+    while not connected_ok:
+        try:
+            opcua_client = opcua_connect(OPCUA_ADDRESS)
+            opcua_subscribe(opcua_client, OPCUA_NAMESPACE,OPCUA_NODES)
+            connected_ok = True
+        except Exception as e:
+            logger.error(f"could not connect/subscribe to OPC-UA: {repr(e)}")
+            cooldown = 10
+            logger.info(f"retrying connection in {cooldown} seconds...")
+            time.sleep(cooldown)
 
 # MQTT setup
 mqtt_client = None
@@ -555,12 +560,17 @@ if config["mqtt_enabled"]:
     MQTT_TOPICS = config["mqtt_topics"]
     MQTT_CLIENT_ID = config["mqtt_client_id"]
 
-    try:
-        mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID)
-        mqtt_subscribe(mqtt_client, MQTT_TOPICS)
-    except Exception as e:
-        logger.error(f"could not connect/subscribe to MQTT: {repr(e)}")
-        sys.exit(1)
+    connected_ok = False
+    while not connected_ok:
+        try:
+            mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID)
+            mqtt_subscribe(mqtt_client, MQTT_TOPICS)
+            connected_ok = True
+        except Exception as e:
+            logger.error(f"could not connect/subscribe to MQTT: {repr(e)}")
+            cooldown = 10
+            logger.info(f"retrying connection in {cooldown} seconds...")
+            time.sleep(cooldown)
 
 # set up keystore, ubirch protocol and ubirch api
 # if password is not set, assume that this is attended boot and prompt for it
@@ -618,5 +628,4 @@ finally:
     if mqtt_client is not None:
         mqtt_client.disconnect()
     if opcua_client is not None:
-        opcua_client.disconnect()
-        opcua_client.tloop.stop()
+        opcua_client.disconnect()        
