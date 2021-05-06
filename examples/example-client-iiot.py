@@ -151,9 +151,10 @@ def opcua_subscribe(client:OpcuaClient, namespace:str, nodes: list):
 ########################################################################
 # MQTT section
 # MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
-def mqtt_connect(address:str, port:int, client_id:str) -> MqttClient:
+def mqtt_connect(address:str, port:int, client_id:str, username: str = None, password:str = None) -> MqttClient:
     """
     Connect to an MQTT broker using the address, port and client ID. Client ID must be unique on broker side.
+    If username is set, username and password parameter are used for authenticating by passing them to paho mqtt username_pw_set().
     Returns the client instance.
     """
     def on_connect(client, userdata, flags, rc):
@@ -161,7 +162,7 @@ def mqtt_connect(address:str, port:int, client_id:str) -> MqttClient:
             logger.info("MQTT: successfully connected to broker")
             mqtt_subscribe(client, MQTT_TOPICS) # TODO: find a better way of resubscribing without using global topics variable
         else:
-            logger.error("MQTT: failed to connect to broker, return code %d\n", rc)
+            logger.error(f"MQTT: failed to connect to broker, return code {rc} ({MqttClient.error_string(rc)})")
 
     def on_disconnect(client, userdata, rc):
         if rc !=0:
@@ -169,7 +170,8 @@ def mqtt_connect(address:str, port:int, client_id:str) -> MqttClient:
 
     # Set Connecting Client ID
     client = MqttClient.Client(client_id)
-    # client.username_pw_set(username, password)
+    if username is not None:
+        client.username_pw_set(username, password)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.reconnect_delay_set(min_delay=1, max_delay=10)
@@ -516,10 +518,7 @@ DEVICE_UUID = UUID(hex=config['api_device_id'])
 API_PASSWORD = config['api_password'] # password/auth token for the ubirch api
 
 # password for encrypting the key store on the disk
-try:
-    KEYSTORE_PASSWORD = config["keystore_password"]
-except KeyError:
-    KEYSTORE_PASSWORD = None
+KEYSTORE_PASSWORD = config.get("keystore_password",None)
 
 logger.info(f'using endpoints at {ENVIROMENT}.ubirch.com')
 logger.info(f'device ID is {DEVICE_UUID}')
@@ -569,11 +568,13 @@ if config["mqtt_enabled"]:
     MQTT_PORT = config["mqtt_port"]
     MQTT_TOPICS = config["mqtt_topics"]
     MQTT_CLIENT_ID = config["mqtt_client_id"]
+    MQTT_USERNAME = config.get("mqtt_username", None)
+    MQTT_PASSWORD = config.get("mqtt_password", None)
 
     connected_ok = False
     while not connected_ok:
         try:
-            mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID)
+            mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID, MQTT_USERNAME,MQTT_PASSWORD)
             # (subscribing is handled in on_connect callback)
             connected_ok = True
         except Exception as e:

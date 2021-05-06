@@ -22,5 +22,7 @@
     "mqtt_address": "192.168.1.81",
     "mqtt_port": 1883,
     "mqtt_topics": ["/ubirch/rsconnectdata/temperature"],
-    "mqtt_client_id": "ubirch-client-123"
+    "mqtt_client_id": "ubirch-client-123",
+    "mqtt_username": "myuser",
+    "mqtt_password": "mypassword"
 }
