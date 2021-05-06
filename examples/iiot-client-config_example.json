@@ -9,7 +9,7 @@
     "seal_interval": 10,
 
     "opcua_enabled": true,
-    "opcua_address": "opc.tcp://192.168.1.81:4840/",
+    "opcua_address": "opc.tcp://username:password@192.168.1.81:4840/",
     "opcua_namespace": "urn:wago-com:codesys-provider",
     "opcua_nodes": [ "|var|RSConnect.Application.GVL_OPCUA.Input1",
         "|var|RSConnect.Application.GVL_OPCUA.Input2",
