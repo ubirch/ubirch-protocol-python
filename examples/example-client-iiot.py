@@ -370,7 +370,7 @@ def send_UPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> bo
     while fails < MAX_FAILS:
         try:
             # send upp to UBIRCH backend service
-            r = api.send(uuid, upp)
+            r = api.send(uuid, bytes(upp))
             if r.status_code == 200: # backend says everything was OK
                 logger.debug("'OK' backend response to UPP: {}".format(binascii.hexlify(r.content).decode()))
                 try: # to verify the backend response     
@@ -602,7 +602,7 @@ logger.info("ubirch-protocol: checking key registration")
 if not api.is_identity_registered(DEVICE_UUID):
     certificate = keystore.get_certificate(DEVICE_UUID)
     key_registration = protocol.message_signed(DEVICE_UUID, UBIRCH_PROTOCOL_TYPE_REG, certificate)
-    r = api.register_identity(key_registration)
+    r = api.register_identity(bytes(key_registration))
     if r.status_code == codes.ok:
         logger.info("{}: public key registered".format(DEVICE_UUID))
     else:
