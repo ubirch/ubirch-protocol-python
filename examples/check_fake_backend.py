@@ -3,7 +3,44 @@ import json
 import sys
 import hashlib
 import binascii
+import uuid
+import ed25519
 import ubirch
+
+class VerifyProto(ubirch.Protocol):
+    """
+    Implements the ubirch-protocol for verifying only.
+    """
+
+    # public keys and UUIDs of the ubirch backend for verification of responses
+    UUID_DEV = uuid.UUID(hex="9d3c78ff-22f3-4441-a5d1-85c636d486ff")
+    PUB_DEV = ed25519.VerifyingKey("a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66", encoding='hex')
+    UUID_DEMO = uuid.UUID(hex="07104235-1892-4020-9042-00003c94b60b")
+    PUB_DEMO = ed25519.VerifyingKey("39ff77632b034d0eba6d219c2ff192e9f24916c9a02672acb49fd05118aad251", encoding='hex')
+    UUID_PROD = uuid.UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
+    PUB_PROD = ed25519.VerifyingKey("ef8048ad06c0285af0177009381830c46cec025d01d86085e75a4f0041c2e690", encoding='hex')
+
+    def __init__(self, key_store: ubirch.KeyStore, uuid: uuid.UUID, device_pubkey: ed25519.VerifyingKey) -> None:
+        super().__init__()
+        self.__ks = key_store
+
+        # insert device pubkey
+        if not self.__ks.exists_verifying_key(uuid):
+            self.__ks.insert_ed25519_verifying_key(uuid, device_pubkey)
+
+        # check if the keystore already has the backend key for verification or insert verifying key
+        if not self.__ks.exists_verifying_key(self.UUID_DEV):
+            self.__ks.insert_ed25519_verifying_key(self.UUID_DEV, self.PUB_DEV)
+        if not self.__ks.exists_verifying_key(self.UUID_DEMO):
+            self.__ks.insert_ed25519_verifying_key(self.UUID_DEMO, self.PUB_DEMO)
+        if not self.__ks.exists_verifying_key(self.UUID_PROD):
+            self.__ks.insert_ed25519_verifying_key(self.UUID_PROD, self.PUB_PROD)
+
+    def _sign(self, uuid: uuid.UUID, message: bytes) -> bytes:        
+        raise NotImplementedError
+
+    def _verify(self, uuid: uuid.UUID, message: bytes, signature: bytes):
+        return self.__ks.find_verifying_key(uuid).verify(signature, message)
 
 def raw_hash(raw_payload_data:bytes):
     # calculate SHA512 hash of message
@@ -98,7 +135,35 @@ def get_all_UPPs(datasets: list, api: ubirch.API):
         current_upp +=1
     print("")
 
+def verify_UPP_signatures(datasets: list, proto: VerifyProto):
+    """ Checks the signatures of all UPPs and prev. UPPs in datasets and if OK unpacks them into datasets. Also updates results accordingly. """
+    for dataset in datasets:
+        upp_raw = dataset["upp_raw"]
+        prev_upp_raw = dataset["prev_upp_raw"]
 
+        # check for UPP
+        upp_unpacked = None
+        dataset["results"]["upp_sig_ok"] = None # None = 'not tested'
+        if upp_raw is not None:
+            try:
+                upp_unpacked = proto.message_verify(upp_raw)
+                dataset["results"]["upp_sig_ok"] = True
+            except ed25519.BadSignatureError:
+                #print("Bad UPP signature check")                
+                dataset["results"]["upp_sig_ok"] = False
+        dataset["unpacked_upp"] = upp_unpacked
+
+        # check for prev UPP
+        prev_upp_unpacked = None
+        dataset["results"]["prev_upp_sig_ok"] = None # None = 'not tested'
+        if prev_upp_raw is not None:
+            try:
+                prev_upp_unpacked = proto.message_verify(prev_upp_raw)
+                dataset["results"]["prev_upp_sig_ok"] = True
+            except ed25519.BadSignatureError:
+                #print("Bad prev UPP signature check")                
+                dataset["results"]["prev_upp_sig_ok"] = False
+        dataset["unpacked_prev_upp"] = prev_upp_unpacked
 
 #### Start Main Code ####
 # Usage: python3 script.py folder stage
@@ -109,12 +174,26 @@ print(f"Doing check on {ENVIROMENT} stage")
 
 PATH= sys.argv[1] # folder with the customer backend data
 
-api = ubirch.API(env=ENVIROMENT)
+# data of device that anchored the data
+myuuid = uuid.UUID(hex="714f93a92aee448da77f9b5ac0c905a4")
+mypubkey = ed25519.VerifyingKey("ebdf58aae7d229c3df891a00dc95d8a63ec966f28813ef9bef57bdfb253ddd72", encoding='hex')
+
+u_api = ubirch.API(env=ENVIROMENT)
+u_keystore = ubirch.KeyStore("temporary_keystore.jks","notsecret")
+u_protocol = VerifyProto(u_keystore,myuuid, mypubkey)
 
 datasets = [] # list for holding all data and intermediate and final results
 
 read_and_hash_data(datasets,PATH)
-get_all_UPPs(datasets,api)
+get_all_UPPs(datasets,u_api)
+
+# #REMOVE ME: alter UPP for testing signature check
+# cut=-32
+# datasets[4]["upp_raw"] = datasets[4]["upp_raw"][:cut]+ b'\x42' + datasets[4]["upp_raw"][(cut-1):]
+# datasets[7]["prev_upp_raw"] = datasets[4]["prev_upp_raw"][:cut]+ b'\x42' + datasets[4]["prev_upp_raw"][(cut-1):]
+
+print("Verifying signatures...")
+verify_UPP_signatures(datasets, u_protocol)
 
 
 # some basic result printing
@@ -132,6 +211,20 @@ for dataset in datasets:
         indicators += "---"
     else:
         indicators += "pU!"
+
+    if results["upp_sig_ok"] == True:
+        indicators += "---"
+    elif results["upp_sig_ok"] == False:
+        indicators += "Us!"
+    else: # 'None' = not tested
+        indicators += "Us?"
+    
+    if results["prev_upp_sig_ok"] == True:
+        indicators += "----"
+    elif results["prev_upp_sig_ok"] == False:
+        indicators += "pUs!"
+    else: # 'None' = not tested
+        indicators += "pUs?"
 
     # print result line
     print(f'{dataset["filename"]}:\t{dataset["block_dict"]["block_nr"]}\t{indicators}')
