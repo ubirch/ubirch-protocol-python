@@ -165,6 +165,23 @@ def verify_UPP_signatures(datasets: list, proto: VerifyProto):
                 dataset["results"]["prev_upp_sig_ok"] = False
         dataset["unpacked_prev_upp"] = prev_upp_unpacked
 
+def check_block_numbers(datasets: list, first_block=1):
+    """ Check the block numbers of all datasets for consistency. First_block is the number the first blok should have. Expects data to be sorted by block numbers. """
+    last_block_nr = first_block -1
+    for dataset in datasets:
+                
+        block_nr = dataset["block_dict"]["block_nr"]
+
+        if (block_nr-1) == last_block_nr:
+            #print("Block Nr OK")
+            dataset["results"]["block_nr_ok"] = True
+        else:
+            #print("Block Nr NOT OK")
+            dataset["results"]["block_nr_ok"] = False
+
+        last_block_nr = block_nr
+
+
 #### Start Main Code ####
 # Usage: python3 script.py folder stage
 # Example: python3 ./examples/check_fake_backend.py '~/persist-ubirch-iiot-client/6fee257fdd72440686d85c7c8eb1c8eb-sentdatablocks' dev
@@ -194,6 +211,9 @@ get_all_UPPs(datasets,u_api)
 
 print("Verifying signatures...")
 verify_UPP_signatures(datasets, u_protocol)
+
+first_block_nr = 152
+check_block_numbers(datasets,first_block_nr)
 
 
 # some basic result printing
@@ -225,6 +245,11 @@ for dataset in datasets:
         indicators += "pUs!"
     else: # 'None' = not tested
         indicators += "pUs?"
+
+    if results["block_nr_ok"]:
+        indicators += "---"
+    else:
+        indicators += "bn!"
 
     # print result line
     print(f'{dataset["filename"]}:\t{dataset["block_dict"]["block_nr"]}\t{indicators}')
