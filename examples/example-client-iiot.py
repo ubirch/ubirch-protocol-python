@@ -184,7 +184,12 @@ def mqtt_connect(address:str, port:int, client_id:str, username: str = None, pas
 def mqtt_subscribe(client: MqttClient, topics: list):
     """Subscribe to all topics from the topics list using the given client."""
     def on_message(client, userdata, msg):
-        logger.info("MQTT: received message: topic: {}, payload: {}".format(msg.topic, msg.payload.decode()))
+        # handle non-printable data output
+        try:
+            payload_string = msg.payload.decode('utf-8')
+        except UnicodeDecodeError:
+            payload_string = binascii.b2a_hex(msg.payload)
+        logger.info("MQTT: received message: topic: {}, payload: {}".format(msg.topic, payload_string))
         queue_message(msg)
     
     for topic in topics:
@@ -206,9 +211,13 @@ def queue_message(msg_object):
     msg_type = type(msg_object).__name__
     # MQTT
     if msg_type == "MQTTMessage":
+        # change this depending on whether your payload is string or bytes 
+        payload_string = msg_object.payload.decode('utf-8')
+        #payload_string = msg_object.payload.hex()
+
         message_content_dict = {
             "msg_topic": msg_object.topic,
-            "msg_payload": msg_object.payload.decode("utf-8"), # this assumes that the payload is always UTF-8 string. might need check/handling or different encoding e.g. base64 in other cases
+            "msg_payload": payload_string, 
             "msg_qos": msg_object.qos,
             "msg_retain": msg_object.retain,
             "msg_mid": msg_object.mid
