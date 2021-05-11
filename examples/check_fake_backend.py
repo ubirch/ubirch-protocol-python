@@ -181,6 +181,45 @@ def check_block_numbers(datasets: list, first_block=1):
 
         last_block_nr = block_nr
 
+def print_results_list(datasets:list):
+    """ Some basic result printing in list form. """
+    for dataset in datasets:
+        # build indicators string from results
+        indicators = ""
+        results = dataset["results"]
+        
+        if results["upp_found"]:
+            indicators += "--"
+        else:
+            indicators += "U!"
+
+        if results["prev_upp_found"]:
+            indicators += "---"
+        else:
+            indicators += "pU!"
+
+        if results["upp_sig_ok"] == True:
+            indicators += "---"
+        elif results["upp_sig_ok"] == False:
+            indicators += "Us!"
+        else: # 'None' = not tested
+            indicators += "Us?"
+        
+        if results["prev_upp_sig_ok"] == True:
+            indicators += "----"
+        elif results["prev_upp_sig_ok"] == False:
+            indicators += "pUs!"
+        else: # 'None' = not tested
+            indicators += "pUs?"
+
+        if results["block_nr_ok"]:
+            indicators += "---"
+        else:
+            indicators += "bn!"
+
+        # print result line
+        print(f'{dataset["filename"]}:\t{dataset["block_dict"]["block_nr"]}\t{indicators}')
+
 
 #### Start Main Code ####
 # Usage: python3 script.py folder stage
@@ -215,41 +254,5 @@ verify_UPP_signatures(datasets, u_protocol)
 first_block_nr = 152
 check_block_numbers(datasets,first_block_nr)
 
-
-# some basic result printing
-for dataset in datasets:
-    # build indicators string from results
-    indicators = ""
-    results = dataset["results"]
-    
-    if results["upp_found"]:
-        indicators += "--"
-    else:
-        indicators += "U!"
-
-    if results["prev_upp_found"]:
-        indicators += "---"
-    else:
-        indicators += "pU!"
-
-    if results["upp_sig_ok"] == True:
-        indicators += "---"
-    elif results["upp_sig_ok"] == False:
-        indicators += "Us!"
-    else: # 'None' = not tested
-        indicators += "Us?"
-    
-    if results["prev_upp_sig_ok"] == True:
-        indicators += "----"
-    elif results["prev_upp_sig_ok"] == False:
-        indicators += "pUs!"
-    else: # 'None' = not tested
-        indicators += "pUs?"
-
-    if results["block_nr_ok"]:
-        indicators += "---"
-    else:
-        indicators += "bn!"
-
-    # print result line
-    print(f'{dataset["filename"]}:\t{dataset["block_dict"]["block_nr"]}\t{indicators}')
+print("Results list:")
+print_results_list(datasets)
