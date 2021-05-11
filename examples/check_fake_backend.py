@@ -212,6 +212,30 @@ def check_UPP_chain(datasets:list,first_previous_signature: bytes = 64*b'\x00'):
         
         dataset["results"]["chain_to_prev_ok"] = result
 
+def check_prev_UPP_matches(datasets:list):
+    """ Checks if the prev UPP returned by the backend in the 'prev' field is identical to the UPP sent before. Puts result in datasets. """
+    
+    last_upp = None # the UPP that came before this one
+    for dataset in datasets: 
+        #print(index, dataset["block_dict"]["block_nr"])
+        upp = dataset["upp_raw"]
+        prev_upp = dataset["prev_upp_raw"] # "prev" field UPP returned by ubirch backend for this block
+        
+        if prev_upp is not None: # if there is previous upp info from backend
+            if last_upp is not None: # if we had a upp for the last block
+                if prev_upp == last_upp:
+                    result = True
+                else:
+                    result = False
+            else: # no upp for last block
+                result = None # None = can't check
+
+        else: # no prev UPP for this block available
+            result = None # None = can't check
+
+        last_upp = upp # save this block's upp for next round comparison (can be None)    
+        dataset["results"]["prev_UPP_matches"] = result
+
 
 def print_results_list(datasets:list):
     """ Some basic result printing in list form. """
@@ -256,6 +280,13 @@ def print_results_list(datasets:list):
         else: # 'None' = not tested
             indicators += "c^?"
 
+        if results["prev_UPP_matches"] == True:
+            indicators += "----"
+        elif results["prev_UPP_matches"] == False:
+            indicators += "pUm!"
+        else: # 'None' = not tested
+            indicators += "pUm?"
+
         # print result line
         print(f'{dataset["filename"]}:\t{dataset["block_dict"]["block_nr"]}\t{indicators}')
 
@@ -299,6 +330,12 @@ first_block_nr = 1
 check_block_numbers(datasets,first_block_nr)
 
 check_UPP_chain(datasets)
+
+# #REMOVE ME: alter prev UPP for testing check
+# cut=-32
+# datasets[3]["prev_upp_raw"] = datasets[4]["prev_upp_raw"][:cut]+ b'\x42' + datasets[4]["prev_upp_raw"][(cut-1):]
+
+check_prev_UPP_matches(datasets)
 
 print("Results list:")
 print_results_list(datasets)
