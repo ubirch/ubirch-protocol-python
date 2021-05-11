@@ -1,4 +1,6 @@
+from logging import exception
 from os import walk,path
+import traceback
 import json
 import sys
 import hashlib
@@ -181,6 +183,36 @@ def check_block_numbers(datasets: list, first_block=1):
 
         last_block_nr = block_nr
 
+def check_UPP_chain(datasets:list,first_previous_signature: bytes = 64*b'\x00'):
+    """ Checks the chain link between all UPPs in datasets. first_previous_signature is the prev. signature expected in the first UPP. UPPs are expected to be in the correct order. """
+    PREV_SIGNATURE_INDEX = 2 # only works for chained UPP type
+    THIS_UPP_SIGNATURE_INDEX = -1 # last element
+    
+    last_upp_previous_signature = first_previous_signature
+    for dataset in datasets: 
+        #print(index, dataset["block_dict"]["block_nr"])
+        upp = dataset["unpacked_upp"]
+        if upp is not None:
+            signature = upp[THIS_UPP_SIGNATURE_INDEX]
+            prev_signature = upp[PREV_SIGNATURE_INDEX]
+
+            if last_upp_previous_signature is not None: # if we have something to compare to
+                if prev_signature == last_upp_previous_signature:
+                    result = True
+                else:
+                    result = False
+            else: # no signature from previous UPP available
+                result = None # None = can't check
+
+            last_upp_previous_signature = signature
+
+        else: # no valid UPP for this block available
+            last_upp_previous_signature = None
+            result = None # None = can't check
+        
+        dataset["results"]["chain_to_prev_ok"] = result
+
+
 def print_results_list(datasets:list):
     """ Some basic result printing in list form. """
     for dataset in datasets:
@@ -217,24 +249,36 @@ def print_results_list(datasets:list):
         else:
             indicators += "bn!"
 
+        if results["chain_to_prev_ok"] == True:
+            indicators += "---"
+        elif results["chain_to_prev_ok"] == False:
+            indicators += "c^!"
+        else: # 'None' = not tested
+            indicators += "c^?"
+
         # print result line
         print(f'{dataset["filename"]}:\t{dataset["block_dict"]["block_nr"]}\t{indicators}')
 
 
 #### Start Main Code ####
-# Usage: python3 script.py folder stage
-# Example: python3 ./examples/check_fake_backend.py '~/persist-ubirch-iiot-client/6fee257fdd72440686d85c7c8eb1c8eb-sentdatablocks' dev
 
-ENVIROMENT = sys.argv[2] #ubirch api enviroment
-print(f"Doing check on {ENVIROMENT} stage")
+try:
+    PATH= sys.argv[1] # folder with the customer backend data
 
-PATH= sys.argv[1] # folder with the customer backend data
+    # data of device that anchored the data
+    myuuid = uuid.UUID(hex=sys.argv[2])
+    mypubkey = ed25519.VerifyingKey(sys.argv[3], encoding='hex')
 
-# data of device that anchored the data
-myuuid = uuid.UUID(hex="714f93a92aee448da77f9b5ac0c905a4")
-mypubkey = ed25519.VerifyingKey("ebdf58aae7d229c3df891a00dc95d8a63ec966f28813ef9bef57bdfb253ddd72", encoding='hex')
+    ENVIROMENT = sys.argv[4] #ubirch api enviroment
+except Exception as e:
+    print("Error:",repr(e))
+    traceback.print_exc()
+    print('Usage: python3 script.py folder uuid pubkey stage')
+    print('Example: python3 ./examples/check_fake_backend.py ~/6fee257fdd72440686d85c7c8eb1c8eb-sentdatablocks/ 6fee257fdd72440686d85c7c8eb1c8eb cab4c99e1495d6f2ec761ac65a067538c00e108be52a229e5fbbd623a3f4fed4 dev')
+    sys.exit(1)
 
 u_api = ubirch.API(env=ENVIROMENT)
+print(f"Doing check on {ENVIROMENT} stage")
 u_keystore = ubirch.KeyStore("temporary_keystore.jks","notsecret")
 u_protocol = VerifyProto(u_keystore,myuuid, mypubkey)
 
@@ -251,8 +295,10 @@ get_all_UPPs(datasets,u_api)
 print("Verifying signatures...")
 verify_UPP_signatures(datasets, u_protocol)
 
-first_block_nr = 152
+first_block_nr = 1
 check_block_numbers(datasets,first_block_nr)
+
+check_UPP_chain(datasets)
 
 print("Results list:")
 print_results_list(datasets)
