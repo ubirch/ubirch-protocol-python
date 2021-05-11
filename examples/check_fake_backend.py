@@ -253,37 +253,3 @@ for dataset in datasets:
 
     # print result line
     print(f'{dataset["filename"]}:\t{dataset["block_dict"]["block_nr"]}\t{indicators}')
-
-
-
-# old stuff:
-# fileindex = 1
-# for filename in filenames:
-#     #print(filename)
-#     fullpath = path.join(PATH,filename)
-#     #print(fullpath)
-
-#     with open(fullpath,'rb') as json_file:
-#         block_raw = json_file.read()
-#         json_file.seek(0)
-#         block = json.load(json_file)
-
-#         payload_hash = base64_hash(block_raw)
-#         blocknumber = block['block_nr']
-#         indicators = ''
-#         # check each item and append to check indicators
-#         if fileindex != blocknumber:
-#             indicators += 'B!'
-#         else:
-#             indicators += '--'
-
-#         if get_UPP(raw_hash(block_raw), api) is None:
-#             indicators += 'U!'
-#         else:
-#             indicators += '--'
-        
-#         print(f"{filename}:\t{blocknumber}\t{payload_hash}\t{indicators}")
-
-#     fileindex += 1
-
-
