@@ -1,13 +1,15 @@
-from logging import exception
-from os import walk,path
-import traceback
+import binascii
+import hashlib
 import json
 import sys
-import hashlib
-import binascii
-import uuid
+import traceback
+from os import walk, path
+from uuid import UUID
+
 import ed25519
+
 import ubirch
+
 
 class VerifyProto(ubirch.Protocol):
     """
@@ -15,14 +17,14 @@ class VerifyProto(ubirch.Protocol):
     """
 
     # public keys and UUIDs of the ubirch backend for verification of responses
-    UUID_DEV = uuid.UUID(hex="9d3c78ff-22f3-4441-a5d1-85c636d486ff")
+    UUID_DEV = UUID(hex="9d3c78ff-22f3-4441-a5d1-85c636d486ff")
     PUB_DEV = ed25519.VerifyingKey("a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66", encoding='hex')
-    UUID_DEMO = uuid.UUID(hex="07104235-1892-4020-9042-00003c94b60b")
+    UUID_DEMO = UUID(hex="07104235-1892-4020-9042-00003c94b60b")
     PUB_DEMO = ed25519.VerifyingKey("39ff77632b034d0eba6d219c2ff192e9f24916c9a02672acb49fd05118aad251", encoding='hex')
-    UUID_PROD = uuid.UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
+    UUID_PROD = UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
     PUB_PROD = ed25519.VerifyingKey("ef8048ad06c0285af0177009381830c46cec025d01d86085e75a4f0041c2e690", encoding='hex')
 
-    def __init__(self, key_store: ubirch.KeyStore, uuid: uuid.UUID, device_pubkey: ed25519.VerifyingKey) -> None:
+    def __init__(self, key_store: ubirch.KeyStore, uuid: UUID, device_pubkey: ed25519.VerifyingKey) -> None:
         super().__init__()
         self.__ks = key_store
 
@@ -38,26 +40,29 @@ class VerifyProto(ubirch.Protocol):
         if not self.__ks.exists_verifying_key(self.UUID_PROD):
             self.__ks.insert_ed25519_verifying_key(self.UUID_PROD, self.PUB_PROD)
 
-    def _sign(self, uuid: uuid.UUID, message: bytes) -> bytes:        
+    def _sign(self, uuid: UUID, message: bytes) -> bytes:
         raise NotImplementedError
 
-    def _verify(self, uuid: uuid.UUID, message: bytes, signature: bytes):
+    def _verify(self, uuid: UUID, message: bytes, signature: bytes):
         return self.__ks.find_verifying_key(uuid).verify(signature, message)
 
-def raw_hash(raw_payload_data:bytes):
+
+def raw_hash(raw_payload_data: bytes):
     # calculate SHA512 hash of message
     return hashlib.sha512(raw_payload_data).digest()
 
-def base64_hash(raw_payload_data: bytes):   
-    return binascii.b2a_base64(raw_hash(raw_payload_data),newline=False).decode()
 
-def get_UPP_from_BE(payload_hash:bytes,api: ubirch.API):
+def base64_hash(raw_payload_data: bytes):
+    return binascii.b2a_base64(raw_hash(raw_payload_data), newline=False).decode()
+
+
+def get_UPP_from_BE(payload_hash: bytes, api: ubirch.API):
     """ Asks ubirch backend for a UPP with payload_hash. Returns UPP and prev. UPP data or None, None if not found. """
-    response = api.verify(payload_hash,quick=False)
+    response = api.verify(payload_hash, quick=False)
     if response.status_code == 200:
         try:
             upp_info = json.loads(response.content)
-            #print(f"Received UPP info from verify endpoint:\n {upp_info}\n")            
+            # print(f"Received UPP info from verify endpoint:\n {upp_info}\n")
             backend_upp = binascii.a2b_base64(upp_info['upp'])
             backend_prev_upp_base64 = upp_info['prev']
             if backend_prev_upp_base64 is not None:
@@ -69,23 +74,25 @@ def get_UPP_from_BE(payload_hash:bytes,api: ubirch.API):
         except Exception as e:
             print(f"error while getting UPP: {repr(e)}")
             raise
-    elif response.status_code == 404: #not found
+    elif response.status_code == 404:  # not found
         return None, None
     else:
-        raise Exception(f"Error when checking if UPP exists. Response code: {response.status_code}, Response content: {repr(response.content)}")
+        raise Exception(
+            f"Error when checking if UPP exists. Response code: {response.status_code}, Response content: {repr(response.content)}")
+
 
 def read_and_hash_data(datasets: list, data_folder: str):
     """ Reads all files in 'path' (sorted by name) and adds filename, hash, and parsed JSON data (dict) to dataset list. """
-    
+
     _, _, filenames = next(walk(data_folder))
     filenames.sort()
 
     for filename in filenames:
-        #print(filename)
-        fullpath = path.join(data_folder,filename)
-        #print(fullpath)
+        # print(filename)
+        fullpath = path.join(data_folder, filename)
+        # print(fullpath)
 
-        with open(fullpath,'rb') as json_file:
+        with open(fullpath, 'rb') as json_file:
             # read data
             block_raw = json_file.read()
             json_file.seek(0)
@@ -96,12 +103,13 @@ def read_and_hash_data(datasets: list, data_folder: str):
             # assemble dict and append
             entry = {
                 "filename": filename,
-                #"block_raw": block_raw, # we only need the hash and dict, so skip this
+                # "block_raw": block_raw, # we only need the hash and dict, so skip this
                 "block_hash": payload_hash,
                 "block_dict": block_dict,
-                "results":{} # already add the dict for results of other checks
+                "results": {}  # already add the dict for results of other checks
             }
             datasets.append(entry)
+
 
 def get_all_UPPs(datasets: list, api: ubirch.API):
     """
@@ -113,29 +121,31 @@ def get_all_UPPs(datasets: list, api: ubirch.API):
     current_upp = 1
     not_found = 0
     for dataset in datasets:
-        percent = int(current_upp/total_upps*100)
-        print(f'\rChecking for UPP\t{current_upp}/{total_upps}\t{percent}%\tnot found: {not_found}          ',end="",flush=True)
+        percent = int(current_upp / total_upps * 100)
+        print(f'\rChecking for UPP\t{current_upp}/{total_upps}\t{percent}%\tnot found: {not_found}          ', end="",
+              flush=True)
         upp, prev_upp = get_UPP_from_BE(dataset["block_hash"], api)
-        if upp is not None: # UPP found
+        if upp is not None:  # UPP found
             dataset["upp_raw"] = upp
             dataset["results"]["upp_found"] = True
 
-            if prev_upp is not None: # check if prev UPP was found
+            if prev_upp is not None:  # check if prev UPP was found
                 dataset["prev_upp_raw"] = prev_upp
                 dataset["results"]["prev_upp_found"] = True
             else:
                 dataset["prev_upp_raw"] = None
                 dataset["results"]["prev_upp_found"] = False
 
-        else: # no UPP found at all
-            not_found +=1
+        else:  # no UPP found at all
+            not_found += 1
             dataset["upp_raw"] = None
             dataset["results"]["upp_found"] = False
             dataset["prev_upp_raw"] = None
             dataset["results"]["prev_upp_found"] = False
 
-        current_upp +=1
+        current_upp += 1
     print("")
+
 
 def verify_UPP_signatures(datasets: list, proto: VerifyProto):
     """ Checks the signatures of all UPPs and prev. UPPs in datasets and if OK unpacks them into datasets. Also updates results accordingly. """
@@ -145,105 +155,108 @@ def verify_UPP_signatures(datasets: list, proto: VerifyProto):
 
         # check for UPP
         upp_unpacked = None
-        dataset["results"]["upp_sig_ok"] = None # None = 'not tested'
+        dataset["results"]["upp_sig_ok"] = None  # None = 'not tested'
         if upp_raw is not None:
             try:
                 upp_unpacked = proto.message_verify(upp_raw)
                 dataset["results"]["upp_sig_ok"] = True
             except ed25519.BadSignatureError:
-                #print("Bad UPP signature check")                
+                # print("Bad UPP signature check")
                 dataset["results"]["upp_sig_ok"] = False
         dataset["unpacked_upp"] = upp_unpacked
 
         # check for prev UPP
         prev_upp_unpacked = None
-        dataset["results"]["prev_upp_sig_ok"] = None # None = 'not tested'
+        dataset["results"]["prev_upp_sig_ok"] = None  # None = 'not tested'
         if prev_upp_raw is not None:
             try:
                 prev_upp_unpacked = proto.message_verify(prev_upp_raw)
                 dataset["results"]["prev_upp_sig_ok"] = True
             except ed25519.BadSignatureError:
-                #print("Bad prev UPP signature check")                
+                # print("Bad prev UPP signature check")
                 dataset["results"]["prev_upp_sig_ok"] = False
         dataset["unpacked_prev_upp"] = prev_upp_unpacked
 
+
 def check_block_numbers(datasets: list, first_block=1):
     """ Check the block numbers of all datasets for consistency. First_block is the number the first blok should have. Expects data to be sorted by block numbers. """
-    last_block_nr = first_block -1
+    last_block_nr = first_block - 1
     for dataset in datasets:
-                
+
         block_nr = dataset["block_dict"]["block_nr"]
 
-        if (block_nr-1) == last_block_nr:
-            #print("Block Nr OK")
+        if (block_nr - 1) == last_block_nr:
+            # print("Block Nr OK")
             dataset["results"]["block_nr_ok"] = True
         else:
-            #print("Block Nr NOT OK")
+            # print("Block Nr NOT OK")
             dataset["results"]["block_nr_ok"] = False
 
         last_block_nr = block_nr
 
-def check_UPP_chain(datasets:list,first_previous_signature: bytes = 64*b'\x00'):
+
+def check_UPP_chain(datasets: list, first_previous_signature: bytes = 64 * b'\x00'):
     """ Checks the chain link between all UPPs in datasets. first_previous_signature is the prev. signature expected in the first UPP. UPPs are expected to be in the correct order. """
-    PREV_SIGNATURE_INDEX = 2 # only works for chained UPP type
-    THIS_UPP_SIGNATURE_INDEX = -1 # last element
-    
+    PREV_SIGNATURE_INDEX = 2  # only works for chained UPP type
+    THIS_UPP_SIGNATURE_INDEX = -1  # last element
+
     last_upp_previous_signature = first_previous_signature
-    for dataset in datasets: 
-        #print(index, dataset["block_dict"]["block_nr"])
+    for dataset in datasets:
+        # print(index, dataset["block_dict"]["block_nr"])
         upp = dataset["unpacked_upp"]
         if upp is not None:
             signature = upp[THIS_UPP_SIGNATURE_INDEX]
             prev_signature = upp[PREV_SIGNATURE_INDEX]
 
-            if last_upp_previous_signature is not None: # if we have something to compare to
+            if last_upp_previous_signature is not None:  # if we have something to compare to
                 if prev_signature == last_upp_previous_signature:
                     result = True
                 else:
                     result = False
-            else: # no signature from previous UPP available
-                result = None # None = can't check
+            else:  # no signature from previous UPP available
+                result = None  # None = can't check
 
             last_upp_previous_signature = signature
 
-        else: # no valid UPP for this block available
+        else:  # no valid UPP for this block available
             last_upp_previous_signature = None
-            result = None # None = can't check
-        
+            result = None  # None = can't check
+
         dataset["results"]["chain_to_prev_ok"] = result
 
-def check_prev_UPP_matches(datasets:list):
+
+def check_prev_UPP_matches(datasets: list):
     """ Checks if the prev UPP returned by the backend in the 'prev' field is identical to the UPP sent before. Puts result in datasets. """
-    
-    last_upp = None # the UPP that came before this one
-    for dataset in datasets: 
-        #print(index, dataset["block_dict"]["block_nr"])
+
+    last_upp = None  # the UPP that came before this one
+    for dataset in datasets:
+        # print(index, dataset["block_dict"]["block_nr"])
         upp = dataset["upp_raw"]
-        prev_upp = dataset["prev_upp_raw"] # "prev" field UPP returned by ubirch backend for this block
-        
-        if prev_upp is not None: # if there is previous upp info from backend
-            if last_upp is not None: # if we had a upp for the last block
+        prev_upp = dataset["prev_upp_raw"]  # "prev" field UPP returned by ubirch backend for this block
+
+        if prev_upp is not None:  # if there is previous upp info from backend
+            if last_upp is not None:  # if we had a upp for the last block
                 if prev_upp == last_upp:
                     result = True
                 else:
                     result = False
-            else: # no upp for last block
-                result = None # None = can't check
+            else:  # no upp for last block
+                result = None  # None = can't check
 
-        else: # no prev UPP for this block available
-            result = None # None = can't check
+        else:  # no prev UPP for this block available
+            result = None  # None = can't check
 
-        last_upp = upp # save this block's upp for next round comparison (can be None)    
+        last_upp = upp  # save this block's upp for next round comparison (can be None)
         dataset["results"]["prev_UPP_matches"] = result
 
 
-def print_results_list(datasets:list):
+def print_results_list(datasets: list):
     """ Some basic result printing in list form. """
     for dataset in datasets:
         # build indicators string from results
         indicators = ""
         results = dataset["results"]
-        
+
         if results["upp_found"]:
             indicators += "--"
         else:
@@ -258,14 +271,14 @@ def print_results_list(datasets:list):
             indicators += "---"
         elif results["upp_sig_ok"] == False:
             indicators += "Us!"
-        else: # 'None' = not tested
+        else:  # 'None' = not tested
             indicators += "Us?"
-        
+
         if results["prev_upp_sig_ok"] == True:
             indicators += "----"
         elif results["prev_upp_sig_ok"] == False:
             indicators += "pUs!"
-        else: # 'None' = not tested
+        else:  # 'None' = not tested
             indicators += "pUs?"
 
         if results["block_nr_ok"]:
@@ -277,14 +290,14 @@ def print_results_list(datasets:list):
             indicators += "---"
         elif results["chain_to_prev_ok"] == False:
             indicators += "c^!"
-        else: # 'None' = not tested
+        else:  # 'None' = not tested
             indicators += "c^?"
 
         if results["prev_UPP_matches"] == True:
             indicators += "----"
         elif results["prev_UPP_matches"] == False:
             indicators += "pUm!"
-        else: # 'None' = not tested
+        else:  # 'None' = not tested
             indicators += "pUm?"
 
         # print result line
@@ -294,29 +307,30 @@ def print_results_list(datasets:list):
 #### Start Main Code ####
 
 try:
-    PATH= sys.argv[1] # folder with the customer backend data
+    PATH = sys.argv[1]  # folder with the customer backend data
 
     # data of device that anchored the data
-    myuuid = uuid.UUID(hex=sys.argv[2])
+    myuuid = UUID(hex=sys.argv[2])
     mypubkey = ed25519.VerifyingKey(sys.argv[3], encoding='hex')
 
-    ENVIROMENT = sys.argv[4] #ubirch api enviroment
+    ENVIRONMENT = sys.argv[4]  # ubirch api environment
 except Exception as e:
-    print("Error:",repr(e))
+    print("Error:", repr(e))
     traceback.print_exc()
     print('Usage: python3 script.py folder uuid pubkey stage')
-    print('Example: python3 ./examples/check_fake_backend.py ~/6fee257fdd72440686d85c7c8eb1c8eb-sentdatablocks/ 6fee257fdd72440686d85c7c8eb1c8eb cab4c99e1495d6f2ec761ac65a067538c00e108be52a229e5fbbd623a3f4fed4 dev')
+    print(
+        'Example: python3 ./examples/check_fake_backend.py ~/6fee257fdd72440686d85c7c8eb1c8eb-sentdatablocks/ 6fee257fdd72440686d85c7c8eb1c8eb cab4c99e1495d6f2ec761ac65a067538c00e108be52a229e5fbbd623a3f4fed4 dev')
     sys.exit(1)
 
-u_api = ubirch.API(env=ENVIROMENT)
-print(f"Doing check on {ENVIROMENT} stage")
-u_keystore = ubirch.KeyStore("temporary_keystore.jks","notsecret")
-u_protocol = VerifyProto(u_keystore,myuuid, mypubkey)
+u_api = ubirch.API(env=ENVIRONMENT)
+print(f"Doing check on {ENVIRONMENT} stage")
+u_keystore = ubirch.KeyStore("temporary_keystore.jks", "notsecret")
+u_protocol = VerifyProto(u_keystore, myuuid, mypubkey)
 
-datasets = [] # list for holding all data and intermediate and final results
+datasets = []  # list for holding all data and intermediate and final results
 
-read_and_hash_data(datasets,PATH)
-get_all_UPPs(datasets,u_api)
+read_and_hash_data(datasets, PATH)
+get_all_UPPs(datasets, u_api)
 
 # #REMOVE ME: alter UPP for testing signature check
 # cut=-32
@@ -327,7 +341,7 @@ print("Verifying signatures...")
 verify_UPP_signatures(datasets, u_protocol)
 
 first_block_nr = 1
-check_block_numbers(datasets,first_block_nr)
+check_block_numbers(datasets, first_block_nr)
 
 check_UPP_chain(datasets)
 
