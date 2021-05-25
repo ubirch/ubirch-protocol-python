@@ -63,8 +63,8 @@ def get_UPP_from_BE(payload_hash: bytes, api: ubirch.API):
         try:
             upp_info = json.loads(response.content)
             # print(f"Received UPP info from verify endpoint:\n {upp_info}\n")
-            backend_upp = binascii.a2b_base64(upp_info['upp'])
-            backend_prev_upp_base64 = upp_info['prev']
+            backend_upp = binascii.a2b_base64(upp_info.get('upp'))
+            backend_prev_upp_base64 = upp_info.get('prev')
             if backend_prev_upp_base64 is not None:
                 backend_prev_upp = binascii.a2b_base64(backend_prev_upp_base64)
             else:
@@ -121,9 +121,6 @@ def get_all_UPPs(datasets: list, api: ubirch.API):
     current_upp = 1
     not_found = 0
     for dataset in datasets:
-        percent = int(current_upp / total_upps * 100)
-        print(f'\rChecking for UPP\t{current_upp}/{total_upps}\t{percent}%\tnot found: {not_found}          ', end="",
-              flush=True)
         upp, prev_upp = get_UPP_from_BE(dataset["block_hash"], api)
         if upp is not None:  # UPP found
             dataset["upp_raw"] = upp
@@ -142,6 +139,10 @@ def get_all_UPPs(datasets: list, api: ubirch.API):
             dataset["results"]["upp_found"] = False
             dataset["prev_upp_raw"] = None
             dataset["results"]["prev_upp_found"] = False
+
+        percent = int(current_upp / total_upps * 100)
+        print(f'\rChecking for UPP\t{current_upp}/{total_upps}\t{percent}%\tnot found: {not_found}          ', end="",
+              flush=True)
 
         current_upp += 1
     print("")
