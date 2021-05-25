@@ -252,7 +252,8 @@ def check_prev_UPP_matches(datasets: list):
 
 
 def print_results_list(datasets: list):
-    """ Some basic result printing in list form. """
+    """ Print the results of tests. """
+    
     print("""
     Flags/Keys:
     -:      OK
@@ -266,56 +267,91 @@ def print_results_list(datasets: list):
     c^:     chain_to_prev_ok
     pUm:    prev_UPP_matches
     """)
-    for dataset in datasets:
-        # build indicators string from results
+    error_summary = ""
+    for index, dataset in enumerate(datasets):
+        # build indicators and summary string from results
+        # indicator will be used in the list view, dataset_errors in the summary of all problems at the end of the list
         indicators = ""
+        dataset_errors = ""
         results = dataset["results"]
 
         if results["upp_found"]:
             indicators += "--"
         else:
             indicators += "U!"
+            dataset_errors += ", UPP not found"
 
         if results["prev_upp_found"]:
             indicators += "---"
         else:
             indicators += "pU!"
+            if index != 0: # for block 1/index 0, a missing prev. UPP is expected and OK
+                dataset_errors += ", previous UPP not found"
 
         if results["upp_sig_ok"] == True:
             indicators += "---"
         elif results["upp_sig_ok"] == False:
             indicators += "Us!"
+            dataset_errors += ", UPP signature invalid"
         else:  # 'None' = not tested
             indicators += "Us?"
+            dataset_errors += ", can't check UPP signature"
 
         if results["prev_upp_sig_ok"] == True:
             indicators += "----"
         elif results["prev_upp_sig_ok"] == False:
             indicators += "pUs!"
+            dataset_errors += ", previous UPP signature invalid"
         else:  # 'None' = not tested
             indicators += "pUs?"
+            if index != 0: # for block 1/index 0, a missing prev. UPP is expected and OK
+                dataset_errors += ", can't check previous UPP signature"
 
         if results["block_nr_ok"]:
             indicators += "---"
         else:
             indicators += "bn!"
+            dataset_errors += ", wrong block number"
 
         if results["chain_to_prev_ok"] == True:
             indicators += "---"
         elif results["chain_to_prev_ok"] == False:
             indicators += "c^!"
+            dataset_errors += ", broken chain to previous UPP"
         else:  # 'None' = not tested
             indicators += "c^?"
+            dataset_errors += ", can't check chain"
 
         if results["prev_UPP_matches"] == True:
             indicators += "----"
         elif results["prev_UPP_matches"] == False:
             indicators += "pUm!"
+            dataset_errors += ", mismatch of previous UPP"
         else:  # 'None' = not tested
             indicators += "pUm?"
+            if index != 0: # for block 1/index 0, a missing prev. UPP is expected and OK
+                dataset_errors += ", can't check match of previous UPP"
 
         # print result line
         print(f'{dataset["filename"]}:\t{dataset["block_dict"]["block_nr"]}\t{indicators}')
+
+        # if there were errors, add filename to summary string
+        if dataset_errors is not "":
+            dataset_errors = dataset_errors.lstrip(", ") # remove leading comma and whitespace
+            dataset_errors = f'{dataset["filename"]}: ' + dataset_errors
+            error_summary += dataset_errors + '\n'
+
+    #check if first block has no previous UPPs anchored
+    if datasets[0]["results"]["prev_upp_found"]:
+        error_summary += "UPPs have been anchored before the first block."
+    
+    # print summary
+    if error_summary is "":
+        print("\nNo problems detected")
+    else:
+        print("\nThe following problems were detected:")
+        print(error_summary)
+
 
 
 #### Start Main Code ####
@@ -365,5 +401,5 @@ check_UPP_chain(datasets)
 
 check_prev_UPP_matches(datasets)
 
-print("Results list:")
+print("Results:")
 print_results_list(datasets)
