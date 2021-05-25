@@ -253,6 +253,19 @@ def check_prev_UPP_matches(datasets: list):
 
 def print_results_list(datasets: list):
     """ Some basic result printing in list form. """
+    print("""
+    Flags/Keys:
+    -:      OK
+    !:      error
+    ?:      can't check
+    U:      upp_found
+    pU:     prev_upp_found
+    Us:     upp_sig_ok
+    pUs:    prev_upp_sig_ok
+    bn:     block_nr_ok
+    c^:     chain_to_prev_ok
+    pUm:    prev_UPP_matches
+    """)
     for dataset in datasets:
         # build indicators string from results
         indicators = ""
