@@ -336,7 +336,7 @@ def print_results_list(datasets: list):
         print(f'{dataset["filename"]}:\t{dataset["block_dict"]["block_nr"]}\t{indicators}')
 
         # if there were errors, add filename to summary string
-        if dataset_errors is not "":
+        if dataset_errors != "":
             dataset_errors = dataset_errors.lstrip(", ") # remove leading comma and whitespace
             dataset_errors = f'{dataset["filename"]}: ' + dataset_errors
             error_summary += dataset_errors + '\n'
@@ -346,7 +346,7 @@ def print_results_list(datasets: list):
         error_summary += "UPPs have been anchored before the first block."
     
     # print summary
-    if error_summary is "":
+    if error_summary == "":
         print("\nNo problems detected")
     else:
         print("\nThe following problems were detected:")
