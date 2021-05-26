@@ -5,7 +5,7 @@ import sys
 import traceback
 from os import walk, path
 from uuid import UUID
-
+import requests
 import ed25519
 
 import ubirch
@@ -347,10 +347,48 @@ def print_results_list(datasets: list):
     
     # print summary
     if error_summary == "":
-        print("\nNo problems detected")
+        print("\nNo problems with the available data detected")
     else:
         print("\nThe following problems were detected:")
         print(error_summary)
+
+def get_last_backend_hash(uuid: UUID, bearer_token:str,stage:str) -> bytes:
+    """ Experimental. Gets the last hash known to the ubirch backend. bearer_token is the JWT token used for authentication at the ubirch backend. 
+    Should probably be moved to the ubirch api library at some point. """
+    url = f'https://api.console.{stage}.ubirch.com/ubirch-web-ui/api/v1/devices/lastHash/'+str(uuid)
+    headers = {
+        'accept': 'application/json',
+        'Authorization': ('Bearer ' + bearer_token)
+    }    
+    
+    try:
+        r = requests.get(url, headers=headers)
+        last_hash_data = json.loads(r.text)[0]
+        #print(last_hash_data)
+        hash_bytes = binascii.a2b_base64(last_hash_data["hash"])
+    except Exception as e:
+            print("Error when getting last backend hash:", repr(e))
+            if r.text is not None:
+                print("Server response:")
+                print(r.text)
+            # debug print of token even if it's invalid
+            print("Used token contents:")
+            import jwt #TODO: move to top imports?
+            print(jwt.decode(bearer_token, options={"verify_signature": False, "verify_aud":False, "verify_exp": False}))
+            raise
+
+    return hash_bytes
+
+def check_local_data_complete(datasets: list, uuid: UUID,jwt_token:str,stage:str) -> bool:
+    """ Experimental. Checks if the hash of the last entry in datasets matches the most recent UPP known to the ubirch backend. """
+    last_backend_hash = get_last_backend_hash(uuid,jwt_token,stage)
+    #print(last_backend_hash)
+    last_local_hash = datasets[-1]["block_hash"]
+    #print(last_local_hash)
+    if last_backend_hash == last_local_hash:
+        return True
+    else:
+        return False
 
 
 
@@ -364,10 +402,16 @@ try:
     mypubkey = ed25519.VerifyingKey(sys.argv[3], encoding='hex')
 
     ENVIRONMENT = sys.argv[4]  # ubirch api environment
+
+    try:
+        jwt_token = sys.argv[5]
+    except IndexError:
+        jwt_token = ""
+    
 except Exception as e:
     print("Error:", repr(e))
     traceback.print_exc()
-    print('Usage: python3 script.py folder uuid pubkey stage')
+    print('Usage: python3 script.py folder uuid pubkey stage [JWT token]')
     print(
         'Example: python3 ./examples/check_fake_backend.py ~/6fee257fdd72440686d85c7c8eb1c8eb-sentdatablocks/ 6fee257fdd72440686d85c7c8eb1c8eb cab4c99e1495d6f2ec761ac65a067538c00e108be52a229e5fbbd623a3f4fed4 dev')
     sys.exit(1)
@@ -403,3 +447,12 @@ check_prev_UPP_matches(datasets)
 
 print("Results:")
 print_results_list(datasets)
+
+# Check if the ubirch backend has seen more data than what is available locally
+if jwt_token != "":
+    if not check_local_data_complete(datasets,myuuid,jwt_token,ENVIRONMENT):
+        print("Local data is incomplete! (Most recent UPP known to ubirch backend does not match last local block.)")
+    #else: # everything seems ok for this check
+    #    print("Most recent UPP known to ubirch backend matches last local block.")        
+else:
+    print("Warning: no JWT authentication token supplied. Skipping 'missing data' check.")
