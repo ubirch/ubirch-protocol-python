@@ -11,3 +11,4 @@
 build
 dist
 /venv*
+jwt_token.txt

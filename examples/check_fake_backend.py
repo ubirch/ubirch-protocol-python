@@ -403,10 +403,16 @@ try:
 
     ENVIRONMENT = sys.argv[4]  # ubirch api environment
 
-    try:
+    # set JWT token (used for authentication in 'data complete' check, which is optional)
+    try: # try to get JWT token from command line
         jwt_token = sys.argv[5]
-    except IndexError:
-        jwt_token = ""
+    except IndexError: # no token avilable as argument, try to read from file
+        try:
+            with open('jwt_token.txt', 'r') as file:
+                jwt_token = file.read().replace('\n', '')
+        except FileNotFoundError:
+            #no command line argument and no file for jwt token, give up
+            jwt_token = ""
     
 except Exception as e:
     print("Error:", repr(e))
@@ -414,6 +420,7 @@ except Exception as e:
     print('Usage: python3 script.py folder uuid pubkey stage [JWT token]')
     print(
         'Example: python3 ./examples/check_fake_backend.py ~/6fee257fdd72440686d85c7c8eb1c8eb-sentdatablocks/ 6fee257fdd72440686d85c7c8eb1c8eb cab4c99e1495d6f2ec761ac65a067538c00e108be52a229e5fbbd623a3f4fed4 dev')
+    print('The JWT token is needed for the \'data complete\' check and is optional. JWT token can also be supplied by a jwt_token.txt file in the current working directory. Command line argument takes preference.')
     sys.exit(1)
 
 u_api = ubirch.API(env=ENVIRONMENT)
