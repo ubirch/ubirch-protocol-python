@@ -462,4 +462,4 @@ if jwt_token != "":
     #else: # everything seems ok for this check
     #    print("Most recent UPP known to ubirch backend matches last local block.")        
 else:
-    print("Warning: no JWT authentication token supplied. Skipping 'missing data' check.")
+    print("Warning: no JWT authentication token supplied. Skipping 'missing recent data' check.")
