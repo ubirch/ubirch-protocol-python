@@ -87,7 +87,7 @@ class TestUbirchProtocolECDSA(unittest.TestCase):
     def test_verify_not_implemented(self):
         p = ubirch.Protocol()
         try:
-            p.verfiy_signature(EXPECTED_SIGNED)
+            p.verfiy_signature(None, EXPECTED_SIGNED)
         except NotImplementedError as e:
             self.assertEqual(e.args[0], 'verification not implemented')
 
@@ -96,14 +96,14 @@ class TestUbirchProtocolECDSA(unittest.TestCase):
         message = p.message_signed(TEST_UUID, 0xEF, 1)
         logger.debug("MESSAGE: %s", binascii.hexlify(message))
         self.assertEqual(EXPECTED_SIGNED[0:-64], message[0:-64])
-        self.assertEqual(p.verfiy_signature(message), True)
+        self.assertEqual(p.verfiy_signature(TEST_UUID, message), True)
 
     def test_create_signed_message_with_hash(self):
         p = Protocol()
         message = p.message_signed(TEST_UUID, 0xEF, hashlib.sha512(b'1').digest())
         logger.debug("MESSAGE: %s", binascii.hexlify(message))
         self.assertEqual(EXPECTED_SIGNED_HASH, message[0:-64])
-        self.assertEqual(p.verfiy_signature(message), True)
+        self.assertEqual(p.verfiy_signature(TEST_UUID, message), True)
         
     def test_create_chained_messages(self):
         p = Protocol()
@@ -117,7 +117,7 @@ class TestUbirchProtocolECDSA(unittest.TestCase):
             logger.debug("EXPECT : %s", binascii.hexlify(EXPECTED))
             self.assertEqual(EXPECTED[0:-64], message[0:-64], "message #{} failed".format(i + 1))
             self.assertEqual(last_signature, message[22:22+64])
-            self.assertEqual(p.verfiy_signature(message), True)
+            self.assertEqual(p.verfiy_signature(TEST_UUID, message), True)
             last_signature = message[-64:]
 
     def test_create_chained_message_with_hash(self):
@@ -126,12 +126,12 @@ class TestUbirchProtocolECDSA(unittest.TestCase):
         logger.debug("MESSAGE: %s", binascii.hexlify(message))
 
         self.assertEqual(EXPECTED_CHAINED_HASH[0:-64], message[0:-64])
-        self.assertEqual(p.verfiy_signature(message), True)
+        self.assertEqual(p.verfiy_signature(TEST_UUID, message), True)
 
     def test_verify_signed_message(self):
         p = Protocol()
         unpacked = p.unpack_upp(EXPECTED_SIGNED)
-        self.assertEqual(p.verfiy_signature(EXPECTED_SIGNED, unpackedUPP=unpacked), True)
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytes(EXPECTED_SIGNED)), True)
         self.assertEqual(SIGNED, unpacked[0])
         self.assertEqual(TEST_UUID.bytes, unpacked[1])
         self.assertEqual(0xEF, unpacked[2])
@@ -142,7 +142,7 @@ class TestUbirchProtocolECDSA(unittest.TestCase):
         last_signature = b'\0' * 64
         for i in range(0, 3):
             unpacked = p.unpack_upp(EXPECTED_CHAINED[i])
-            self.assertEqual(p.verfiy_signature(EXPECTED_CHAINED[i], unpackedUPP=unpacked), True)
+            self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytes(EXPECTED_CHAINED[i])), True)
             self.assertEqual(CHAINED, unpacked[0])
             self.assertEqual(TEST_UUID.bytes, unpacked[1])
             self.assertEqual(last_signature, unpacked[2])
@@ -164,10 +164,8 @@ class TestUbirchProtocolSIM(unittest.TestCase):
 
         unpacked = p.unpack_upp(message)
 
-        logger.debug(repr(unpacked))
-
-        self.assertEqual(p.verfiy_signature(message, unpackedUPP=unpacked), True)
-        self.assertEqual(vk, binascii.hexlify(unpacked[3]['pubKey']).decode())
+        self.assertEqual(p.verfiy_signature(None, bytes(message)), True)
+        self.assertEqual(vk, binascii.hexlify(unpacked[3][b'pubKey']).decode())
 
     def test_verify_signed_message_sim_v1(self):
         loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -181,7 +179,7 @@ class TestUbirchProtocolSIM(unittest.TestCase):
         unpacked = p.unpack_upp(message)
         logger.debug(repr(unpacked))
 
-        self.assertEqual(p.verfiy_signature(message, unpackedUPP=unpacked), True)
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytes(message)), True)
         self.assertEqual(hashlib.sha256(b"UBIRCH").digest(), unpacked[3])
 
     def test_verify_registration_message_sim_v2(self):
@@ -196,7 +194,7 @@ class TestUbirchProtocolSIM(unittest.TestCase):
         unpacked = p.unpack_upp(message)
         logger.debug(repr(unpacked))
 
-        self.assertEqual(p.verfiy_signature(message, unpackedUPP=unpacked), True)
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), message), True)
         self.assertEqual(vk, binascii.hexlify(unpacked[3]['pubKey']).decode())
 
     def test_verify_signed_message_sim_v2(self):
@@ -211,5 +209,5 @@ class TestUbirchProtocolSIM(unittest.TestCase):
         unpacked = p.unpack_upp(message)
         logger.debug(repr(unpacked))
 
-        self.assertEqual(p.verfiy_signature(message, unpackedUPP=unpacked), True)
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), message), True)
         self.assertEqual(hashlib.sha256(b"UBIRCH").digest(), unpacked[3])
