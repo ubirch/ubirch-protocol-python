@@ -274,11 +274,17 @@ class Protocol(object):
         :return: a tuple consiting of the message without the signature and the signature
         """
         try:
-            return (msgpackUPP[:-66], msgpackUPP[-64:])
+            if msgpackUPP[1] >> 4 == 2:
+                # version 2 upp - 2 byte signature header
+                return (msgpackUPP[:-66], msgpackUPP[-64:])
+            elif msgpackUPP[1] >> 4 == 1:
+                # version 1 upp - 3 byte signature header
+                return (msgpackUPP[:-67], msgpackUPP[-64:])
+            else:
+                raise ValueError("Invalid UPP version byte: %02x" % msgpack[1])
         except IndexError:
             raise ValueError("The UPP-msgpack is too short: %d bytes" % len(msgpackUPP))
 
-    #  -> def verfiy_signature(self, uuid: UUID, msgpackUPP: bytes) -> True:
     def verfiy_signature(self, uuid: UUID, msgpackUPP: bytes) -> bool:
         """
         Verify the integrity of the message and decode the contents
