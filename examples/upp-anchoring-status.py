@@ -143,7 +143,7 @@ class Main:
                 else:
                     logger.info("The UPP has been fully anchored!")
 
-                print(jobj.get("anchors"))
+                    print(jobj.get("anchors"))
             elif r.status_code == 404:
                 logger.info("The UPP is NOT known to the uBirch backend! (code: %d)" % r.status_code)
         except Exception as e:
