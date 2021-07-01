@@ -64,7 +64,7 @@ class Main:
         self.ishash_str = self.args.ishash
         self.env = self.args.env
 
-        # get the bool for show sk
+        # get the bool for ishash
         if self.ishash_str.lower() in ["1", "yes", "y", "true"]:
             self.ishash = True
         else:
