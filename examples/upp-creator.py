@@ -16,6 +16,7 @@ DEFAULT_KS       = "devices.jks"
 DEFAULT_KS_PWD   = "keystore"
 DEFAULT_KEYREG   = "False"
 DEFAULT_HASH     = "sha512"
+DEFAULT_ISJSON   = "False"
 DEFAULT_OUTPUT   = "upp.bin"
 DEFAULT_NOSTDOUT = "False"
 
@@ -66,6 +67,8 @@ class Main:
         self.keystore_path : str = None
         self.keystore_pass : str
         self.output : str = None
+        self.isjson_str : str = None
+        self.isjson : bool = None
         self.keyreg_str : str = None
         self.keyreg : bool = None
         self.nostdout_str : str = None
@@ -117,6 +120,9 @@ class Main:
         self.argparser.add_argument("--hash", metavar="HASH", type=str, default=DEFAULT_HASH,
             help="hash algorithm for hashing the data; sha256, sha512 or off (disable hashing), ... (default and recommended: %s)" % DEFAULT_HASH
         )
+        self.argparser.add_argument("--isjson", "-j", metavar="ISJSON", type=str, default=DEFAULT_ISJSON,
+            help="tells the script to treat the input data as json and serealize it (see EXAMPLES.md for more information); true or false (default: %s)" % DEFAULT_ISJSON
+        )
         self.argparser.add_argument("--output", "-o", metavar="OUTPUT", type=str, default=DEFAULT_OUTPUT,
             help="file to write the generated UPP to (aside from standard output); e.g. upp.bin (default: %s)" % DEFAULT_OUTPUT
         )
@@ -135,6 +141,7 @@ class Main:
         self.type_str = self.args.type
         self.keyreg_str = self.args.keyreg
         self.hash = self.args.hash
+        self.isjson_str = self.args.isjson
         self.keystore_path = self.args.ks
         self.keystore_pass = self.args.kspwd
         self.output = self.args.output
@@ -189,6 +196,12 @@ class Main:
         else:
             self.nostdout = False
 
+        # get the isjson value
+        if self.isjson_str.lower() in ["1", "yes", "y", "true"]:
+            self.isjson = True
+        else:
+            self.isjson = False
+
         # success
         return True
 
@@ -232,6 +245,13 @@ class Main:
                 if self.nostdout == False:
                     logger.info("UPP payload (raw data): \"%s\"" % self.payload)
             else:
+                if self.isjson == True:
+                    # load the string as json and put it back into a string, serealizing it
+                    self.data = json.loads(self.data)
+                    self.data = json.dumps(self.data, separators=(',', ':'), sort_keys=True, ensure_ascii=False)
+
+                    logger.info("Serialized data JSON: \"%s\"" % self.data)
+
                 self.payload = self.hasher(self.data.encode()).digest()
 
                 if self.nostdout == False:
