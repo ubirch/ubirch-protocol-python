@@ -40,8 +40,8 @@ class Main:
     def setup_argparse(self):
         self.argparser = argparse.ArgumentParser(
             description="Requests the verification/anchoring of a UPP from the uBirch backend",
-            epilog="When --ishash/-i is set to true, the input argument is treated as a base64 payload hash."
-                   "Otherwise, it is expected to be some kind of path to read a UPP from."
+            epilog="When --ishash/-i is set to true, the input argument is treated as a base64 payload hash. "
+                   "Otherwise, it is expected to be some kind of path to read a UPP from. "
                    "This can be a file path or also /dev/stdin if the UPP is piped to this program via standard input."
         )
 
@@ -138,7 +138,7 @@ class Main:
                 print("Curr. UPP: \"%s\"" % jobj.get("upp", "-- no curr. upp information --"))
                 print("Prev. UPP: \"%s\"" % jobj.get("prev", "-- no prev. upp information --"))
 
-                if jobj.get("anchors") == None:
+                if jobj.get("anchors") in [None, []]:
                     logger.info("The UPP has NOT been anchored into any blockchains yet! Please retry later")
                 else:
                     logger.info("The UPP has been fully anchored!")
