@@ -270,7 +270,7 @@ class Main:
                 if self.nostdout == False:
                     logger.info("Generating a key registration UPP for UUID \"%s\"" % self.uuid_str)
 
-                    self.upp = self.proto.message_signed(self.uuid, ubirch.ubirch_protocol.UBIRCH_PROTOCOL_TYPE_REG, self.keystore.get_certificate(self.uuid))
+                self.upp = self.proto.message_signed(self.uuid, ubirch.ubirch_protocol.UBIRCH_PROTOCOL_TYPE_REG, self.keystore.get_certificate(self.uuid))
                 pass
             else:
                 if self.version == 0x22:
