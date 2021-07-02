@@ -189,7 +189,7 @@ class Main:
 
         # get the anchoring status
         if self.get_status() != True:
-            logger.error("Errors occured while requesting the anchring status - exiting!\n")
+            logger.error("Errors occured while requesting the anchoring status - exiting!\n")
 
             self.argparser.print_usage()
 
