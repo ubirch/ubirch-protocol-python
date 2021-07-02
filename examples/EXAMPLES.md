@@ -47,6 +47,25 @@ To create, or more precisely, to _sign_ a UPP, a device will need a keypair. Thi
 
 **NOTE** that losing access to the signing key, especially if it is already registered at the uBirch backend, will take away the ability to create and send any new UPPs from that device/UUID, since there is no way of creating a valid signature that would be accepted by the backend.
 
+A keystore can be read out with the `keystore-dumper.py` script.
+
+```
+$ python keystore-dumper.py --help
+usage: keystore-dumper.py [-h] [--show-sk SHOW_SIGNING_KET] KEYSTORE KEYSTORE_PASS
+
+Dump the contents of a keystore (.jks)
+
+positional arguments:
+  KEYSTORE              keystore file path; e.g.: test.jks
+  KEYSTORE_PASS         keystore password; e.g.: secret
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --show-sk SHOW_SIGNING_KET, -s SHOW_SIGNING_KET
+                        enables/disables showing of signing keys; e.g.: true, false (default: False)
+```
+By default, only UUIDs und public keys (verifying keys) will be displayed. Displaying of private keys (signing keys) can be enabled by passing `-s true`.
+
 ### Registering a public key
 To enable the uBirch backend to verify a UPP, it needs to know the corresponding verifying key. Therefore, the device needs to send this key to the backend before starting to send UPPs supposed to be verified and anchored. Registering a verifying key is also done by sending a special kind of UPP containing this key. This can be done by using two scripts:
 ```
