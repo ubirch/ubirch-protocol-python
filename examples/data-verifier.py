@@ -83,7 +83,7 @@ class Main:
         self.argparser.add_argument("input", metavar="INPUT", type=str,
             help="input data or data file path (depends on --ispath)"
         )
-        self.argparser.add_argument("--ispath", "-i", metavar="ISHASH", type=str, default=DEFAULT_ISPATH,
+        self.argparser.add_argument("--ispath", "-i", metavar="ISPATH", type=str, default=DEFAULT_ISPATH,
             help="sets if INPUT is being treated as data or data file path; true or false (default: %s)" % DEFAULT_ISPATH
         )
         self.argparser.add_argument("--env", "-e", metavar="ENV", type=str, default=DEFAULT_ENV,
