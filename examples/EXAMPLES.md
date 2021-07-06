@@ -43,11 +43,11 @@ The values used below are `f5ded8a3-d462-41c4-a8dc-af3fd072a217` for the UUID, `
 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` for the auth token.
 
 ### Generating and managing a keypair
-To create, or more precisely, to _sign_ a UPP, a device will need a keypair. This keypair consist of a private key (_signing key_) and public key (_verifying key_). The signing key is used to sign UPPs and the verifying key can be used by the uBirch backend to check, if the signature is valid and belongs to the correct sender/signer. So, logically it doesn't matter who knows to verifying key, but the signing key must be kept secret all the time. In a real use case a device might store it in a TPM ([Trusted platform module](https://en.wikipedia.org/wiki/Trusted_Platform_Module)) or use other counter measures against attackers reading the key from the device. For this demo, keypairs will be stored in a [JKS Keystore](https://en.wikipedia.org/wiki/Java_KeyStore) using the [`pyjks`](https://pypi.org/project/pyjks/) library. Therefore, you will have to choose and remember a file path for that keystore and a password used to encrypt it. The process of actually generating the keypair is explained [below](#registering-a-public-key).
+To create, or more precisely, to _sign_ a UPP, a device will need a keypair. This keypair consist of a private key (_signing key_) and public key (_verifying key_). The signing key is used to sign UPPs and the verifying key can be used by the uBirch backend to check, if the signature is valid and belongs to the correct sender/signer. So, logically it doesn't matter who knows to verifying key, but the signing key must be kept secret all the time. In a real use case a device might store it in a TPM ([Trusted platform module](https://en.wikipedia.org/wiki/Trusted_Platform_Module)) or use other counter measures against attackers reading the key from the device. For this demo, keypairs will be stored in a [JKS Keystore](https://en.wikipedia.org/wiki/Java_KeyStore) using the [`pyjks`](https://pypi.org/project/pyjks/) library. Therefore, you will have to choose and remember a file path for that keystore and a password used to encrypt it. The process of actually generating the keypair is handled by the [upp-creator.py] script and explained [below](#registering-a-public-key).
 
 **NOTE** that losing access to the signing key, especially if it is already registered at the uBirch backend, will take away the ability to create and send any new UPPs from that device/UUID, since there is no way of creating a valid signature that would be accepted by the backend.
 
-A keystore can be read out with the `keystore-dumper.py` script.
+A keystore can be read out with the [`keystore-dumper.py`](keystore-dumper.py) script.
 
 ```
 $ python keystore-dumper.py --help
@@ -61,7 +61,7 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --show-sk SHOW_SIGNING_KET, -s SHOW_SIGNING_KET
+  --show-sk SHOW_SIGNING_KEY, -s SHOW_SIGNING_KEY
                         enables/disables showing of signing keys; e.g.: true, false (default: False)
 ```
 By default, only UUIDs und public keys (verifying keys) will be displayed. Displaying of private keys (signing keys) can be enabled by passing `-s true`.
@@ -85,7 +85,7 @@ $ python upp-creator.py -t 1 --ks devices.jks --kspwd keystore --keyreg true --o
 2021-07-02 11:51:50,485                 root       show_store_upp() INFO     UPP [hex]: "9522c410f5ded8a3d46241c4a8dcaf3fd072a2170187a9616c676f726974686dab4543435f45443235353139a763726561746564ce60dec596aa68774465766963654964c410f5ded8a3d46241c4a8dcaf3fd072a216a67075624b6579c420e0264e7d9428149cef59ccecb8813b214d8f94c62e3e836d7546d3f8bd884a4ca87075624b65794964c420e0264e7d9428149cef59ccecb8813b214d8f94c62e3e836d7546d3f8bd884a4cad76616c69644e6f744166746572ce62bff916ae76616c69644e6f744265666f7265ce60dec596c440cadb70d30250a5a2dd2eb44b645e54b56387f228607fbf6f59a11493befa118f0e9c79da1f7d85ba5a4076c134f8b4aff04173adfc4b858ec491be2366988900"
 2021-07-02 11:51:50,485                 root       show_store_upp() INFO     UPP written to "keyreg_upp.bin"
 ```
-The generated key registration UPP has been saved to `keyreg_upp.bin`. Sending the UPP can be done like following (remember to put the correct value for the env of your choice):
+The [upp-creator.py](upp-creator.py) script will check if the keystore specified with `--ks` contains an entry for the device with the given UUID. If it doesn´t, the script will generate a new keypair and store it. This can be seen when examining the two first log messages starting with `No keys found for` and `inserted new keypair for`. Otherwsise (if there already is a keypair for the device) the script will simple use the existent keypair. The generated key registration UPP has been saved to `keyreg_upp.bin`. Sending the UPP can be done like following (remember to put the correct value for the env of your choice):
 ```
 $ python upp-sender.py --env demo --input keyreg_upp.bin --output response_upp.bin f5ded8a3-d462-41c4-a8dc-af3fd072a217 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
@@ -118,7 +118,7 @@ This will create a string from the above examplary JSON object:
 `{"H":35.8,"S":"OK","T":11.2,"ts":1625163338}`
 
 ### Creating a UPP
-After gathering some measurement data a UPP can be created. The UPP won't contain the actual measurement data, but a hash of it. The example script to create UPPs in is `upp-creator.py`.
+After gathering some measurement data a UPP can be created. The UPP won't contain the actual measurement data, but a hash of it. The example script to create UPPs is [`upp-creator.py`](upp-creator.py).
 ```
 $ python3 upp-creator.py --help
 
@@ -183,7 +183,7 @@ $ python3 upp-creator.py --version 0x23 --isjson true --output upp.bin --hash sh
 Keep in mind that if you use chained UPPs (`--version 0x23`) you should anchor each UPP, or the signature chain will be broken. This won't cause any errors, but the advantage of chaining UPPs and thereby knowing the correct order of them, will get lost.
 
 ### Sending a UPP
-After creating the UPP, it can be sent to the uBirch backend where it will be verified and anchored in the blockchain. The ubirch backend will use the registered public/verifying key to check the signature. The `upp-sender.py` script can be used for that.
+After creating the UPP, it can be sent to the uBirch backend where it will be verified and anchored in the blockchain. The ubirch backend will use the registered public/verifying key to check the signature. The [`upp-sender.py`](upp-sender.py) script can be used for that.
 ```
 $ python3 upp-sender.py --help
 usage: upp-sender.py [-h] [--env ENV] [--input INPUT] [--output OUTPUT] UUID AUTH
@@ -204,7 +204,7 @@ optional arguments:
 ```
 For this script the parameters are:
 - `--env/-e` The env to operate on. This parameter decides wether the UPP will be sent to `niomon.prod.ubirch.com`, `niomon.demo.ubirch.com` or `niomon.dev.ubirch.com`. The value can either be `prod`, `demo` or `dev`. It must match the stage, the UUID is registered on.
-- `--input/-i` Specifies where to read the UPP to be sent from. This can be a normal file path or also `/dev/stdin`, if for example the UPP will be piped to this script from another script (like `upp-creator.py`). In most cases the UPP will just be read from some file.
+- `--input/-i` Specifies where to read the UPP to be sent from. This can be a normal file path or also `/dev/stdin`, if for example the UPP will be piped to this script from another script (like [`upp-creator.py`](upp-creator.py)). In most cases the UPP will just be read from some file.
 - `--output/-o` Normally the uBirch backend will respond to the UPP with another UPP. This parameter sets the location to write that response-UPP to.
 - `UUID` The UUID of the device that generated the UPP as a hex-string.
 - `AUTH` The auth token for the device on the specified stage as a hex-string.
@@ -218,7 +218,7 @@ $ python upp-sender.py --env demo --input upp.bin --output response_upp.bin f5de
 ```
 
 ### Verifying a UPP
-To make sure, that the response UPP actually was sent by the uBirch backend, its signature can be checked. The example script for that is `upp-verifier.py`. It knows the UUID and verifying/public key for each uBirch Niomon stage end checks, if the signature of the response UPP is valid.
+To make sure, that the response UPP actually was sent by the uBirch backend, its signature can be checked. The example script for that is [`upp-verifier.py`](upp-verifier.py). It knows the UUID and verifying/public key for each uBirch Niomon stage end checks, if the signature of the response UPP is valid.
 
 ```
 $ python3 upp-verifier.py --help
@@ -250,7 +250,7 @@ $ python3 upp-verifier.py --input response_upp.bin
 ```
 
 ### Examining a UPP
-To examine the contents (Version Field, Type Field, UUID, Signature, Payload, Previous Signature) of a UPP, the `upp-unpacker.py` script can be used like this:
+To examine the contents (Version Field, Type Field, UUID, Signature, Payload, Previous Signature) of a UPP, the [`upp-unpacker.py`](upp-unpacker.py) script can be used like this:
 ```
 $ python3 upp-unpacker.py response_upp.bin
 -    Version: 0x23
@@ -266,7 +266,7 @@ $ python3 upp-unpacker.py response_upp.bin
 _The UUID in this response UPP doesn't match the one from examples above because the UPP was sent from Niomon-Dev._
 
 ### Checking the anchoring status of a UPP
-uBirch Niomon accepting the UPP doesn't mean that it is anchored yet. This process takes place in certain intervals, so one might have to wait a short while. The script to check if a UPP was already anchored is `upp-anchoring-status.py`.
+uBirch Niomon accepting the UPP doesn't mean that it is anchored yet. This process takes place in certain intervals, so one might have to wait a short while. The script to check if a UPP was already anchored is [`upp-anchoring-status.py`](upp-anchoring-status.py).
 ```
 $ python3 upp-anchoring-status.py -h
 usage: upp-anchoring-status.py [-h] [--ishash ISHASH] [--env ENV] INPUT
@@ -324,7 +324,7 @@ Prev. UPP: "liPEEAi4JX1SUEaGhzAnqUf6pn3EQOeEqF4lo+xT9RF2ygDx9+anv14fykUolJ9gmKuT
 ```
 
 ### Verifying data
-In a real use case, not the UPP, but rather the original data itself has to be verified. The original data can be hashed, and the hash can be looked up by the `data-verifier.py` script. It has similar behaviour to the `upp-anchoring-status.py` script, see [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-an-upp).
+In a real use case, not the UPP, but rather the original data itself has to be verified. The original data can be hashed, and the hash can be looked up by the [`data-verifier.py`](data-verifier.py) script. It has similar behaviour to the [`upp-anchoring-status.py`](upp-anchoring-status.py) script, see [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-an-upp).
 ```
 $ python data-verifier.py -h
 usage: data-verifier.py [-h] [--ispath ISHASH] [--env ENV] [--isjson ISJSON] [--hash HASH] INPUT
@@ -350,7 +350,7 @@ When --ispath/-i is set to true, the input data is treated as a file path to rea
 - `--isjson/-j` A binary flag that indicates that the input data is in JSON format. The script will serialize the JSON object before calculating the hash. This has the advantage one doesn't have to remember the order in which fields are listed in a JSON object to still be able to reconstruct the hash later on. Serializing the JSON is done like this: `json.dumps(self.data, separators=(',', ':'), sort_keys=True, ensure_ascii=False)` where `self.data` contains the JSON object which was loaded like this: `self.data = json.loads(self.dataStr)` where `dataStr` contains the input string which should represent a JSON object. This flag can have two values: `true` or `false`. It should only be set to `true` if the data represents a JSON object and if it also was serialized when creating the UPP.
 - `--hash/-a` Sets the hashing algorithm to use. `sha256`, `sha512` or `off`. It should match the algorithm used when creating the corresponding UPP. Setting it to `off` means that the input data actually already is the hash of the data. In this case this script will simply look up the hash.
 
-Example:
+Example for CLI-Input data:
 ```
 python data-verifier.py --env demo --isjson true --hash sha256 '{
     "ts": 1625163338,
@@ -368,10 +368,24 @@ Prev. UPP: "None"
 2021-07-02 16:21:41,600                 root           get_status() INFO     The corresponding UPP has been fully anchored!
 [{'label': 'PUBLIC_CHAIN', 'properties': {'timestamp': '2021-07-02T13:23:30.076Z', 'hash': '0x6e5956b4ac53bcaf58664e189673d4f8c7043488cf05009cc96868b146220604', 'public_chain': 'ETHEREUM-CLASSIC_TESTNET_ETHERERUM_CLASSIC_KOTTI_TESTNET_NETWORK', 'prev_hash': '644b41eee9043de5bda4b58bda1136fa0229712953678fe26486651338109b7a7135211f2b2cb646ab25d3b25198549e3c662c4791d60d343f08349b51ccc92b'}}]
 ```
-Just like with `upp-anchoring-status.py`, it might take a short while after sending the corresponding UPP to the backend before it will be anchored.
+Example for File-Input data:
+```
+python data-verifier.py --ispath true -j true data_to_verify.json -e prod
+2021-07-06 12:17:31,261                 root            read_data() INFO     Reading the input data from "data_to_verify.json"
+2021-07-06 12:17:31,262                 root       serialize_json() INFO     Serialized JSON: "{"data":{"AccPitch":"-11.52","AccRoll":"1.26","AccX":"-0.02","AccY":"0.20","AccZ":"0.99","H":"64.85","L_blue":232,"L_red":275,"P":"100934.00","T":"20.69","V":"4.62"},"msg_type":1,"timestamp":1599203876,"uuid":"07104235-1892-4020-9042-00003c94b60b"}"
+2021-07-06 12:17:31,262                 root   get_hash_from_data() INFO     Calculated hash: "/hHAPCT60m0/pnsB2z4Y4TYNcALrBnKb8h1ZR429fuY="
+2021-07-06 12:17:31,262                 root           get_status() INFO     Requesting anchoring information from: "https://verify.prod.ubirch.com/api/upp/verify/anchor"
+2021-07-06 12:17:31,784                 root           get_status() INFO     The hash is known to the uBirch backend! (code: 200)
+Curr. UPP: "liPEEAcQQjUYkkAgkEIAADyUtgvEQHy+eJ38aa7R6A1K+5ZLqYxoP7EraPYBo9cTllip+FCVm3OkzfDNB36/yMkJT5GqyopDs1mBJu8Y3kYczX8VM8oAxCD+EcA8JPrSbT+mewHbPhjhNg1wAusGcpvyHVlHjb1+5sRAsp7YwQtGxGBXX/PgbjEd1JQP1qDWOfDDsYc0oJ0jrZcjLvJv6SGnIgnZvmF1YSYewnHe56Fb3GApTw7Ybs43SQ=="
+Prev. UPP: "liPEEAcQQjUYkkAgkEIAADyUtgvEQJViO08kxDSmJWebjNDFAVFwqxGUANe9XkNqi549sVLSlCcNd1lLFWGfXUttolDlENsSgjejqH7Iwf2QxAJWqmsAxCDbSx12E4W489A0oKaaFm+cpCqp9ShhfPJockqU/axOgMRAfL54nfxprtHoDUr7lkupjGg/sSto9gGj1xOWWKn4UJWbc6TN8M0Hfr/IyQlPkarKikOzWYEm7xjeRhzNfxUzyg=="
+2021-07-06 12:17:31,784                 root           get_status() INFO     The corresponding UPP has been fully anchored!
+[{'label': 'PUBLIC_CHAIN', 'properties': {'timestamp': '2020-09-04T07:27:59.196Z', 'hash': 'FNMJQLBQXPRDAG9ZDPEDZEOQOXEUPJQOFOOBBEUZRXA9BBY9FRZRSYABEAFTYFCDFWJYDMXTZWVXZ9999', 'public_chain': 'IOTA_MAINNET_IOTA_MAINNET_NETWORK', 'prev_hash': 'bc318054140e1f4014977ebd37058807cba5c7c369cebe14daf8fbccdacb24ee135a0773764cb0ad6530fd0d8392d77f7f9d669b2ca973f13c683d1a8930d61b'}}, {'label': 'PUBLIC_CHAIN', 'properties': {'timestamp': '2020-09-04T07:28:11.886Z', 'hash': '0x2b1b940d98d35522a326396625690397ef9aab9c8dfb2b8f63a7e7a297559ce9', 'public_chain': 'ETHEREUM-CLASSIC_MAINNET_ETHERERUM_CLASSIC_MAINNET_NETWORK', 'prev_hash': 'bc318054140e1f4014977ebd37058807cba5c7c369cebe14daf8fbccdacb24ee135a0773764cb0ad6530fd0d8392d77f7f9d669b2ca973f13c683d1a8930d61b'}}, {'label': 'PUBLIC_CHAIN', 'properties': {'timestamp': '2020-09-04T07:28:19.414Z', 'hash': '0x133627d9effaa40186d0bab8331cff05242c87178a32ca370f5fa7512716c361', 'public_chain': 'GOV-DIGITAL_MAINNET_GOV_DIGITAL_MAINNET_NETWORK', 'prev_hash': 'bc318054140e1f4014977ebd37058807cba5c7c369cebe14daf8fbccdacb24ee135a0773764cb0ad6530fd0d8392d77f7f9d669b2ca973f13c683d1a8930d61b'}}]
+```
+
+Just like with [`upp-anchoring-status.py`](upp-anchoring-status.py), it might take a short while after sending the corresponding UPP to the backend before it will be anchored.
 
 ## Sending data to the Simple Data Service
-The `data-sender.py` example-script allows sending of data to the simple data service. This should only be used for demo purposes. Ubirch will not guarantee, to keep all data, which is sent to this endpoint.
+The [`data-sender.py`](data-sender.py) example-script allows sending of data to the simple data service. This should only be used for demo purposes. Ubirch will not guarantee, to keep all data, which is sent to this endpoint.
 ```
 $ python3 data-sender.py --help
 usage: data-sender.py [-h] [--env ENV] UUID AUTH INPUT
@@ -391,4 +405,50 @@ Note that the input data should follow this pattern: {"timestamp": TIMESTAMP, "u
 ```
 
 ## Example uBirch client implementation
-`example-client.py` implements a full example uBirch client.
+[`example-client.py`](example-client.py) implements a full example uBirch client. It generates a keypair if needed, registers it at the uBirch backend if it doesn't know it yet, creates and sends an UPP and handles/verfies the response from the uBirch backend. The used message format looks like this:
+```
+{
+  "id": "UUID",
+  "ts": TIMESTAMP,
+  "data": "DATA"
+}
+```
+It has two positional and one optional command line parameters.
+```
+usage: python3 example-client.py <UUID> <ubirch-auth-token> [ubirch-env]
+```
+- `UUID` is the UUID as hex-string like `f5ded8a3-d462-41c4-a8dc-af3fd072a217`
+- `ubirch-auth-token` is the uBirch authentication token for the specified UUID, e.g.: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+- `ubirch-env` (optional) specifies the environment/stage to operator on. `dev`, `demo` or `prod` (default).
+Keys are loaded from/stored to `demo-device.jks`. The keystore-password can be read from the [script](example-client.py) itself.
+
+
+## Create a hash from an JSON object
+[`create-hash.py`](create-hash.py) takes a string representing a JSON object as input, serializes it, and calculates the corresponding SHA256 hash.
+```
+$ python3 create-hash.py '{"ts": 1625163338, "T": 11.2, "H": 35.8, "S": "OK"}'
+   input: {"ts": 1625163338, "T": 11.2, "H": 35.8, "S": "OK"}
+rendered: {"H":35.8,"S":"OK","T":11.2,"ts":1625163338}
+    hash: dfQu7wBCL2aCuAqWLkyHEXCzTlKHdfMr7PMrxEcwY6A=
+```
+
+## [`test-identity.py`](test-identity.py)
+The [`test-identity.py`](test-identity.py) script tests registering and de-registering a public key of a device at the uBirch backend. To function it needs the following variables to be set using the environment:
+```sh
+export UBIRCH_UUID=<UUID>
+export UBIRCH_AUTH=<ubirch-authorization-token>
+export UBIRCH_ENV=[dev|demo|prod]
+```
+It uses `test-identity.jsk` as a place to store/look for keypairs. The keystore-password can be read from the [script](test-identity.py) itself.
+
+## [`test-protocol.py`](test-protocol.py)
+The [`test-protocol.py`](test-protocol.py) script sends a couple of UPPs to uBirch Niomon and verifies the backend response. It reads all information it needs interactively from the terminal. Once entered, all device information (UUID, ENV, AUTH TOKEN) are stored in a file called `demo-device.ini`. Devices keys are stored in `demo-device.jks` and the keystore-password can be read from the [script](test-protocol.py) itself. If no keys for the given UUID are found, the script will generated a keypair and stores it in the keystore file.
+
+## [`test-web-of-trust.py`](test-web-of-trust.py)
+**TODO**
+
+## [`verify-ecdsa.py`](verify-ecdsa.py)
+The [`verify-ecdsa.py`](verify-ecdsa.py) script verifies a hard-coded UPP which was signed with an ECDSA signing key using a ECDSA verifying key. All the information are contained in the script.
+
+## [`verify-ed25519.py`](verify-25519.py)
+The [`verify-25519.py`](verify-25519.py) script verifies a hard-coded UPP which was signed with an ED25519 signing key using a ED25519 verifying key. All the information are contained in the script. This mode is normally used (in all other examples).
