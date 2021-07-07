@@ -17,12 +17,25 @@ This file documents how to use the examples provided alongside the [uBirch-Proto
     - [Verifying data](#verifying-data)
   - [Sending data to the Simple Data Service](#sending-data-to-the-simple-data-service)
   - [Example uBirch client implementation](#example-ubirch-client-implementation)
+  - [Create a hash from a JSON object](#create-a-hash-from-an-json-object)
+  - [test-identiy.py](#test-identity.py)
+  - [test-web-of-trust.py](#test-web-of-trust.py)
+  - [verify-ecdsa.py](#verify-ecdsa.py)
+  - [verify-ed25519.py](#verify-ed25519.py)
 
 ## From measurement to blockchain-anchored UPP
 The process needed to get a UPP to be anchored in the blockchain can be cut down into multiple steps. For each of those steps there is an example in this directory, demonstrating how to handle them. There are also examples showing a full example-client implementation.
 
 0. [Setup](#setup)
-1. [Gathering Data](#gathering-data)
+1. [Generating and managing a keypair](#generating-and-managing-a-keypair)
+2. [Registering a public key](#registering-a-public-key)
+3. [Gathering Data](#gathering-data)
+4. [Creating a UPP](#creating-a-upp)
+5. [Sending a UPP](#sending-a-upp)
+6. [Verifying a UPP](#verifying-a-upp)
+7. [Examining a UPP](#examining-a-upp)
+8. [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-an-upp)
+9. [Verifying data](#verifying-data)
 
 ### Setup
 Before anything, you will need to do/get a couple of things:
