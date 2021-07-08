@@ -18,10 +18,11 @@ This file documents how to use the examples provided alongside the [uBirch-Proto
   - [Sending data to the Simple Data Service](#sending-data-to-the-simple-data-service)
   - [Example uBirch client implementation](#example-ubirch-client-implementation)
   - [Create a hash from a JSON object](#create-a-hash-from-an-json-object)
-  - [test-identity.py](#test-identity)
-  - [test-web-of-trust.py](#test-web-of-trust.py)
-  - [verify-ecdsa.py](#verify-ecdsa.py)
-  - [verify-ed25519.py](#verify-ed25519.py)
+  - [Test identity of the device](#test-identity-of-the-device)
+  - [Test the complete protocol](#test-the-complete-protocol)
+  - [Test the web of trust](#test-the-web-of-trust)
+  - [Verify ECDSA signed UPP](#verify-ecdsa-signed-upp)
+  - [Verify ED25519 signed UPP](#verify-ed25519-signed-upp)
 
 ## From measurement to blockchain-anchored UPP
 The process needed to get a UPP to be anchored in the blockchain can be cut down into multiple steps. For each of those steps there is an example in this directory, demonstrating how to handle them. There are also examples showing a full example-client implementation.
@@ -445,7 +446,7 @@ rendered: {"H":35.8,"S":"OK","T":11.2,"ts":1625163338}
     hash: dfQu7wBCL2aCuAqWLkyHEXCzTlKHdfMr7PMrxEcwY6A=
 ```
 
-## [`test-identity.py`](test-identity.py){#test-identity}
+## Test identity of the device
 The [`test-identity.py`](test-identity.py) script tests registering and de-registering a public key of a device at the uBirch backend. To function it needs the following variables to be set using the environment:
 ```sh
 export UBIRCH_UUID=<UUID>
@@ -454,14 +455,15 @@ export UBIRCH_ENV=[dev|demo|prod]
 ```
 It uses `test-identity.jsk` as a place to store/look for keypairs. The keystore-password can be read from the [script](test-identity.py) itself.
 
-## [`test-protocol.py`](test-protocol.py)
+## Test the complete protocol
 The [`test-protocol.py`](test-protocol.py) script sends a couple of UPPs to uBirch Niomon and verifies the backend response. It reads all information it needs interactively from the terminal. Once entered, all device information (UUID, ENV, AUTH TOKEN) are stored in a file called `demo-device.ini`. Devices keys are stored in `demo-device.jks` and the keystore-password can be read from the [script](test-protocol.py) itself. If no keys for the given UUID are found, the script will generated a keypair and stores it in the keystore file.
 
-## [`test-web-of-trust.py`](test-web-of-trust.py)
+## Test the web of trust
+[`test-web-of-trust.py`](test-web-of-trust.py)
 **TODO**
 
-## [`verify-ecdsa.py`](verify-ecdsa.py)
+## Verify ECDSA signed UPP
 The [`verify-ecdsa.py`](verify-ecdsa.py) script verifies a hard-coded UPP which was signed with an ECDSA signing key using a ECDSA verifying key. All the information are contained in the script.
 
-## [`verify-ed25519.py`](verify-25519.py)
+## Verify ED25519 signed UPP
 The [`verify-25519.py`](verify-25519.py) script verifies a hard-coded UPP which was signed with an ED25519 signing key using a ED25519 verifying key. All the information are contained in the script. This mode is normally used (in all other examples).
