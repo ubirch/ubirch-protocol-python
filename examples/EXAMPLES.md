@@ -18,7 +18,7 @@ This file documents how to use the examples provided alongside the [uBirch-Proto
   - [Sending data to the Simple Data Service](#sending-data-to-the-simple-data-service)
   - [Example uBirch client implementation](#example-ubirch-client-implementation)
   - [Create a hash from a JSON object](#create-a-hash-from-an-json-object)
-  - [test-identiy.py](#test-identity.py)
+  - [test-identity.py](#test-identity)
   - [test-web-of-trust.py](#test-web-of-trust.py)
   - [verify-ecdsa.py](#verify-ecdsa.py)
   - [verify-ed25519.py](#verify-ed25519.py)
@@ -56,7 +56,7 @@ The values used below are `f5ded8a3-d462-41c4-a8dc-af3fd072a217` for the UUID, `
 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` for the auth token.
 
 ### Generating and managing a keypair
-To create, or more precisely, to _sign_ a UPP, a device will need a keypair. This keypair consist of a private key (_signing key_) and public key (_verifying key_). The signing key is used to sign UPPs and the verifying key can be used by the uBirch backend to check, if the signature is valid and belongs to the correct sender/signer. So, logically it doesn't matter who knows to verifying key, but the signing key must be kept secret all the time. In a real use case a device might store it in a TPM ([Trusted platform module](https://en.wikipedia.org/wiki/Trusted_Platform_Module)) or use other counter measures against attackers reading the key from the device. For this demo, keypairs will be stored in a [JKS Keystore](https://en.wikipedia.org/wiki/Java_KeyStore) using the [`pyjks`](https://pypi.org/project/pyjks/) library. Therefore, you will have to choose and remember a file path for that keystore and a password used to encrypt it. The process of actually generating the keypair is handled by the [upp-creator.py] script and explained [below](#registering-a-public-key).
+To create, or more precisely, to _sign_ a UPP, a device will need a keypair. This keypair consist of a private key (_signing key_) and public key (_verifying key_). The signing key is used to sign UPPs and the verifying key can be used by the uBirch backend to check, if the signature is valid and belongs to the correct sender/signer. So, logically it doesn't matter who knows to verifying key, but the signing key must be kept secret all the time. In a real use case a device might store it in a TPM ([Trusted platform module](https://en.wikipedia.org/wiki/Trusted_Platform_Module)) or use other counter measures against attackers reading the key from the device. For this demo, keypairs will be stored in a [JKS Keystore](https://en.wikipedia.org/wiki/Java_KeyStore) using the [`pyjks`](https://pypi.org/project/pyjks/) library. Therefore, you will have to choose and remember a file path for that keystore and a password used to encrypt it. The process of actually generating the keypair is handled by the [upp-creator.py](upp-creator.py) script and explained [below](#registering-a-public-key).
 
 **NOTE** that losing access to the signing key, especially if it is already registered at the uBirch backend, will take away the ability to create and send any new UPPs from that device/UUID, since there is no way of creating a valid signature that would be accepted by the backend.
 
@@ -445,7 +445,7 @@ rendered: {"H":35.8,"S":"OK","T":11.2,"ts":1625163338}
     hash: dfQu7wBCL2aCuAqWLkyHEXCzTlKHdfMr7PMrxEcwY6A=
 ```
 
-## [`test-identity.py`](test-identity.py)
+## [`test-identity.py`](test-identity.py){#test-identity}
 The [`test-identity.py`](test-identity.py) script tests registering and de-registering a public key of a device at the uBirch backend. To function it needs the following variables to be set using the environment:
 ```sh
 export UBIRCH_UUID=<UUID>
