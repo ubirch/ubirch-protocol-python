@@ -13,6 +13,7 @@ DEFAULT_ISPATH = "False"
 DEFAULT_ENV    = "dev"
 DEFAULT_ISJSON = "True"
 DEFAULT_HASH   = "sha256"
+DEFAULT_NOSEND = "False"
 
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(funcName)20.20s() %(levelname)-8.8s %(message)s', level=logging.INFO)
@@ -31,6 +32,8 @@ class Main:
         self.isjson_str : str = None
         self.isjson : bool = None
         self.hashalg : str = None
+        self.nosend_str : str = None
+        self.nosend : bool = None
 
         self.ishash : bool = False
         self.hasher : object = None
@@ -66,6 +69,9 @@ class Main:
         self.argparser.add_argument("--hash", "-a", metavar="HASH", type=str, default=DEFAULT_HASH,
             help="sets the hash algorithm to use; sha256, sha512 or OFF to treat the input data as hash (default: %s)" % DEFAULT_HASH
         )
+        self.argparser.add_argument("--no-send", "-n", metavar="NOSEND", type=str, default=DEFAULT_NOSEND,
+            help="if set to true, the script will only generate the hash of the input data without sending it; true or false (default: %s)" % DEFAULT_NOSEND
+        )
 
     def process_args(self) -> bool:
         # parse cli arguments (exists on err)
@@ -77,6 +83,7 @@ class Main:
         self.isjson_str = self.args.isjson
         self.env = self.args.env
         self.hashalg = self.args.hash
+        self.nosend_str = self.args.no_send
 
         # check the value for --hash
         if self.hashalg.lower() == "off":
@@ -109,6 +116,12 @@ class Main:
             self.isjson = True
         else:
             self.isjson = False
+
+        # get the bool for nosend
+        if self.nosend_str.lower() in ["1", "yes", "y", "true"]:
+            self.nosend = True
+        else:
+            self.nosend = False
 
         return True
 
@@ -143,7 +156,7 @@ class Main:
     def get_hash_from_data(self) -> bool:
         try:
             # calculate the hash
-            self.hasher.update(self.data)
+            self.hasher.update(self.data if type(self.data) == bytes else self.data.encode())
 
             self.hash = self.hasher.digest()
             self.hash = base64.b64encode(self.hash).decode().rstrip("\n")
@@ -244,13 +257,14 @@ class Main:
 
                 return 1
 
-        # get the anchoring status
-        if self.get_status() != True:
-            logger.error("Errors occured while requesting the anchring status - exiting!\n")
+        if self.nosend == False:
+            # get the anchoring status
+            if self.get_status() != True:
+                logger.error("Errors occured while requesting the anchring status - exiting!\n")
 
-            self.argparser.print_usage()
+                self.argparser.print_usage()
 
-            return 1
+                return 1
 
         return 0
 
