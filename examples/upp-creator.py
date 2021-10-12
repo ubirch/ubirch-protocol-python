@@ -19,6 +19,7 @@ DEFAULT_HASH     = "sha512"
 DEFAULT_ISJSON   = "False"
 DEFAULT_OUTPUT   = "upp.bin"
 DEFAULT_NOSTDOUT = "False"
+DEFAULT_ISHL    = "False"
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(funcName)20.20s() %(levelname)-8.8s %(message)s', level=logging.INFO)
 logger = logging.getLogger()
@@ -74,6 +75,8 @@ class Main:
         self.nostdout_str : str = None
         self.nostdout : bool = None
         self.payload : bytes = None
+        self.ishl : bool = None
+        self.ishash : bool = False
 
         self.hasher : object = None
         self.keystore : ubirch.KeyStore = None
@@ -129,6 +132,9 @@ class Main:
         self.argparser.add_argument("--nostdout", "-n", metavar="nostdout", type=str, default=DEFAULT_NOSTDOUT,
             help="do not output anything to stdout; can be combined with --output /dev/stdout; e.g.: true, false (default: %s)" % DEFAULT_NOSTDOUT
         )
+        self.argparser.add_argument("--ishl", "-l", metavar="ISHASHLINK", type=str, default=DEFAULT_ISHL,
+            help="implied --isjson to be true; if set to true, the script will look for a hashlink list in the json object and use it to decide which fields to hash; true or false (default: %s)" % DEFAULT_ISHL
+        )
 
     def process_args(self) -> bool:
         # parse cli arguments (exists on err)
@@ -146,6 +152,7 @@ class Main:
         self.keystore_pass = self.args.kspwd
         self.output = self.args.output
         self.nostdout_str = self.args.nostdout
+        self.ishl_str = self.args.ishl
 
         # get the keyreg value
         if self.keyreg_str.lower() in ["1", "yes", "y", "true"]:
@@ -202,6 +209,18 @@ class Main:
         else:
             self.isjson = False
 
+        # get the bool for ishl
+        if self.ishl_str.lower() in ["1", "yes", "y", "true"]:
+            self.ishl = True
+        else:
+            self.ishl = False
+
+        # check if ishl is true
+        if (self.ishl == True and self.isjson == False):
+            logger.warning("Overwriting '--isjson false' because --ishl is true")
+
+            self.isjson = True
+
         # success
         return True
 
@@ -234,6 +253,61 @@ class Main:
             logger.exception(e)
 
             False
+
+        return True
+
+    def _getValueFromDict(self, keyPath : list, currentObj : dict) -> object:
+        """ this function gets an object from the config object: config[path[0]][path[1]][path[n]] """
+        if len(keyPath) == 0 or not currentObj:
+            return currentObj
+        elif type(currentObj) == list and type(keyPath[0]) == int:
+            return self._getValueFromDict(keyPath[1:], currentObj[keyPath[0]])
+        elif type(currentObj) != dict:
+            return None
+        else:
+            return self._getValueFromDict(keyPath[1:], currentObj.get(keyPath[0]))
+
+    def _addValueToDict(self, keyPath : list, value : object) -> dict:
+        if len(keyPath) == 0:
+            return {}
+        elif len(keyPath) == 1:
+            return {
+                keyPath[0]: value
+            }
+        else:
+            return {
+                keyPath[0]: self._addValueToDict(keyPath[1:], value)
+            }
+
+    def extract_relevant_fields(self) -> bool:
+        try:
+            # load the string as data
+            dataDict = json.loads(self.data)
+
+            newDict = {}
+
+            # check whether the hashlink array exists
+            if dataDict.get("hashLink") != None and type(dataDict.get("hashLink")) == list:
+                for hl in dataDict.get("hashLink"):
+                    v = self._getValueFromDict(hl.split("."), dataDict)
+
+                    if v == None:
+                        logger.error("Hashlink array contains entries that aren't present in the JSON: %s" % hl)
+
+                        return False
+
+                    newDict.update(self._addValueToDict(hl.split("."), v))
+            else:
+                logger.warning("No hashLink array found in data but hashlink is enabled")
+
+                newDict = dataDict
+
+            # write back the filtered data
+            self.data = json.dumps(newDict)
+        except Exception as e:
+            logger.exception(e)
+
+            return False
 
         return True
 
@@ -338,6 +412,15 @@ class Main:
             self.argparser.print_usage()
 
             return 1
+
+        # check if hashlink is enabled
+        if self.ishl == True and self.ishash == False:
+            if self.extract_relevant_fields() != True:
+                logger.error("Error occured while getting relevant fields from the JSON data - exiting!\n")
+
+                self.argparser.print_usage()
+
+                return 1
 
         # prepare the UPP payload
         if self.prepare_payload() != True:
