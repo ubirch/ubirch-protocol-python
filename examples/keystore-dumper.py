@@ -44,7 +44,7 @@ class Main:
         self.argparser.add_argument("keystore_pass", metavar="KEYSTORE_PASS", type=str,
             help="keystore password; e.g.: secret"
         )
-        self.argparser.add_argument("--show-sk", "-s", metavar="SHOW_SIGNING_KET", type=str, default=DEFAULT_SHOW_SIGN,
+        self.argparser.add_argument("--show-sk", "-s", metavar="SHOW_SIGNING_KEY", type=str, default=DEFAULT_SHOW_SIGN,
             help="enables/disables showing of signing keys; e.g.: true, false (default: %s)" % DEFAULT_SHOW_SIGN
         )
 
