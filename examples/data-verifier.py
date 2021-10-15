@@ -141,6 +141,9 @@ class Main:
 
             self.isjson = True
 
+        # show the user which hashing method is used
+        logger.info(("Using %s as hashing algorithm" % self.hashalg.lower()))
+
         return True
 
     def read_data(self) -> bool:
