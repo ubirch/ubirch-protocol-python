@@ -13,11 +13,11 @@ This file documents how to use the examples provided alongside the [uBirch-Proto
     - [Sending a UPP](#sending-a-upp)
     - [Verifying a UPP](#verifying-a-upp)
     - [Examining a UPP](#examining-a-upp)
-    - [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-an-upp)
+    - [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-a-upp)
     - [Verifying data](#verifying-data)
   - [Sending data to the Simple Data Service](#sending-data-to-the-simple-data-service)
   - [Example uBirch client implementation](#example-ubirch-client-implementation)
-  - [Create a hash from a JSON object](#create-a-hash-from-an-json-object)
+  - [Create a hash from an JSON object](#create-a-hash-from-an-json-object)
   - [Test identity of the device](#test-identity-of-the-device)
   - [Test the complete protocol](#test-the-complete-protocol)
   - [Test the web of trust](#test-the-web-of-trust)
@@ -27,17 +27,25 @@ This file documents how to use the examples provided alongside the [uBirch-Proto
 ## From measurement to blockchain-anchored UPP
 The process needed to get a UPP to be anchored in the blockchain can be cut down into multiple steps. For each of those steps there is an example in this directory, demonstrating how to handle them. There are also examples showing a full example-client implementation.
 
-0. [Setup](#setup)
-1. [Generating and managing a keypair](#generating-and-managing-a-keypair)
-2. [Registering a public key](#registering-a-public-key)
-3. [Gathering Data](#gathering-data)
-4. [Creating a UPP](#creating-a-upp)
-5. [Sending a UPP](#sending-a-upp)
-6. [Verifying a UPP](#verifying-a-upp)
-7. [Examining a UPP](#examining-a-upp)
-8. [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-an-upp)
-9. [Verifying data](#verifying-data)
+1. [Setup](#setup)
+  
+2. [Generating and managing a keypair](#generating-and-managing-a-keypair)
 
+3. [Registering a public key](#registering-a-public-key)
+
+4. [Gathering Data](#gathering-data)
+   
+5. [Creating a UPP](#creating-a-upp)
+
+6. [Sending a UPP](#sending-a-upp)
+
+7. [Verifying a UPP](#verifying-a-upp)
+
+8. [Examining a UPP](#examining-a-upp)
+
+9.  [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-a-upp)
+
+10. [Verifying data](#verifying-data)
 ### Setup
 Before anything, you will need to do/get a couple of things:
 - Choose a stage to work on
@@ -339,9 +347,9 @@ Prev. UPP: "liPEEAi4JX1SUEaGhzAnqUf6pn3EQOeEqF4lo+xT9RF2ygDx9+anv14fykUolJ9gmKuT
 
 ### Verifying data
 In a real use case, not the UPP, but rather the original data itself has to be verified. The original data can be hashed, and the hash can be looked up by the [`data-verifier.py`](data-verifier.py) script. It has similar behaviour to the [`upp-anchoring-status.py`](upp-anchoring-status.py) script, see [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-an-upp).
-```
-$ python data-verifier.py -h
-usage: data-verifier.py [-h] [--ispath ISHASH] [--env ENV] [--isjson ISJSON] [--hash HASH] INPUT
+```txt
+$ python data-verifier.py --help
+usage: data-verifier.py [-h] [--ispath ISPATH] [--env ENV] [--isjson ISJSON] [--hash HASH] [--no-send NOSEND] [--ishl ISHASHLINK] INPUT
 
 Check if the hash of given input data is known to the uBirch backend (verify it)
 
@@ -354,18 +362,26 @@ optional arguments:
                         sets if INPUT is being treated as data or data file path; true or false (default: False)
   --env ENV, -e ENV     the environment to operate in; dev, demo or prod (default: dev)
   --isjson ISJSON, -j ISJSON
-                        tells the script to treat the input data as json and serealize it (see EXAMPLES.md for more information); true or false (default: True)
+                        tells the script to treat the input data as json and serealize it (see EXAMPLES.md for more information); true or false
+                        (default: True)
   --hash HASH, -a HASH  sets the hash algorithm to use; sha256, sha512 or OFF to treat the input data as hash (default: sha256)
+  --no-send NOSEND, -n NOSEND
+                        if set to true, the script will only generate the hash of the input data without sending it; true or false (default: False)
+  --ishl ISHASHLINK, -l ISHASHLINK
+                        implied --isjson to be true; if set to true, the script will look for a hashlink list in the json object and use it to
+                        decide which fields to hash; true or false (default: False)
 
-When --ispath/-i is set to true, the input data is treated as a file path to read the actual input data from. When setting --hash/-a to off, the input argument is expected to be a valid base64 encoded hash.
+When --ispath/-i is set to true, the input data is treated as a file path to read the actual input data from. When setting --hash/-a to off, the
+input argument is expected to be a valid base64 encoded hash.
 ```
 - `--ispath/-i` Specifies wether the input is to be treated as a data-file path or direct input data. `true` or `false`.
 - `--env-e` The stage to check on. Should be the one the UPP corresponding to the data was sent to. `prod`, `demo` or `dev`.
 - `--isjson/-j` A binary flag that indicates that the input data is in JSON format. The script will serialize the JSON object before calculating the hash. This has the advantage one doesn't have to remember the order in which fields are listed in a JSON object to still be able to reconstruct the hash later on. Serializing the JSON is done like this: `json.dumps(self.data, separators=(',', ':'), sort_keys=True, ensure_ascii=False)` where `self.data` contains the JSON object which was loaded like this: `self.data = json.loads(self.dataStr)` where `dataStr` contains the input string which should represent a JSON object. This flag can have two values: `true` or `false`. It should only be set to `true` if the data represents a JSON object and if it also was serialized when creating the UPP.
 - `--hash/-a` Sets the hashing algorithm to use. `sha256`, `sha512` or `off`. It should match the algorithm used when creating the corresponding UPP. Setting it to `off` means that the input data actually already is the hash of the data. In this case this script will simply look up the hash.
+- `--ishl/-l` enables Hashlink functionality. This means that the script will expect the input data to be a valid JSON object and to contain a list called `hashLink` at root-level. This list contains the names of all fields that should be taken into account when calculating the hash. Different JSON-levels can are represented like this: `[..., "a.b", ...]`.
 
 Example for CLI-Input data:
-```
+```txt
 python data-verifier.py --env demo --isjson true --hash sha256 '{
     "ts": 1625163338,
     "T": 11.2,
@@ -383,7 +399,7 @@ Prev. UPP: "None"
 [{'label': 'PUBLIC_CHAIN', 'properties': {'timestamp': '2021-07-02T13:23:30.076Z', 'hash': '0x6e5956b4ac53bcaf58664e189673d4f8c7043488cf05009cc96868b146220604', 'public_chain': 'ETHEREUM-CLASSIC_TESTNET_ETHERERUM_CLASSIC_KOTTI_TESTNET_NETWORK', 'prev_hash': '644b41eee9043de5bda4b58bda1136fa0229712953678fe26486651338109b7a7135211f2b2cb646ab25d3b25198549e3c662c4791d60d343f08349b51ccc92b'}}]
 ```
 Example for File-Input data:
-```
+```txt
 python data-verifier.py --ispath true -j true data_to_verify.json -e prod
 2021-07-06 12:17:31,261                 root            read_data() INFO     Reading the input data from "data_to_verify.json"
 2021-07-06 12:17:31,262                 root       serialize_json() INFO     Serialized JSON: "{"data":{"AccPitch":"-11.52","AccRoll":"1.26","AccX":"-0.02","AccY":"0.20","AccZ":"0.99","H":"64.85","L_blue":232,"L_red":275,"P":"100934.00","T":"20.69","V":"4.62"},"msg_type":1,"timestamp":1599203876,"uuid":"07104235-1892-4020-9042-00003c94b60b"}"
