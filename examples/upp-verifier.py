@@ -9,7 +9,8 @@ import ed25519
 import ubirch
 
 
-DEFAULT_INPUT  = "upp.bin"
+DEFAULT_INPUT = "/dev/stdin"
+DEFAULT_ISHEX = "false"
 
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(funcName)20.20s() %(levelname)-8.8s %(message)s', level=logging.INFO)
@@ -61,6 +62,9 @@ class Main:
         self.upp_uuid : uuid.UUID = None
         self.upp_uuid_str : str = None
 
+        self.ishex : bool = None
+        self.ishex_str : str = None
+
         # initialize the argument parser
         self.setup_argparse()
 
@@ -80,6 +84,9 @@ class Main:
         self.argparser.add_argument("--verifying-key-uuid", "-u", metavar="UUID", type=str, default="EMPTY",
             help="the UUID for the key supplied via -k (only needed when -k is specified); e.g.: 6eac4d0b-16e6-4508-8c46-22e7451ea5a1"
         )
+        self.argparser.add_argument("--ishex", "-x", metavar="ISHEX", type=str, default=DEFAULT_ISHEX,
+            help="Sets whether the UPP input data is a hex string or binary; e.g. true, false (default: %s)" % DEFAULT_ISHEX
+        )
         self.argparser.add_argument("--input", "-i", metavar="INPUT", type=str, default=DEFAULT_INPUT,
             help="UPP input file path; e.g. upp.bin or /dev/stdin (default: %s)" % DEFAULT_INPUT
         )
@@ -94,6 +101,7 @@ class Main:
         self.vk_str = self.args.verifying_key
         self.vk_uuid_str = self.args.verifying_key_uuid
         self.input = self.args.input
+        self.ishex_str = self.args.ishex
 
         # check if a verifying key was supplied
         if self.vk_str != "AUTO":
@@ -119,6 +127,12 @@ class Main:
 
                 return False
 
+        # get the ishex value
+        if self.ishex_str.lower() in ["1", "yes", "y", "true"]:
+            self.ishex = True
+        else:
+            self.ishex = False
+
         return True
 
     def read_upp(self) -> bool:
@@ -128,6 +142,10 @@ class Main:
 
             with open(self.input, "rb") as fd:
                 self.upp = fd.read()
+
+                # check whether hex decoding is needed
+                if self.ishex == True:
+                    self.upp = binascii.unhexlify(self.upp)
         except Exception as e:
             logger.exception(e)
 
