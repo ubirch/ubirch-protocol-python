@@ -7,12 +7,14 @@ import uuid
 import base64
 import json
 import requests
+import binascii
 
 
 VERIFICATION_SERVICE = "https://verify.%s.ubirch.com/api/upp/verify/anchor"
 
 DEFAULT_ISHASH = "False"
 DEFAULT_ENV    = "dev"
+DEFAULT_ISHEX  = "false"
 
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(funcName)20.20s() %(levelname)-8.8s %(message)s', level=logging.INFO)
@@ -31,6 +33,9 @@ class Main:
 
         self.upp : bytes = None
         self.hash : str = None
+        
+        self.ishex : bool = None
+        self.ishex_str : str = None
 
         # initialize the argument parser
         self.setup_argparse()
@@ -54,6 +59,9 @@ class Main:
         self.argparser.add_argument("--env", "-e", metavar="ENV", type=str, default=DEFAULT_ENV,
             help="the environment to operate in; dev, demo or prod (default: %s)" % DEFAULT_ENV
         )
+        self.argparser.add_argument("--ishex", "-x", metavar="ISHEX", type=str, default=DEFAULT_ISHEX,
+            help="Sets whether the UPP input data is a hex string or binary; e.g. true, false (default: %s)" % DEFAULT_ISHEX
+        )
 
     def process_args(self) -> bool:
         # parse cli arguments (exists on err)
@@ -63,13 +71,20 @@ class Main:
         self.input = self.args.input
         self.ishash_str = self.args.ishash
         self.env = self.args.env
+        self.ishex_str = self.args.ishex
 
         # get the bool for ishash
         if self.ishash_str.lower() in ["1", "yes", "y", "true"]:
             self.ishash = True
         else:
             self.ishash = False
-        
+
+        # get the ishex value
+        if self.ishex_str.lower() in ["1", "yes", "y", "true"]:
+            self.ishex = True
+        else:
+            self.ishex = False
+
         return True
 
     def read_upp(self) -> bool:
@@ -79,6 +94,10 @@ class Main:
 
             with open(self.input, "rb") as fd:
                 self.upp = fd.read()
+
+                # check whether hex decoding is needed
+                if self.ishex == True:
+                    self.upp = binascii.unhexlify(self.upp)
         except Exception as e:
             logger.exception(e)
 

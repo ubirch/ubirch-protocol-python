@@ -13,7 +13,7 @@ This file documents how to use the examples provided alongside the [uBirch-Proto
     - [Sending a UPP](#sending-a-upp)
     - [Verifying a UPP](#verifying-a-upp)
     - [Examining a UPP](#examining-a-upp)
-    - [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-a-upp)
+    - [Checking the anchoring status of an UPP](#checking-the-anchoring-status-of-an-upp)
     - [Verifying data](#verifying-data)
   - [Sending data to the Simple Data Service](#sending-data-to-the-simple-data-service)
   - [Example uBirch client implementation](#example-ubirch-client-implementation)
@@ -287,11 +287,11 @@ $ python3 upp-unpacker.py response_upp.bin
 ```
 _The UUID in this response UPP doesn't match the one from examples above because the UPP was sent from Niomon-Dev._
 
-### Checking the anchoring status of a UPP
+### Checking the anchoring status of an UPP
 uBirch Niomon accepting the UPP doesn't mean that it is anchored yet. This process takes place in certain intervals, so one might have to wait a short while. The script to check if a UPP was already anchored is [`upp-anchoring-status.py`](upp-anchoring-status.py).
 ```
 $ python3 upp-anchoring-status.py -h
-usage: upp-anchoring-status.py [-h] [--ishash ISHASH] [--env ENV] INPUT
+usage: upp-anchoring-status.py [-h] [--ishash ISHASH] [--env ENV] [--ishex ISHEX] INPUT
 
 Requests the verification/anchoring of a UPP from the uBirch backend
 
@@ -303,11 +303,17 @@ optional arguments:
   --ishash ISHASH, -i ISHASH
                         sets if INPUT is being treated as a hash or upp path; true or false (default: False)
   --env ENV, -e ENV     the environment to operate in; dev, demo or prod (default: dev)
+  --ishex ISHEX, -x ISHEX
+                        Sets whether the UPP input data is a hex string or binary; e.g. true, false (default: false)
 
-When --ishash/-i is set to true, the input argument is treated as a base64 payload hash. Otherwise, it is expected to be some kind of path to read a UPP from. This can be a file path or also /dev/stdin if the UPP is piped to this program via standard input.
+When --ishash/-i is set to true, the input argument is treated as a base64 payload hash. Otherwise, it is expected to be some kind of path to read a
+UPP from. This can be a file path or also /dev/stdin if the UPP is piped to this program via standard input.
 ```
 - `--ishash/-i` A boolean specifying whether the input data is a payload hash or a UPP. The payload hash is what is actually used to look up anchoring information about the UPP. This script can either extract it from a given UPP or just use the hash directly if provided. If directly provided, it must be base64 encoded (see the last example of this sub-section). `true` or `false`.
 - `--env/-e` The stage to check on. Should be the one the UPP was sent to. `prod`, `demo` or `dev`.
+- `--ishex/-x` A boolean which controls how the input UPP data is interpreted. By default, the data will
+be interpreted as normale binary data. When this flag is set to `true`, it will be considered
+hex-encoded binary data and de-hexlified before parsing it.
 - `INPUT` The input UPP file path or payload hash, depending on `--ishash`.
 
 One example might be:
