@@ -110,7 +110,7 @@ class TestUbirchProtocol(unittest.TestCase):
     def test_verify_not_implemented(self):
         p = ubirch.Protocol()
         try:
-            p.verfiy_signature(EXPECTED_SIGNED)
+            p.verfiy_signature(None, EXPECTED_SIGNED)
         except NotImplementedError as e:
             self.assertEqual(e.args[0], 'verification not implemented')
 
@@ -169,7 +169,7 @@ class TestUbirchProtocol(unittest.TestCase):
     def test_verify_signed_message(self):
         p = Protocol()
         unpacked = p.unpack_upp(EXPECTED_SIGNED)
-        self.assertEqual(p.verfiy_signature(EXPECTED_SIGNED, unpackedUPP=unpacked), True)
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytes(EXPECTED_SIGNED)), True)
         self.assertEqual(SIGNED, unpacked[0])
         self.assertEqual(TEST_UUID.bytes, unpacked[1])
         self.assertEqual(0xEF, unpacked[2])
@@ -180,7 +180,7 @@ class TestUbirchProtocol(unittest.TestCase):
         last_signature = b'\0' * 64
         for i in range(0, 3):
             unpacked = p.unpack_upp(EXPECTED_CHAINED[i])
-            self.assertEqual(p.verfiy_signature(EXPECTED_CHAINED[i], unpackedUPP=unpacked), True)
+            self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytes(EXPECTED_CHAINED[i])), True)
             self.assertEqual(CHAINED, unpacked[0])
             self.assertEqual(TEST_UUID.bytes, unpacked[1])
             self.assertEqual(last_signature, unpacked[2])
@@ -239,7 +239,7 @@ class TestUbirchProtocol(unittest.TestCase):
    
         unpacked = p.unpack_upp(message)
    
-        self.assertEqual(p.verfiy_signature(message, unpackedUPP=unpacked), True)
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytes(EXPECTED_CHAINED[i])), True)
         self.assertEqual(CHAINED & 0x0f, unpacked[0] & 0x0f)
         self.assertEqual(UUID(bytes=bytes.fromhex("af931b05acca758bc2aaeb98d6f93329")), UUID(bytes=unpacked[1]))
         self.assertEqual(0x54, unpacked[3])
@@ -266,7 +266,6 @@ class TestUbirchProtocol(unittest.TestCase):
 
         unpacked = p.unpack_upp(message)
 
-        self.assertEqual(p.verfiy_signature(message, unpackedUPP=unpacked), True)
         self.assertEqual(SIGNED & 0x0f, unpacked[0] & 0x0f)
         self.assertEqual(1, unpacked[0] >> 4)
         self.assertEqual(UUID(bytes=bytes.fromhex("00000000000000000000000000000000")), UUID(bytes=unpacked[1]))
