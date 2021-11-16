@@ -289,8 +289,8 @@ class Protocol(object):
         """
         Verify the integrity of the message and decode the contents
         Raises an value error when the message is too short
+        :param uuid: the uuid of the sender of the message
         :param msgpackUPP: the msgpack encoded message
-        :param unpackedUPP: (optional) if not provided, the function will unpack the upp itself
         :return: the decoded message
         """
         # separate the message from the signature
