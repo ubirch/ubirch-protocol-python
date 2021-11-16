@@ -154,15 +154,15 @@ class Main:
 
                 jobj = json.loads(r.content)
 
-                print("Curr. UPP: \"%s\"" % jobj.get("upp", "-- no curr. upp information --"))
-                print("Prev. UPP: \"%s\"" % jobj.get("prev", "-- no prev. upp information --"))
+                logger.info("Curr. UPP: \"%s\"" % jobj.get("upp", "-- no curr. upp information --"))
+                logger.info("Prev. UPP: \"%s\"" % jobj.get("prev", "-- no prev. upp information --"))
 
                 if jobj.get("anchors") in [None, []]:
                     logger.info("The UPP has NOT been anchored into any blockchains yet! Please retry later")
                 else:
                     logger.info("The UPP has been fully anchored!")
 
-                    print(jobj.get("anchors"))
+                    logger.info(jobj.get("anchors"))
             elif r.status_code == 404:
                 logger.info("The UPP is NOT known to the uBirch backend! (code: %d)" % r.status_code)
         except Exception as e:
