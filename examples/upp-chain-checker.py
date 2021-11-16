@@ -51,6 +51,9 @@ class Main:
         self.isjson : bool = None
         self.isjson_str : str = None
 
+        self.ishex : bool = None
+        self.ishex_str : str = None
+
         # initialize the argument parser
         self.setup_argparse()
 
