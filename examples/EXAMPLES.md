@@ -74,20 +74,27 @@ A keystore can be read out with the [`keystore-dumper.py`](keystore-dumper.py) s
 
 ```
 $ python keystore-dumper.py --help
-usage: keystore-dumper.py [-h] [--show-sk SHOW_SIGNING_KET] KEYSTORE KEYSTORE_PASS
-
-Dump the contents of a keystore (.jks)
-
-positional arguments:
-  KEYSTORE              keystore file path; e.g.: test.jks
-  KEYSTORE_PASS         keystore password; e.g.: secret
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --show-sk SHOW_SIGNING_KEY, -s SHOW_SIGNING_KEY
-                        enables/disables showing of signing keys; e.g.: true, false (default: False)
+usage: keystore-dumper.py [-h] [--show-sk SHOW_SIGNING_KEY] KEYSTORE KEYSTORE_PASS
 ```
-By default, only UUIDs und public keys (verifying keys) will be displayed. Displaying of private keys (signing keys) can be enabled by passing `-s true`.
+By default, only UUIDs und public keys (verifying keys) will be displayed. Displaying of private keys (signing keys) can be enabled by passing `-s true`. `KEYSTORE` is the path to the keystore file and `KEYSTORE_PASS` is the password needed to open/decrypt it. Below is an example with `-s` being set to `false`.
+```
+======================================================================================================================================
+UUID: 292e2f0b-1d9e-407f-9b1a-bda5a9560797
+ VK : 2dc6fdf373c7e13abfe1f51ff0fe45417ad713c5fb8df90b76c3077355c4b5e9
+ SK : ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+======================================================================================================================================
+======================================================================================================================================
+UUID: 832e885c-be2a-44b1-ade6-c6c6dd718a3b
+ VK : 43536e9793ab5b205ba62e614d12104cbb6f906b2a44b79c1cd01e87a724d5b1
+ SK : ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+======================================================================================================================================
+======================================================================================================================================
+UUID: 622e3933-8fdd-446f-b645-d3aa7ed8b638
+ VK : cfd32f687366679d7ef73795bafa3bfca43421e092fbc2501f7f4bfe339bb15a
+ SK : ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+======================================================================================================================================
+```
+As you can see, the secret key is not printed and `█`s are used as placeholders.
 
 ### Registering a public key
 To enable the uBirch backend to verify an UPP, it needs to know the corresponding verifying key. Therefore, the device needs to send this key to the backend, before starting to send UPPs, which are supposed to be verified and anchored. Registering a verifying key is done by sending a special kind of UPP containing this key. This can be done by using two scripts:
@@ -147,33 +154,7 @@ $ python3 upp-creator.py --help
 
 usage: upp-creator.py [-h] [--version VERISON] [--type TYPE] [--ks KS] [--kspwd KSPWD] [--keyreg KEYREG] [--hash HASH] [--isjson ISJSON] [--output OUTPUT] [--nostdout nostdout] UUID DATA
 
-Create a uBirch Protocol Package (UPP)
-
-positional arguments:
-  UUID                  UUID to work with; e.g.: 56bd9b85-6c6e-4a24-bf71-f2ac2de10183
-  DATA                  data to be packed into the UPP or hashed; e.g.: {"t": 23.4, "ts": 1624624140}
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --version VERISON, -v VERISON
-                        version of the UPP; 0x21 (unsigned; NOT IMPLEMENTED), 0x22 (signed) or 0x23 (chained) (default: 0x23)
-  --type TYPE, -t TYPE  type of the UPP (0 < type < 256); e.g.: 0x00 (unknown), 0x32 (msgpack), 0x53 (generic), ... (default and recommended: 0x00)
-  --ks KS, -k KS        keystore file path; e.g.: test.jks (default: devices.jks)
-  --kspwd KSPWD, -p KSPWD
-                        keystore password; e.g.: secret (default: keystore)
-  --keyreg KEYREG, -r KEYREG
-                        generate a key registration UPP (data and --hash will be ignored); e.g.: true, false (default: False)
-  --hash HASH           hash algorithm for hashing the data; sha256, sha512 or off (disable hashing), ... (default and recommended: sha512)
-  --isjson ISJSON, -j ISJSON
-                        tells the script to treat the input data as json and serealize it (see EXAMPLES.md for more information); true or false (default: False)
-  --output OUTPUT, -o OUTPUT
-                        file to write the generated UPP to (aside from standard output); e.g. upp.bin (default: upp.bin)
-  --nostdout nostdout, -n nostdout
-                        do not output anything to stdout; can be combined with --output /dev/stdout; e.g.: true, false (default: False)
-
-Note that, when using chained UPPs (--version 0x23), this tool will try to load/save signatures from/to <UUID>.sig, where UUID will be replaced with the actual UUID. Make sure that the UUID.sig file is in your current working directory if you try to continue an UPP chain
-using this tool.Also beware that you will only be able to access the contents of a keystore when you use the same password you used when creating it. Otherwise all contents are lost. When --hash off is set, contents of the DATA argument will be copied into the
-payload field of the UPP. Normally used for special messages (e.g. key registration). For more information on possible values for --type and --version see https://github.com/ubirch/ubirch-protocol.
+Note that, when using chained UPPs (--version 0x23), this tool will try to load/save signatures from/to <UUID>.sig, where UUID will be replaced with the actual UUID. Make sure that the UUID.sig file is in your current working directory if you try to continue an UPP chain using this tool. Also beware that you will only be able to access the contents of a keystore when you use the same password you used when creating it. Otherwise all contents are lost. When --hash off is set, contents of the DATA argument will be copied into the payload field of the UPP. Normally used for special messages (e.g. key registration). For more information on possible values for --type and --version see https://github.com/ubirch/ubirch-protocol.
 ```
 The script allows multiple modes of operation, which can be set through different command line arguments. Some of those directly set fields in the resulting UPP. Please consult the [uBirch Protocol Readme](https://github.com/ubirch/ubirch-protocol#basic-message-format) for further information on those fields and their possible values.
 - `--version/-v` This flag sets the version field of the UPP. The version field actually consists of two sub-fields. The higher four bits set the actual version (`1` or `2`) and the "mode". The higher four bits will be set to two(`0010`) in almost all use cases. The mode can either be a simple UPP without a signature, an UPP with a signature and an UPP with a signature + the signature of the previous UPP embedded into it. The latter would be called a_Chained UPP_. Unsigned UPPs (`-v 0x21`) are not implemented. Signed UPPs have `-v 0x22` and chained ones `-v 0x23`.
@@ -210,20 +191,6 @@ After creating the UPP, it can be sent to the uBirch backend where it will be ve
 ```
 $ python3 upp-sender.py --help
 usage: upp-sender.py [-h] [--env ENV] [--input INPUT] [--output OUTPUT] UUID AUTH
-
-Send a uBirch Protocol Package (UPP) to uBirch Niomon
-
-positional arguments:
-  UUID                  UUID to work with; e.g.: 56bd9b85-6c6e-4a24-bf71-f2ac2de10183
-  AUTH                  uBirch device authentication token
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --env ENV, -e ENV     environment to operate in; dev, demo or prod (default: dev)
-  --input INPUT, -i INPUT
-                        UPP input file path; e.g. upp.bin or /dev/stdin (default: upp.bin)
-  --output OUTPUT, -o OUTPUT
-                        response UPP output file path (ignored for key registration UPPs); e.g. response_upp.bin (default: response_upp.bin)
 ```
 For this script the parameters are:
 - `--env/-e` The env to operate on. This parameter decides wether the UPP will be sent to `niomon.prod.ubirch.com`, `niomon.demo.ubirch.com` or `niomon.dev.ubirch.com`. The value can either be `prod`, `demo` or `dev`. It must match the stage, the UUID is registered on.
@@ -247,17 +214,6 @@ To make sure, that the response UPP actually was sent by the uBirch backend, its
 $ python3 upp-verifier.py --help
 usage: upp-verifier.py [-h] [--verifying-key VK] [--verifying-key-uuid UUID] [--input INPUT]
 
-Check if an UPP is valid/properly signed
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --verifying-key VK, -k VK
-                        key to be used for verification; any verifying key in hex like "b12a906051f102881bbb487ee8264aa05d8d0fcc51218f2a47f562ceb9b0d068"
-  --verifying-key-uuid UUID, -u UUID
-                        the UUID for the key supplied via -k (only needed when -k is specified); e.g.: 6eac4d0b-16e6-4508-8c46-22e7451ea5a1
-  --input INPUT, -i INPUT
-                        UPP input file path; e.g. upp.bin or /dev/stdin (default: upp.bin)
-
 Note that, when trying to verify an UPP, sent by the uBirch backend (Niomon), a verifying key doesn't have to be provided via the -k option. Instead, this script will try to pick the correct stage key based on the UUID which is contained in the UPP, identifying the creator. If the UUID doesn't match any Niomon stage and no key was specified using -k, an error message will be printed.
 ```
 - `--verifying-key/-k` If not trying to verify an UPP coming from uBirch Niomon but from another source, the verifying key for that source needs to be provided. This parameter expects the key as a hex-string like `b12a906051f102881bbb487ee8264aa05d8d0fcc51218f2a47f562ceb9b0d068`.
@@ -274,7 +230,7 @@ $ python3 upp-verifier.py --input response_upp.bin
 
 ### Verifying an UPP chain
 When working with `chained UPPs` it can be useful to check whether the chain is in order and valid. For
-this task, the [`upp-chain-checker.py`](upp-chain-checke.py) can be used. It reads in a list of UPPs,
+this task, the [`upp-chain-checker.py`](upp-chain-checker.py) can be used. It reads in a list of UPPs,
 checks the signature of each UPP and compares the `prevsig` field with the `signature` of the last UPP.
 If at any point something doesn't match up, it will print an error message alonge with the number of the
 UPP at which the chain broke/something went wrong. The UPP list can either be read directly from a file
@@ -283,23 +239,6 @@ a list of hex-encoded UPPs.
 ```
 $ python3 upp-chain-checker.py -h
 usage: upp-chain-checker.py [-h] [--is-json ISJSON] [--is-hex ISHEX] INPUTFILE VK UUID
-
-Check if a sequence of chained UPPs is valid/properly signed and correctly chained
-
-positional arguments:
-  INPUTFILE             Input file path; e.g. upp_list.bin, upp_list.json or /dev/stdin
-  VK                    key to be used for verification; any verifying key in hex like
-                        "b12a906051f102881bbb487ee8264aa05d8d0fcc51218f2a47f562ceb9b0d068"
-  UUID                  the UUID for the verifying key; e.g.: 6eac4d0b-16e6-4508-8c46-22e7451ea5a1
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --is-json ISJSON, -j ISJSON
-                        If true, the script expects a JSON file for INPUTFILE (see below); e.g. true, false (default: false)
-  --is-hex ISHEX, -x ISHEX
-                        If true, the script hex-encoded UPPs from the input file; e.g. true, false (default: false)
-
-The JSON file (when using --is-json true) es expected to contain a single field called "upps", which is a list of hex-encoded UPPs. Otherwise (--is-json false). If --is-hex is true, it expects a sequence of hex-encoded UPPs separated by newlines. The third (default) scenario is that the script expects a sequence of binary UPPs separated by newlines. If --is-json true is set, --is-hex will be ignored.
 ```
 The `VK` and `UUID` arguments work like in the [UPP-Verifier](#verifying-an-upp), with the difference
 that they aren't optional and must be provided. Here is an example JSON file containing four UPPs
@@ -356,22 +295,6 @@ uBirch Niomon accepting the UPP doesn't mean that it is anchored yet. This proce
 ```
 $ python3 upp-anchoring-status.py -h
 usage: upp-anchoring-status.py [-h] [--ishash ISHASH] [--env ENV] [--ishex ISHEX] INPUT
-
-Requests the verification/anchoring of an UPP from the uBirch backend
-
-positional arguments:
-  INPUT                 input hash or upp path (depends on --ishash)
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --ishash ISHASH, -i ISHASH
-                        sets if INPUT is being treated as a hash or upp path; true or false (default: False)
-  --env ENV, -e ENV     the environment to operate in; dev, demo or prod (default: dev)
-  --ishex ISHEX, -x ISHEX
-                        Sets whether the UPP input data is a hex string or binary; e.g. true, false (default: false)
-
-When --ishash/-i is set to true, the input argument is treated as a base64 payload hash. Otherwise, it is expected to be some kind of path to read a
-UPP from. This can be a file path or also /dev/stdin if the UPP is piped to this program via standard input.
 ```
 - `--ishash/-i` A boolean specifying whether the input data is a payload hash or an UPP. The payload hash is what is actually used to look up anchoring information about the UPP. This script can either extract it from a given UPP or just use the hash directly if provided. If directly provided, it must be base64 encoded (see the last example of this sub-section). `true` or `false`.
 - `--env/-e` The stage to check on. Should be the one the UPP was sent to. `prod`, `demo` or `dev`.
@@ -420,29 +343,6 @@ In a real use case, not the UPP, but rather the original data itself has to be v
 ```txt
 $ python data-verifier.py --help
 usage: data-verifier.py [-h] [--ispath ISPATH] [--env ENV] [--isjson ISJSON] [--hash HASH] [--no-send NOSEND] [--ishl ISHASHLINK] INPUT
-
-Check if the hash of given input data is known to the uBirch backend (verify it)
-
-positional arguments:
-  INPUT                 input data or data file path (depends on --ispath)
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --ispath ISPATH, -i ISPATH
-                        sets if INPUT is being treated as data or data file path; true or false (default: False)
-  --env ENV, -e ENV     the environment to operate in; dev, demo or prod (default: dev)
-  --isjson ISJSON, -j ISJSON
-                        tells the script to treat the input data as json and serealize it (see EXAMPLES.md for more information); true or false
-                        (default: True)
-  --hash HASH, -a HASH  sets the hash algorithm to use; sha256, sha512 or OFF to treat the input data as hash (default: sha256)
-  --no-send NOSEND, -n NOSEND
-                        if set to true, the script will only generate the hash of the input data without sending it; true or false (default: False)
-  --ishl ISHASHLINK, -l ISHASHLINK
-                        implied --isjson to be true; if set to true, the script will look for a hashlink list in the json object and use it to
-                        decide which fields to hash; true or false (default: False)
-
-When --ispath/-i is set to true, the input data is treated as a file path to read the actual input data from. When setting --hash/-a to off, the
-input argument is expected to be a valid base64 encoded hash.
 ```
 - `--ispath/-i` Specifies wether the input is to be treated as a data-file path or direct input data. `true` or `false`.
 - `--env-e` The stage to check on. Should be the one the UPP corresponding to the data was sent to. `prod`, `demo` or `dev`.
