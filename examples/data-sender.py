@@ -46,7 +46,7 @@ class Main:
             help="UUID to work with; e.g.: 56bd9b85-6c6e-4a24-bf71-f2ac2de10183"
         )
         self.argparser.add_argument("auth", metavar="AUTH", type=str,
-            help="uBirch device authentication token"
+            help="uBirch device authentication token, e.g.: 12345678-1234-1234-1234-123456789abc (this is NOT the UUID)"
         )
         self.argparser.add_argument("--env", "-e", metavar="ENV", type=str, default=DEFAULT_ENV,
             help="environment to operate in; dev, demo or prod (default: %s)" % DEFAULT_ENV
