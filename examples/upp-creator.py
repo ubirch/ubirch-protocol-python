@@ -76,10 +76,12 @@ class Main:
         self.nostdout : bool = None
         self.payload : bytes = None
         self.ishl : bool = None
+        self.ishl_str : str = None
         self.ishash : bool = False
 
         self.hasher : object = None
         self.keystore : ubirch.KeyStore = None
+        self.keystore_pass : str = None
         self.proto : Proto = None
         self.payload : bytes = None
         self.upp : bytes = None
@@ -252,7 +254,7 @@ class Main:
         except Exception as e:
             logger.exception(e)
 
-            False
+            return False
 
         return True
 
