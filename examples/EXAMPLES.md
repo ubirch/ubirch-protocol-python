@@ -79,22 +79,25 @@ usage: keystore-dumper.py [-h] [--show-sk SHOW_SIGNING_KEY] KEYSTORE KEYSTORE_PA
 By default, only UUIDs und public keys (verifying keys) will be displayed. Displaying of private keys (signing keys) can be enabled by passing `-s true`. `KEYSTORE` is the path to the keystore file and `KEYSTORE_PASS` is the password needed to open/decrypt it. Below is an example with `-s` being set to `false`.
 ```
 ======================================================================================================================================
-UUID: 292e2f0b-1d9e-407f-9b1a-bda5a9560797
- VK : 2dc6fdf373c7e13abfe1f51ff0fe45417ad713c5fb8df90b76c3077355c4b5e9
+UUID: 8b52204f-74b1-42ae-a2e9-d689237fb88c
+ VK : 93fbb67804a4cdd0fe3eaa8714d1c9c549358a1d6b8b90b3f4dc036da1c547d3
  SK : ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+TYPE: ED25519
 ======================================================================================================================================
 ======================================================================================================================================
-UUID: 832e885c-be2a-44b1-ade6-c6c6dd718a3b
- VK : 43536e9793ab5b205ba62e614d12104cbb6f906b2a44b79c1cd01e87a724d5b1
+UUID: c8e5026e-5aef-4ad1-a7f0-1111820bf060
+ VK : 2f5c23add1894b122781e1333f6bce84cce3417bc6c68c136a5f432373233cc9513d096958724deacbe799c48d0f931fb78c6ac1db02aae3592e82b86e7b60c1
  SK : ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+TYPE: ED25519
 ======================================================================================================================================
 ======================================================================================================================================
-UUID: 622e3933-8fdd-446f-b645-d3aa7ed8b638
- VK : cfd32f687366679d7ef73795bafa3bfca43421e092fbc2501f7f4bfe339bb15a
+UUID: 1d99d8a2-ec8a-46c2-bd6e-1a6aef998d77
+ VK : d76cff456d47d5e50105ac331979e68f7628a182161c66377fa64542b55452cb164b0571c0f8662fbb5916921c074c11848d0485685b65ab3b9cf114a34c3658
  SK : ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+TYPE: ECDSA NIST256p SHA256
 ======================================================================================================================================
 ```
-As you can see, the secret key is not printed and `█`s are used as placeholders.
+As you can see, the secret key is not printed and `█`s are used as placeholders. The last key in the list stands out by being an ECDSA key, identified by the `TYPE`.
 
 ### Registering a public key
 To enable the uBirch backend to verify an UPP, it needs to know the corresponding verifying key. Therefore, the device needs to send this key to the backend, before starting to send UPPs, which are supposed to be verified and anchored. Registering a verifying key is done by sending a special kind of UPP containing this key. This can be done by using two scripts:
@@ -102,7 +105,7 @@ To enable the uBirch backend to verify an UPP, it needs to know the correspondin
 upp-creator.py
 upp-sender.py
 ```
-Both of these scripts will be explained in more detail in [Creating an UPP](#creating-a-upp) and [Sending an UPP](#sending-a-upp). To generate a _Public Key Registration UPP_ this command can be used:
+Both of these scripts will be explained in more detail in [Creating an UPP](#creating-an-upp) and [Sending an UPP](#sending-an-upp). To generate a _Public Key Registration UPP_ this command can be used:
 ```
 $ python upp-creator.py -t 1 --ks devices.jks --kspwd keystore --keyreg true --output keyreg_upp.bin f5ded8a3-d462-41c4-a8dc-af3fd072a217 none
 
@@ -152,7 +155,7 @@ After gathering some measurement data an UPP can be created. The UPP won't conta
 ```
 $ python3 upp-creator.py --help
 
-usage: upp-creator.py [-h] [--version VERISON] [--type TYPE] [--ks KS] [--kspwd KSPWD] [--keyreg KEYREG] [--hash HASH] [--isjson ISJSON] [--output OUTPUT] [--nostdout nostdout] UUID DATA
+usage: upp-creator.py [-h] [--version VERISON] [--type TYPE] [--ks KS] [--kspwd KSPWD] [--keyreg KEYREG] [--hash HASH] [--isjson ISJSON] [--output OUTPUT] [--nostdout nostdout] [--ecdsa ECDSA] UUID DATA
 
 Note that, when using chained UPPs (--version 0x23), this tool will try to load/save signatures from/to <UUID>.sig, where UUID will be replaced with the actual UUID. Make sure that the UUID.sig file is in your current working directory if you try to continue an UPP chain using this tool. Also beware that you will only be able to access the contents of a keystore when you use the same password you used when creating it. Otherwise all contents are lost. When --hash off is set, contents of the DATA argument will be copied into the payload field of the UPP. Normally used for special messages (e.g. key registration). For more information on possible values for --type and --version see https://github.com/ubirch/ubirch-protocol.
 ```
@@ -166,6 +169,7 @@ The script allows multiple modes of operation, which can be set through differen
 - `--isjson/-j` A binary flag that indicates that the input data is in JSON format. The script will serialize the JSON object before calculating the hash. This has the advantage one doesn't have to remember the order in which fields are listed in a JSON object to still be able to reconstruct the hash later on. Serializing the JSON is done like this: `json.dumps(self.data, separators=(',', ':'), sort_keys=True, ensure_ascii=False)` where `self.data` contains the JSON object which was loaded like this: `self.data = json.loads(self.dataStr)` where `dataStr` contains the input string, which should represent a JSON object. This flag can have two values: `true` or `false`.
 - `--output/-o` Tells the script where to write the generated UPP to.
 - `--nostdout/-n` Binary flag to disable printing of any log messages to standard output. This can be used for piping a created UPP to another program. For this `--output /dev/stdout` would have to be set.
+- `--ecdsa/-c` Tells the script to generate an ECDSA keypair instead of an ED25519 keypair in case no keypair was found for the specified UUID. The used curve will be NIST256p and the hash algorithm will be SHA256.
 - `UUID` The UUID of the device as a hex-string, like `f5ded8a3-d462-41c4-a8dc-af3fd072a217`.
 - `DATA` The data that is going to be hashed. If `--isjson true` is provided, it has to be a string representing a valid JSON object. **Note** that even though this argument will be ignored when `--keyreg true` is set, it must still exist.
 
@@ -212,14 +216,14 @@ To make sure, that the response UPP actually was sent by the uBirch backend, its
 
 ```
 $ python3 upp-verifier.py --help
-usage: upp-verifier.py [-h] [--verifying-key VK] [--verifying-key-uuid UUID] [--input INPUT]
+usage: upp-verifier.py [-h] [--verifying-key VK] [--verifying-key-uuid UUID] [--isecd ISECD] [--input INPUT]
 
 Note that, when trying to verify an UPP, sent by the uBirch backend (Niomon), a verifying key doesn't have to be provided via the -k option. Instead, this script will try to pick the correct stage key based on the UUID which is contained in the UPP, identifying the creator. If the UUID doesn't match any Niomon stage and no key was specified using -k, an error message will be printed.
 ```
 - `--verifying-key/-k` If not trying to verify an UPP coming from uBirch Niomon but from another source, the verifying key for that source needs to be provided. This parameter expects the key as a hex-string like `b12a906051f102881bbb487ee8264aa05d8d0fcc51218f2a47f562ceb9b0d068`.
 - `--verifying-key-uuid/-u` The UUID for the verifying key from `--verifying-key`. This parameter will be ignored when `--verifying-key` is not set. Not setting this parameter when `--verifying-key` is set will cause an error.
 - `--input/-i` The file path to read the UPP from.
-
+- `--isecd/-c` Tells the script whether the provided key is a ECDSA (NIST256p; SHA256) key - true - or an ED25519 key.
 ```
 $ python3 upp-verifier.py --input response_upp.bin
 2021-07-02 15:43:36,273                 root             read_upp() INFO     Reading the input UPP from "response_upp.bin"
