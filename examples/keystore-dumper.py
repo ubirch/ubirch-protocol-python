@@ -80,7 +80,16 @@ class Main:
         signing_keys = self.keystore._ks.private_keys
 
         # go trough the list of verifiying keys and print information for each entry
-        for vk_uuid in verifying_keys.keys():
+        for vk_uuid_mod in verifying_keys.keys():
+            if vk_uuid_mod.find("_ecd") != -1:
+                vk_uuid = vk_uuid_mod[:-4]
+
+                ktype = "ECDSA NIST256p SHA256"
+            else:
+                vk_uuid = vk_uuid_mod
+
+                ktype = "ED25519"
+
             if self.show_sign == True:
                 t = signing_keys.get("pke_" + vk_uuid)
 
@@ -90,8 +99,9 @@ class Main:
 
             print("=" * 134)
             print("UUID: %s" % str(uuid.UUID(hex=vk_uuid)))
-            print(" VK : %s" % binascii.hexlify(verifying_keys[vk_uuid].cert).decode())
+            print(" VK : %s" % binascii.hexlify(verifying_keys[vk_uuid_mod].cert).decode())
             print(" SK : %s" % sk)
+            print("TYPE: %s" % ktype)
             print("=" * 134)
 
         return True
