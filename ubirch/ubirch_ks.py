@@ -21,6 +21,7 @@ from logging import getLogger
 from os import urandom
 from uuid import UUID
 
+import base64
 import ecdsa
 import ed25519
 from jks import jks, AlgorithmIdentifier, rfc5208, TrustedCertEntry
@@ -239,10 +240,10 @@ class KeyStore(object):
 
         return {
             "algorithm": algo,
-            "created": int(created.timestamp()),
-            "hwDeviceId": uuid.bytes,
-            "pubKey": bytes(cert.cert),
-            "pubKeyId": bytes(cert.cert),
-            "validNotAfter": int(not_after.timestamp()),
-            "validNotBefore": int(not_before.timestamp())
+            "created": "2021-12-20T17:35:57.000Z",#created.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            "hwDeviceId": str(uuid),
+            "pubKey": base64.b64encode(bytes(cert.cert)).decode("utf8"),
+            "pubKeyId": base64.b64encode(bytes(cert.cert)).decode("utf8"),
+            "validNotAfter": "2031-12-20T17:35:57.000Z",#not_after.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+            "validNotBefore": "2021-12-20T17:35:57.000Z",#not_before.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
         }

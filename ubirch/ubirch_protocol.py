@@ -16,10 +16,12 @@
 
 import hashlib
 import logging
+import json
 from abc import abstractmethod
 from uuid import UUID
 
 import msgpack
+import base64
 from ecdsa.keys import BadSignatureError as BadSignatureErrorEcdsa
 from ed25519 import BadSignatureError
 
@@ -160,6 +162,32 @@ class Protocol(object):
         # replace last element in array with the signature
         msg[-1] = signature
         return signature, self._serialize(msg)
+
+    def keyreg_jsonstr_signed(self, uuid: UUID, keyinfo_dict: dict) -> str:
+        """
+        Takes a keyinfo-json-str and embeds into a signed json keyreg message.
+        :param uuid: the uuid of the device the keyinfo belongs to
+        :param keyinfo_dict: the public key info object
+        :return: the keyreg json as string
+        """
+        sorted_keyinfo = json.dumps(keyinfo_dict, sort_keys=True, indent=None, separators=(",", ":"))
+
+        keyreg_dict = {
+            "pubKeyInfo": keyinfo_dict,
+            "signature": None # to be replaced with the signature over keyinfo_jsonstr
+        }
+
+        print("HASHING: " + sorted_keyinfo)
+
+        keyreg_dict["signature"] = base64.b64encode(
+            self._sign(
+                uuid, self._hash(sorted_keyinfo.encode("utf8"))
+            )
+        ).decode("utf8")
+
+        print("HASHB64: " + base64.b64encode(keyreg_dict["signature"].encode("utf8")).decode("utf8"))
+
+        return json.dumps(keyreg_dict, sort_keys=True, indent=None, separators=(",", ":"))
 
     def message_signed(self, uuid: UUID, type: int, payload: any, save_signature: bool = False) -> bytes:
         """

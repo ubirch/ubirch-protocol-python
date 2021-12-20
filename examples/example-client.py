@@ -127,7 +127,11 @@ class UbirchClient:
         if not self.api.is_identity_registered(self.uuid):
             # get the certificate and create the registration message
             certificate = self.keystore.get_certificate(self.uuid)
-            key_registration = self.protocol.message_signed(self.uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
+
+            #key_registration = self.protocol.message_signed(self.uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
+            key_registration = self.protocol.keyreg_jsonstr_signed(uuid, certificate).encode("utf8")
+
+            print(key_registration)
 
             # send the registration message
             r = self.api.register_identity(key_registration)
