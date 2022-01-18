@@ -89,7 +89,8 @@ An example for this file is given here:
 
     "mqtt_enabled": true,
     "mqtt_address": "192.168.1.81",
-    "mqtt_port": 1883,
+    "mqtt_port": 8883,
+    "mqtt_tls_enabled": true,
     "mqtt_topics": ["/ubirch/rsconnectdata/temperature"],
     "mqtt_client_id": "ubirch-client-123",
     "mqtt_username": "myuser",
@@ -121,6 +122,7 @@ Finally, setup MQTT:
 - `mqtt_enabled`: Enable or disable MQTT. Can be true/false.
 - `mqtt_address`: Address of MQTT broker.
 - `mqtt_port`: Port of MQTT broker.
+- `mqtt_tls_enabled`: Whether to use TLS or not. Can be true/false. Can be omitted (= disabled). Make sure to also set correct port.
 - `mqtt_topics`: List of topics to subscribe to.
 - `mqtt_client_id`: Client ID to send to broker. Set to `""` to auto-generate. Must be unqiue on broker side.
 - `mqtt_username`: Username for authentication at server. Can be omitted or `null`.

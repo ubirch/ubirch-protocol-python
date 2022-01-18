@@ -151,10 +151,11 @@ def opcua_subscribe(client:OpcuaClient, namespace:str, nodes: list):
 ########################################################################
 # MQTT section
 # MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
-def mqtt_connect(address:str, port:int, client_id:str, username: str = None, password:str = None) -> MqttClient:
+def mqtt_connect(address:str, port:int, client_id:str, enable_tls:bool, username: str = None, password:str = None) -> MqttClient:
     """
     Connect to an MQTT broker using the address, port and client ID. Client ID must be unique on broker side.
     If username is set, username and password parameter are used for authenticating by passing them to paho mqtt username_pw_set().
+    If enable_tls is true, paho mqtt set_tls() is called before starting the connection.
     Returns the client instance.
     """
     def on_connect(client, userdata, flags, rc):
@@ -176,7 +177,12 @@ def mqtt_connect(address:str, port:int, client_id:str, username: str = None, pas
     client.on_disconnect = on_disconnect
     client.reconnect_delay_set(min_delay=1, max_delay=10)
 
-    logger.info(f"MQTT: connecting to {address+' port '+str(port)}")
+    tls_state_string = "TLS disabled"
+    if enable_tls:
+        tls_state_string = "TLS enabled"
+        client.tls_set()
+
+    logger.info(f"MQTT: connecting to {address+' port '+str(port)+', '+tls_state_string}")
     client.connect(address, port)
     client.loop_start() # make mqtt client start processing traffic on its own in seperate thread
     return client
@@ -579,11 +585,12 @@ if config["mqtt_enabled"]:
     MQTT_CLIENT_ID = config["mqtt_client_id"]
     MQTT_USERNAME = config.get("mqtt_username", None)
     MQTT_PASSWORD = config.get("mqtt_password", None)
+    MQTT_TLS_ENABLED = config.get("mqtt_tls_enabled", False)
 
     connected_ok = False
     while not connected_ok:
         try:
-            mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID, MQTT_USERNAME,MQTT_PASSWORD)
+            mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID, MQTT_TLS_ENABLED, MQTT_USERNAME,MQTT_PASSWORD)
             # (subscribing is handled in on_connect callback)
             connected_ok = True
         except Exception as e:
