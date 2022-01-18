@@ -151,23 +151,29 @@ def opcua_subscribe(client:OpcuaClient, namespace:str, nodes: list):
 ########################################################################
 # MQTT section
 # MQTT funtions partly based on https://www.emqx.io/blog/how-to-use-mqtt-in-python
-def mqtt_connect(address:str, port:int, client_id:str, enable_tls:bool, username: str = None, password:str = None) -> MqttClient:
+def mqtt_connect(address:str, port:int, client_id:str, enable_tls:bool, client_type:str, username: str = None, password:str = None) -> MqttClient:
     """
-    Connect to an MQTT broker using the address, port and client ID. Client ID must be unique on broker side.
+    Connect to an MQTT broker using the address, port and client ID. Can be either "receiver" type or "sender" type.
+    For receiving type, the client will call mqtt_subscribe() in connect. Client ID must be unique on broker side.
     If username is set, username and password parameter are used for authenticating by passing them to paho mqtt username_pw_set().
     If enable_tls is true, paho mqtt set_tls() is called before starting the connection.
     Returns the client instance.
     """
+    if client_type != "receiver" and client_type !="sender":
+        logger.error(f"invalid MQTT client type: {client_type}, must be receiver or sender")
+        sys.exit(1)
+
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
-            logger.info("MQTT: successfully connected to broker")
-            mqtt_subscribe(client, MQTT_TOPICS) # TODO: find a better way of resubscribing without using global topics variable
+            logger.info(f"MQTT-{client_type}: successfully connected to broker")
+            if client_type == "receiver":
+                mqtt_subscribe(client, MQTT_RECEIVE_TOPICS) # TODO: find a better way of resubscribing without using global topics variable
         else:
-            logger.error(f"MQTT: failed to connect to broker, return code {rc} ({MqttClient.error_string(rc)})")
+            logger.error(f"MQTT-{client_type}: failed to connect to broker, return code {rc} ({MqttClient.error_string(rc)})")
 
     def on_disconnect(client, userdata, rc):
         if rc !=0:
-            logger.error("MQTT: unexpected disconnect")
+            logger.error(f"MQTT-{client_type}: unexpected disconnect")
 
     # Set Connecting Client ID
     client = MqttClient.Client(client_id)
@@ -182,7 +188,7 @@ def mqtt_connect(address:str, port:int, client_id:str, enable_tls:bool, username
         tls_state_string = "TLS enabled"
         client.tls_set()
 
-    logger.info(f"MQTT: connecting to {address+' port '+str(port)+', '+tls_state_string}")
+    logger.info(f"MQTT-{client_type}: connecting to {address+' port '+str(port)+', '+tls_state_string}")
     client.connect(address, port)
     client.loop_start() # make mqtt client start processing traffic on its own in seperate thread
     return client
@@ -195,11 +201,11 @@ def mqtt_subscribe(client: MqttClient, topics: list):
             payload_string = msg.payload.decode('utf-8')
         except UnicodeDecodeError:
             payload_string = binascii.b2a_hex(msg.payload)
-        logger.info("MQTT: received message: topic: {}, payload: {}".format(msg.topic, payload_string))
+        logger.info("MQTT-receiver: received message: topic: {}, payload: {}".format(msg.topic, payload_string))
         queue_message(msg)
     
     for topic in topics:
-        logger.info("MQTT: subscribing to topic {}".format(topic))
+        logger.info("MQTT-receiver: subscribing to topic {}".format(topic))
         client.subscribe(topic,qos=1) #set QOS depending on your network/needed reliability
     client.on_message = on_message
 ########################################################################
@@ -589,25 +595,48 @@ if config["opcua_enabled"]:
             logger.info(f"retrying connection in {cooldown} seconds...")
             time.sleep(cooldown)
 
-# MQTT setup
-mqtt_client = None
-if config["mqtt_enabled"]:
-    MQTT_ADDRESS = config["mqtt_address"]
-    MQTT_PORT = config["mqtt_port"]
-    MQTT_TOPICS = config["mqtt_topics"]
-    MQTT_CLIENT_ID = config["mqtt_client_id"]
-    MQTT_USERNAME = config.get("mqtt_username", None)
-    MQTT_PASSWORD = config.get("mqtt_password", None)
-    MQTT_TLS_ENABLED = config.get("mqtt_tls_enabled", False)
+# MQTT setup (IIoT/receiving side)
+mqtt_client_receiving = None
+if config["mqtt_receive_enabled"]:
+    MQTT_RECEIVE_ADDRESS = config["mqtt_receive_address"]
+    MQTT_RECEIVE_PORT = config["mqtt_receive_port"]
+    MQTT_RECEIVE_TOPICS = config["mqtt_receive_topics"]
+    MQTT_RECEIVE_CLIENT_ID = config["mqtt_receive_client_id"]
+    MQTT_RECEIVE_USERNAME = config.get("mqtt_receive_username", None)
+    MQTT_RECEIVE_PASSWORD = config.get("mqtt_receive_password", None)
+    MQTT_RECEIVE_TLS_ENABLED = config.get("mqtt_receive_tls_enabled", False)
 
     connected_ok = False
     while not connected_ok:
         try:
-            mqtt_client = mqtt_connect(MQTT_ADDRESS,MQTT_PORT,MQTT_CLIENT_ID, MQTT_TLS_ENABLED, MQTT_USERNAME,MQTT_PASSWORD)
+            mqtt_client_receiving = mqtt_connect(MQTT_RECEIVE_ADDRESS,MQTT_RECEIVE_PORT,MQTT_RECEIVE_CLIENT_ID, MQTT_RECEIVE_TLS_ENABLED, "receiver", MQTT_RECEIVE_USERNAME,MQTT_RECEIVE_PASSWORD)
             # (subscribing is handled in on_connect callback)
             connected_ok = True
         except Exception as e:
             logger.error(f"could not connect/subscribe to MQTT: {repr(e)}")
+            cooldown = 10
+            logger.info(f"retrying connection in {cooldown} seconds...")
+            time.sleep(cooldown)
+
+# MQTT setup (customer backend/actuator/sending side)
+mqtt_client_sending = None
+if config["data_backend_type"] == "mqtt":
+    MQTT_SENDER_ADDRESS = config["mqtt_send_address"]
+    MQTT_SENDER_PORT = config["mqtt_send_port"]
+    MQTT_SENDER_TOPIC = config["mqtt_send_topic"]
+    MQTT_SENDER_CLIENT_ID = config["mqtt_send_client_id"]
+    MQTT_SENDER_USERNAME = config.get("mqtt_send_username", None)
+    MQTT_SENDER_PASSWORD = config.get("mqtt_send_password", None)
+    MQTT_SENDER_TLS_ENABLED = config.get("mqtt_send_tls_enabled", False)
+
+    connected_ok = False
+    while not connected_ok:
+        try:
+            mqtt_client_sending = mqtt_connect(MQTT_SENDER_ADDRESS,MQTT_SENDER_PORT,MQTT_SENDER_CLIENT_ID, MQTT_SENDER_TLS_ENABLED, "sender", MQTT_SENDER_USERNAME,MQTT_SENDER_PASSWORD)
+            # (sender type clients do not subscribe to topics)
+            connected_ok = True
+        except Exception as e:
+            logger.error(f"could not connect to MQTT: {repr(e)}")
             cooldown = 10
             logger.info(f"retrying connection in {cooldown} seconds...")
             time.sleep(cooldown)
@@ -666,13 +695,16 @@ try:
 
         if not send_datablocks_queue.empty(): # data which was previously sealed and anchored for sending to customer backend available?
             send_datablocks(PATH_SENT_DATABLOCKS)
+            mqtt_client_sending.publish(MQTT_SENDER_TOPIC,"sent some data")
         
         time.sleep(0.0001)
 except KeyboardInterrupt:
     pass
 finally:
     logger.info("shutting down")
-    if mqtt_client is not None:
-        mqtt_client.disconnect()
+    if mqtt_client_receiving is not None:
+        mqtt_client_receiving.disconnect()
+    if mqtt_client_sending is not None:
+        mqtt_client_sending.disconnect()
     if opcua_client is not None:
         opcua_client.disconnect()        
