@@ -107,8 +107,8 @@ For this, following parameters are available:
 Then, setup the storage and aggregating/sealing parameters:
 - `persistent_storage_location`: Where the client can save persistent data such as keys, received data, data ready to be sent, etc. Also this is the location where the mock customer backend will write data which was "received".
 - `keystore_password`: Password for encrypting the keys on disk. If left empty or not defined, password is prompted on startup of the client.
-- `aggregate_interval`: How often to aggregate IIoT data into blocks for sealing. (Seconds)
-- `seal_interval`: How often to seal aggregated data blocks and anchor them at the ubirch backend. (Seconds)
+- `aggregate_interval`: How often to aggregate IIoT data into blocks for sealing (Seconds). Set to zero to aggregate as soon as new data is available.
+- `seal_interval`: How often to seal aggregated data blocks and anchor them at the ubirch backend (Seconds). Set to zero to seal as soon as new data is available.
 
 Then, configure your OPC UA settings:
 

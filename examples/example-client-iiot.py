@@ -541,7 +541,20 @@ logger.info(f'device ID is {DEVICE_UUID}')
 AGGREGATE_INTERVAL = config['aggregate_interval']
 SEAL_INTERVAL = config['seal_interval']
 
-logger.info(f"aggregating every {AGGREGATE_INTERVAL} s and sealing every {SEAL_INTERVAL} s")
+if AGGREGATE_INTERVAL < 0 or SEAL_INTERVAL < 0:
+        logger.error("seal/aggregate interval cannot be less than zero")
+        sys.exit(1)
+
+interval_string = ""
+if AGGREGATE_INTERVAL == 0:
+    interval_string += f"aggregating on new data"
+else:
+    interval_string += f"aggregating every {AGGREGATE_INTERVAL} s"
+if SEAL_INTERVAL == 0:
+    interval_string += f", sealing on new data"
+else:        
+    interval_string += f", sealing every {SEAL_INTERVAL} s"
+logger.info(interval_string)
 
 PATH_PERSISTENT_STORAGE = os.path.expanduser(config['persistent_storage_location']) # a path where the persistent data can be stored (queues, keys, last signatures, etc)
 
@@ -635,11 +648,19 @@ try:
     while True:
         # receiving MQTT and OPC-UA is handled in callbacks, so no related code here
 
-        if time.time()-last_aggregate_data > AGGREGATE_INTERVAL: # time for aggregating received data into next block?        
+        if AGGREGATE_INTERVAL == 0: # if set to immediate aggregation
+            if not machinedata.empty(): # is there new data?
+                last_aggregate_data = time.time()
+                aggregate_data(DEVICE_UUID,PATH_PERSISTENT_STORAGE) 
+        elif time.time()-last_aggregate_data > AGGREGATE_INTERVAL: # if set to interval: time for aggregating received data into next block?        
             last_aggregate_data = time.time()
             aggregate_data(DEVICE_UUID,PATH_PERSISTENT_STORAGE)            
 
-        if time.time()-last_seal_blocks > SEAL_INTERVAL: # time for sealing and anchoring the aggregated blocks?
+        if SEAL_INTERVAL == 0: # if set to immediate sealing
+            if not seal_queue.empty(): # is there new data?
+                last_seal_blocks = time.time()
+                seal_datablocks(protocol,api,DEVICE_UUID) 
+        elif time.time()-last_seal_blocks > SEAL_INTERVAL: # if set to interval: time for sealing and anchoring the aggregated blocks?
             last_seal_blocks = time.time()
             seal_datablocks(protocol,api,DEVICE_UUID)            
 
