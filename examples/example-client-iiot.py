@@ -463,10 +463,12 @@ def backend_UPP_identical(local_upp_hash: bytes, local_upp: bytes, api: ubirch.A
     else:
         raise Exception(f"Error when checking if UPP is already at backend. Response code: {response.status_code}, Response content: {repr(response.content)}")
 
-def send_datablocks(destination:str)->bool:
+def send_datablocks(data_backend_type:str, destination:str)->bool:
     """
     Sends all previously sealed and anchored data waiting in the queue to the customer backend. Uses retries, aborts on 3 consecutive fails.
-    When the mock customer backend (filesystem storage) is used, destination is the folder in which the data is stored.
+    data_backend_type can either be 'file' or 'mqtt'.
+    When the file type is used, destination is the folder in which the data is stored.
+    When the mqtt type is used, destination is the topic in which the data is published. For publishing, the already connected, global mqtt_client_sending is used (see main).
     Returns true on success, false otherwise.
     """
     logger.info("attempting to send {} data blocks to customer backend".format(send_datablocks_queue.qsize()))
@@ -479,7 +481,15 @@ def send_datablocks(destination:str)->bool:
         
         # get and send next item
         blockdata = send_datablocks_queue.get()
-        if send_data_to_customer_backend(blockdata, destination):
+        if data_backend_type == "file":
+            send_ok = send_data_to_file(blockdata, destination)
+        elif data_backend_type == "mqtt":
+            send_ok = send_data_to_mqtt(blockdata, destination)
+        else:
+            logger.error("data_backend_type must be either mqtt or file")
+            sys.exit(1)
+
+        if send_ok:
             send_datablocks_queue.task_done()
             send_fails = 0
         else:
@@ -492,13 +502,13 @@ def send_datablocks(destination:str)->bool:
     logger.error("giving up on sending data blocks to customer backend")
     return False
 
-def send_data_to_customer_backend(datablock:str,store_path: str)-> bool:
+def send_data_to_file(datablock:str,store_path: str)-> bool:
     """
-    A mock send function to simulate the customer backend.
+    A mock send function to simulate the customer backend by simply writing the data to a file.
     Accepts the data block as a string (probably compact serialized JSON), and the storage path.
     Returns true in case of success, raises exception in case of failure.
     """
-    logger.warning("No customer data backend implemented. Storing data locally.")
+    logger.info("storing data in file")
     # we use the current (= storage time) timestamp as filename for the simple mock backend
     filename = str(int(time.time()*1000)) + '.json' # msec timestamp plus pause to avoid duplicate filenames
     time.sleep(0.010)
@@ -512,6 +522,19 @@ def send_data_to_customer_backend(datablock:str,store_path: str)-> bool:
         logger.debug(f"Saving to {fullpath}")
         output_file.write(datablock)
 
+    return True
+
+def send_data_to_mqtt(datablock:str,topic: str)-> bool:
+    """
+    A simple MQTT send function. Datablock is the data to send, topic the topic to publish to.
+    Uses the global MQTT send client by calling mqtt_client_sending.publish().
+    """
+    logger.info("sending data via MQTT")
+    try:
+        mqtt_client_sending.publish(topic,datablock) #TODO: use better way instead of global client instance
+    except Exception as e:
+        logger.error(f"error occured during MQTT send: {e}")
+        return False
     return True
 
 
@@ -694,8 +717,15 @@ try:
             seal_datablocks(protocol,api,DEVICE_UUID)            
 
         if not send_datablocks_queue.empty(): # data which was previously sealed and anchored for sending to customer backend available?
-            send_datablocks(PATH_SENT_DATABLOCKS)
-            mqtt_client_sending.publish(MQTT_SENDER_TOPIC,"sent some data")
+            if config["data_backend_type"] == "file":
+                destination = PATH_SENT_DATABLOCKS
+            elif config["data_backend_type"] == "mqtt":
+                destination = MQTT_SENDER_TOPIC
+            else:
+                logger.error("data_backend_type must be either mqtt or file")
+                sys.exit(1)
+
+            send_datablocks(config["data_backend_type"], destination)            
         
         time.sleep(0.0001)
 except KeyboardInterrupt:
