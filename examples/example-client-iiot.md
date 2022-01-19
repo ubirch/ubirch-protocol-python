@@ -87,14 +87,23 @@ An example for this file is given here:
         "|var|RSConnect.Application.GVL_OPCUA.counter_output",
         "|var|RSConnect.Application.GVL_OPCUA.temperature1"],
 
-    "mqtt_enabled": true,
-    "mqtt_address": "192.168.1.81",
-    "mqtt_port": 8883,
-    "mqtt_tls_enabled": true,
-    "mqtt_topics": ["/ubirch/rsconnectdata/temperature"],
-    "mqtt_client_id": "ubirch-client-123",
-    "mqtt_username": "myuser",
-    "mqtt_password": "mypassword"
+    "mqtt_receive_enabled": true,
+    "mqtt_receive_address": "192.168.1.81",
+    "mqtt_receive_username": "myuser",
+    "mqtt_receive_password": "mypassword",
+    "mqtt_receive_port": 8883,
+    "mqtt_receive_tls_enabled": true,
+    "mqtt_receive_topics": ["ubirch/test/temperature"],
+    "mqtt_receive_client_id": "ubirch-client-recv-123",
+    
+    "data_backend_type":"mqtt",
+    "mqtt_send_address": "yourbroker.backend.com",
+    "mqtt_send_username": "myuser",
+    "mqtt_send_password": "mypassword",
+    "mqtt_send_port": 8883,
+    "mqtt_send_tls_enabled": true,
+    "mqtt_send_topic": "ubirch/test/datablocks",
+    "mqtt_send_client_id": "ubirch-client-send-123"
 }
 ```
 
@@ -117,15 +126,28 @@ Then, configure your OPC UA settings:
 - `opcua_namespace`: The namespace where the nodes to subscribe to are located.
 - `opcua_nodes`: List of nodes to subscribe to.
 
-Finally, setup MQTT:
+Setup receiving of IIoT data via MQTT:
 
-- `mqtt_enabled`: Enable or disable MQTT. Can be true/false.
-- `mqtt_address`: Address of MQTT broker.
-- `mqtt_port`: Port of MQTT broker.
-- `mqtt_tls_enabled`: Whether to use TLS or not. Can be true/false. Can be omitted (= disabled). Make sure to also set correct port.
-- `mqtt_topics`: List of topics to subscribe to.
-- `mqtt_client_id`: Client ID to send to broker. Set to `""` to auto-generate. Must be unqiue on broker side.
-- `mqtt_username`: Username for authentication at server. Can be omitted or `null`.
-- `mqtt_password`: Password for authentication at server. Can be omitted or `null`.
+- `mqtt_receive_enabled`: Enable or disable MQTT receiving of IIoT data. Can be true/false.
+- `mqtt_receive_address`: Address of MQTT broker.
+- `mqtt_receive_port`: Port of MQTT broker.
+- `mqtt_receive_tls_enabled`: Whether to use TLS or not. Can be true/false. Can be omitted (= disabled). Make sure to also set correct port.
+- `mqtt_receive_topics`: List of topics to subscribe to.
+- `mqtt_receive_client_id`: Client ID to send to broker. Set to `""` to auto-generate. Must be unqiue on broker side.
+- `mqtt_receive_username`: Username for authentication at server. Can be omitted or `null`.
+- `mqtt_receive_password`: Password for authentication at server. Can be omitted or `null`.
+
+Finally, set up where to store the datablocks which were sealed:
+
+-    `data_backend_type`: Set to either "file", to simply use the persistent file storage folder as mock backend or "mqtt" to send datablocks via MQTT.
+
+If using MQTT for sending the sealed datablocks, the following configuration options can be used:
+- `mqtt_send_address`: Address of MQTT broker.
+- `mqtt_send_port`: Port of MQTT broker.
+- `mqtt_send_tls_enabled`: Whether to use TLS or not. Can be true/false. Can be omitted (= disabled). Make sure to also set correct port.
+- `mqtt_send_topic`: The topic to publish the datablocks on.
+- `mqtt_send_client_id`: Client ID to send to broker. Set to `""` to auto-generate. Must be unqiue on broker side.
+- `mqtt_send_username`: Username for authentication at server. Can be omitted or `null`.
+- `mqtt_send_password`: Password for authentication at server. Can be omitted or `null`.
 
 Save the file and start the client with it, e.g.: `python3 example-client-iiot.py ~/persist-ubirch-iiot-client/client_config_prod.json`.

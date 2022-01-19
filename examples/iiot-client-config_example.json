@@ -18,11 +18,21 @@
         "|var|RSConnect.Application.GVL_OPCUA.counter_output",
         "|var|RSConnect.Application.GVL_OPCUA.temperature1"],
 
-    "mqtt_enabled": true,
-    "mqtt_address": "192.168.1.81",
-    "mqtt_port": 1883,
-    "mqtt_topics": ["/ubirch/rsconnectdata/temperature"],
-    "mqtt_client_id": "ubirch-client-123",
-    "mqtt_username": "myuser",
-    "mqtt_password": "mypassword"
+    "mqtt_receive_enabled": true,
+    "mqtt_receive_address": "192.168.1.81",
+    "mqtt_receive_username": "myuser",
+    "mqtt_receive_password": "mypwd",
+    "mqtt_receive_port": 8883,
+    "mqtt_receive_tls_enabled": true,
+    "mqtt_receive_topics": ["ubirch/test/temperature"],
+    "mqtt_receive_client_id": "ubirch-client-recv-123",
+    
+    "data_backend_type":"mqtt",
+    "mqtt_send_address": "yourbroker.backend.com",
+    "mqtt_send_username": "myusr",
+    "mqtt_send_password": "mypwd",
+    "mqtt_send_port": 8883,
+    "mqtt_send_tls_enabled": true,
+    "mqtt_send_topic": "ubirch/test/datablocks",
+    "mqtt_send_client_id": "ubirch-client-send-123"
 }
