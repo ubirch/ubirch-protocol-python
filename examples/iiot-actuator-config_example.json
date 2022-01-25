@@ -1,0 +1,14 @@
+{
+    "api_environment": "prod",
+    
+    "nanoclient_uuid":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "nanoclient_pubkey":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    
+    "mqtt_receive_address": "datablockanduppbroker.backend.com",
+    "mqtt_receive_username": "youruser",
+    "mqtt_receive_password": "yourpassword",
+    "mqtt_receive_port": 8883,
+    "mqtt_receive_tls_enabled": true,
+    "mqtt_receive_topic": "ubirch/test",
+    "mqtt_receive_client_id": ""
+}
