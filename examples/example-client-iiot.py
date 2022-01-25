@@ -65,6 +65,7 @@ class Proto(ubirch.Protocol):
         self.load(uuid)
 
         logger.info("ubirch-protocol: device id: {}".format(uuid))
+        logger.info(f"ubirch-protocol: device pubkey: {self.__ks.find_verifying_key(uuid).vk_s.hex()}")
 
     def persist(self, uuid: UUID):
         """Saves the last used signatures to disk."""
