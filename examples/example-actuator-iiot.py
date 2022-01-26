@@ -6,6 +6,7 @@ import time
 import ed25519
 from paho.mqtt import client as MqttClient
 from uuid import UUID
+from queue import Queue
 
 import ubirch
 
@@ -99,7 +100,10 @@ def mqtt_connect(address:str, port:int, client_id:str, enable_tls:bool, client_t
 
 def mqtt_subscribe(client: MqttClient, topics: list):
     """Subscribe to all topics from the topics list using the given client."""
-    def on_message(client, userdata, msg):
+    def on_message(client, userdata, msg: MqttClient.MQTTMessage):
+        global datablock_queue
+        global upp_queue
+
         # handle non-printable data output
         try:
             payload_string = msg.payload.decode('utf-8')
@@ -107,7 +111,12 @@ def mqtt_subscribe(client: MqttClient, topics: list):
             logger.error(f"undecodable message payload on topic {msg.topic}: {binascii.b2a_hex(msg.payload)}") 
             return
         logger.info("MQTT-receiver: received message: topic: {}, payload: {}".format(msg.topic, payload_string))
-        #TODO: queue UPPs/datablocks for later processing
+        if str(msg.topic).endswith(DATABLOCKS_TOPIC_POSTFIX):
+            datablock_queue.put(payload_string)
+        elif str(msg.topic).endswith(UPPS_TOPIC_POSTFIX):
+            upp_queue.put(payload_string)
+        else:
+            logger.error(f"can't handle message: unexpected topic postfix: {msg.topic}\n payload: {msg.payload}")
     
     for topic in topics:
         logger.info("MQTT-receiver: subscribing to topic {}".format(topic))
@@ -118,6 +127,9 @@ def mqtt_subscribe(client: MqttClient, topics: list):
 
 #### start of main code section ###
 
+# non-persistent queues for keeping received datablocks and UPPs in
+datablock_queue = Queue()
+upp_queue = Queue()
 
 if len(sys.argv) < 2:
     print("example usage:")
@@ -143,9 +155,11 @@ logger.info(f'nanoclient UUID is {NANOCLIENT_UUID}')
 logger.info(f'nanoclient public key is {NANOCLIENT_PUBKEY}')
 
 # MQTT setup for receiving datablocks and UPPs via MQTT
+DATABLOCKS_TOPIC_POSTFIX = "/datablocks"
+UPPS_TOPIC_POSTFIX = "/upps"
 MQTT_RECEIVE_ADDRESS = config["mqtt_receive_address"]
 MQTT_RECEIVE_PORT = config["mqtt_receive_port"]
-MQTT_RECEIVE_TOPICS = [ config["mqtt_receive_topic"] + "/upps", config["mqtt_receive_topic"] + "/datablocks"]
+MQTT_RECEIVE_TOPICS = [ config["mqtt_receive_topic"] + UPPS_TOPIC_POSTFIX, config["mqtt_receive_topic"] + DATABLOCKS_TOPIC_POSTFIX]
 MQTT_RECEIVE_CLIENT_ID = config["mqtt_receive_client_id"]
 MQTT_RECEIVE_USERNAME = config.get("mqtt_receive_username", None)
 MQTT_RECEIVE_PASSWORD = config.get("mqtt_receive_password", None)
@@ -169,10 +183,13 @@ u_keystore = ubirch.KeyStore("temporary_keystore.jks", "notsecret")
 u_protocol = VerifyProto(u_keystore, NANOCLIENT_UUID, NANOCLIENT_PUBKEY)
 
 logger.info("starting main loop")
-
+last_check = 0
 try:
     while True:           
-        # currently all data is processed in the callbacks   
+        if time.time() - last_check > 1.0 :
+            last_check = time.time()
+            logger.info(f"{upp_queue.qsize()} UPPs and {datablock_queue.qsize()} datablocks waiting for processing")
+            #TODO: add UPP/block matching and processing
         time.sleep(0.0001)
 except KeyboardInterrupt:
     pass
