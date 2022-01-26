@@ -495,7 +495,7 @@ def send_datablocks(data_backend_type:str, destination:str)->bool:
             if data_backend_type == "file": 
                 logger.info("all datablocks written to file")
             elif data_backend_type == 'mqtt':
-                logger.info("all UPPs and datablocks sent via MQTT")
+                logger.info("all UPPs+datablocks sent via MQTT")
             return True
 
         if not send_datablocks_queue.empty():
