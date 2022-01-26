@@ -1,7 +1,7 @@
 {
     "api_device_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
     "api_password":  "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
-    "api_enviroment": "prod",
+    "api_environment": "prod",
     
     "persistent_storage_location" : "~/persist-ubirch-iiot-client/",
     "keystore_password": "yoursecretkeystorepassword",

@@ -601,14 +601,14 @@ logger.info("loading config")
 with open(sys.argv[1], 'r') as f:
     config = json.load(f)
 
-ENVIROMENT = config['api_enviroment']
+ENVIRONMENT = config['api_environment']
 DEVICE_UUID = UUID(hex=config['api_device_id'])
 API_PASSWORD = config['api_password'] # password/auth token for the ubirch api
 
 # password for encrypting the key store on the disk
 KEYSTORE_PASSWORD = config.get("keystore_password",None)
 
-logger.info(f'using endpoints at {ENVIROMENT}.ubirch.com')
+logger.info(f'using endpoints at {ENVIRONMENT}.ubirch.com')
 logger.info(f'device ID is {DEVICE_UUID}')
 
 AGGREGATE_INTERVAL = config['aggregate_interval']
@@ -722,7 +722,7 @@ keystore = ubirch.KeyStore(os.path.join(PATH_PERSISTENT_STORAGE, "iiot-device.jk
 protocol = Proto(keystore, DEVICE_UUID,PATH_PERSISTENT_STORAGE)
 
 # create an instance of the UBIRCH API and set the auth token
-api = ubirch.API(env=ENVIROMENT)
+api = ubirch.API(env=ENVIRONMENT)
 api.set_authentication(DEVICE_UUID, API_PASSWORD)
 
 logger.info("ubirch-protocol: checking key registration")

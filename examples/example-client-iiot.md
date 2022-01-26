@@ -70,7 +70,7 @@ An example for this file is given here:
 {
     "api_device_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
     "api_password":  "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
-    "api_enviroment": "prod",
+    "api_environment": "prod",
     
     "persistent_storage_location" : "~/persist-ubirch-iiot-client/",
     "keystore_password": "yoursecretkeystorepassword",
@@ -107,11 +107,11 @@ An example for this file is given here:
 }
 ```
 
-Fill in the device ID/UUID and the api password from earlier, and check that you have set the correct api enviroment.
+Fill in the device ID/UUID and the api password from earlier, and check that you have set the correct api environment.
 For this, following parameters are available:
 - `api_device_id`: ID/UUID shown under 'Things' in the UBIRCH Web UI.
 - `api_password`: Password value from the `apiConfig` field for this device shown in the UBIRCH Web UI under *Your Things*.
-- `api_enviroment`: Stage to use. Can be `prod`, `demo` or `dev`. Must match stage where the device was registered.
+- `api_environment`: Stage to use. Can be `prod`, `demo` or `dev`. Must match stage where the device was registered.
     
 Then, setup the storage and aggregating/sealing parameters:
 - `persistent_storage_location`: Where the client can save persistent data such as keys, received data, data ready to be sent, etc. Also this is the location where the mock customer backend will write data which was "received".
