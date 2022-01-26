@@ -104,19 +104,14 @@ def mqtt_subscribe(client: MqttClient, topics: list):
         global datablock_queue
         global upp_queue
 
-        # handle non-printable data output
+        # handle payload string
         try:
             payload_string = msg.payload.decode('utf-8')
         except UnicodeDecodeError:
             logger.error(f"undecodable message payload on topic {msg.topic}: {binascii.b2a_hex(msg.payload)}") 
             return
         logger.info("MQTT-receiver: received message: topic: {}, payload: {}".format(msg.topic, payload_string))
-        if str(msg.topic).endswith(DATABLOCKS_TOPIC_POSTFIX):
-            datablock_queue.put(payload_string)
-        elif str(msg.topic).endswith(UPPS_TOPIC_POSTFIX):
-            upp_queue.put(payload_string)
-        else:
-            logger.error(f"can't handle message: unexpected topic postfix: {msg.topic}\n payload: {msg.payload}")
+        datablock_queue.put(payload_string)
     
     for topic in topics:
         logger.info("MQTT-receiver: subscribing to topic {}".format(topic))
@@ -129,7 +124,6 @@ def mqtt_subscribe(client: MqttClient, topics: list):
 
 # non-persistent queues for keeping received datablocks and UPPs in
 datablock_queue = Queue()
-upp_queue = Queue()
 
 if len(sys.argv) < 2:
     print("example usage:")
@@ -154,13 +148,11 @@ logger.info(f'using endpoints at {ENVIRONMENT}.ubirch.com')
 logger.info(f'nanoclient UUID is {NANOCLIENT_UUID}')
 logger.info(f'nanoclient public key is {NANOCLIENT_PUBKEY}')
 
-# MQTT setup for receiving datablocks and UPPs via MQTT
-DATABLOCKS_TOPIC_POSTFIX = "/datablocks"
-UPPS_TOPIC_POSTFIX = "/upps"
+# MQTT setup for receiving datablocks+UPPs via MQTT
 MQTT_RECEIVE_ADDRESS = config["mqtt_receive_address"]
 MQTT_RECEIVE_PORT = config["mqtt_receive_port"]
-MQTT_RECEIVE_TOPICS = [ config["mqtt_receive_topic"] + UPPS_TOPIC_POSTFIX, config["mqtt_receive_topic"] + DATABLOCKS_TOPIC_POSTFIX]
-MQTT_RECEIVE_CLIENT_ID = config["mqtt_receive_client_id"]
+MQTT_RECEIVE_TOPICS = config["mqtt_receive_topics"]
+MQTT_RECEIVE_CLIENT_ID = config.get("mqtt_receive_client_id", "")
 MQTT_RECEIVE_USERNAME = config.get("mqtt_receive_username", None)
 MQTT_RECEIVE_PASSWORD = config.get("mqtt_receive_password", None)
 MQTT_RECEIVE_TLS_ENABLED = config.get("mqtt_receive_tls_enabled", False)
@@ -188,8 +180,7 @@ try:
     while True:           
         if time.time() - last_check > 1.0 :
             last_check = time.time()
-            logger.info(f"{upp_queue.qsize()} UPPs and {datablock_queue.qsize()} datablocks waiting for processing")
-            #TODO: add UPP/block matching and processing
+            logger.info(f"{datablock_queue.qsize()} datablocks waiting for processing")
         time.sleep(0.0001)
 except KeyboardInterrupt:
     pass
