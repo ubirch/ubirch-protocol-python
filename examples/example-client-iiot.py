@@ -309,13 +309,17 @@ def aggregate_data(uuid: UUID,persistent_storage_path:str):
 
     return
 
-def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
+def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID, add_UPP_to_datablock: bool):
     """
     Takes blocks of aggregated data from the seal queue, serializes the data, sends a matching UPP to the ubirch backend,
     and finally adds the (now sealed and anchored) serialized data to the "customer backend" sending queue.
     Returns when the queue is empty or sending the UPP fails. Sending will then be tried again on next call.
+    If add_UPP_to_datablock is true, the base64 encoded UPP and a space separator are added to the front of the datablock
+    string before adding it to the send_datablocks_queue.
     """
     global seal_queue
+    global send_datablocks_queue
+
     if seal_queue.empty(): #if there is no data available, return
         logger.info("no data to seal available")
         return
@@ -339,14 +343,18 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
         # make sure we can go back to this point in the UPP signature chaining later in case of problems with the UPP/sending
         protocol.persist(uuid)
 
-        upp_sent_ok = send_UPP(protocol, api, uuid, datablock_json,str(current_block_number))
+        sent_upp = send_UPP(protocol, api, uuid, datablock_json)
 
-        if upp_sent_ok == True:
+        if len(sent_upp) > 1 :
             # everything is OK: queue sealed customer data for sending later and persist the last signature of the sent UPP
-            send_datablocks_queue.put(datablock_json)
+            if add_UPP_to_datablock:
+                send_datablocks_queue.put(base64.b64encode(sent_upp).decode('utf-8') + " " + datablock_json)
+            else:
+                send_datablocks_queue.put(datablock_json)
+
             protocol.persist(uuid)
             seal_queue.task_done() # persist our changes to the sealing queue
-        elif upp_sent_ok == False:
+        elif sent_upp == None:
             # we are unable to send the UPP (at the moment), restore seal queue from file and restore UPP signature chain, then return
 
             # restore queue
@@ -366,17 +374,14 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID):
             
     return
 
-def send_UPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str, mqtt_send_reference: str = None)-> bool:
+def send_UPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str)-> bytes:
     """
-    Sends UPP to ubirch backend, returns true in case of success response from
+    Sends UPP to ubirch backend, returns the sent UPP in case of success or 'already anchored' response from
     backend. Will retry a few (3) times before giving up. Also reasonably handles some
     of the most important backend responses/errors.
-    If mqtt_send_reference is not None, the reference value (= mqtt_send_reference) along with the base64 encoded UPP is put into the upp_mqtt_queue for sending via MQTT to e.g. actuators.
-    Space is used as the separator. If mqtt_send_reference is None, no UPPs will be added to the upp_mqtt_queue.
+    Returns None on failure.
     """
     MAX_FAILS = 3
-
-    global upp_mqtt_queue # queue for placing the UPPs for sending directly via MQTT later
 
     if not isinstance(datablock_json, str):
         raise ValueError("Expected serialized json string for creating UPP")
@@ -420,31 +425,20 @@ def send_UPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str, mqtt
                     logger.info("backend acknowledged UPP signature matches sent UPP signature")
                     
                     # all checks passed, return success
-                    logger.info("UPP successfully sent")
-                    # if enabled, prepare UPP for sending via MQTT too
-                    if mqtt_send_reference is not None:
-                        logger.info("placing UPP in MQTT send queue")
-                        try:
-                            # create a MQTT payload for direct sending of the UPP to e.g. actuators
-                            # put the reference value, i.e. block number, separate by space, and then the base64 encoded UPP
-                            upp_mqtt_payload = mqtt_send_reference + " " + base64.b64encode(upp).decode('utf-8')
-                            logger.debug(f"MQTT payload: {upp_mqtt_payload}")
-                            upp_mqtt_queue.put(upp_mqtt_payload)
-                        except Exception as e:
-                            logger.error(f"placing MQTT in upp_mqtt_queue failed: {repr(e)}")
-                    return True
+                    logger.info("UPP successfully sent")                    
+                    return upp
                 except Exception as e:
                     logger.error("backend response verification FAILED! {}".format(repr(e)))
             elif r.status_code == 409: # conflict: UPP with this hash already exists
                 logger.warning("received 409/conflict from backend")
                 if backend_UPP_identical(block_hash,upp,api):
                     logger.warning("identical UPP was already present in backend")
-                    return True # this exact UPP is already at backend, we are done
+                    return upp # this exact UPP is already at backend, we are done
                 else:
                     logger.error("sending UPP failed: UPP hash already in use by other UPP")
                     # hash collision: there is a different UPP already with this hash, so we cannot anchor this UPP,
                     # we will try again later (which should work because the new seal timestamp leads to a new hash)
-                    return False 
+                    return None 
             else: #all other status codes
                 logger.error("sending UPP failed! response: ({}) {}".format(r.status_code, binascii.hexlify(r.content).decode()))
         except Exception as e:
@@ -452,7 +446,7 @@ def send_UPP(protocol:Proto, api:ubirch.API, uuid:UUID, datablock_json:str, mqtt
         fails += 1
     
     # at this point we have used up all our tries, give up
-    return False
+    return None
 
 def backend_UPP_identical(local_upp_hash: bytes, local_upp: bytes, api: ubirch.API) -> bool:
     """
@@ -488,26 +482,21 @@ def send_datablocks(data_backend_type:str, destination:str)->bool:
     When the file type is used, destination is the folder in which the data is stored.
     When the mqtt type is used, destination is the topic under which the data is published.
     For publishing, the already connected, global mqtt_client_sending is used (see main).
-    If there are UPPs available to be sent via MQTT in upp_mqtt_queue they are sent too.
-    Datablocks will go to the 'destination'/datablocks and UPPs to the 'destination'/upps topic.
     Returns true on success, false otherwise.
     """
 
     global send_datablocks_queue
-    global upp_mqtt_queue
 
-    logger.info("attempting to send {} data blocks and {} MQTT UPPs to customer backend".format(send_datablocks_queue.qsize(),upp_mqtt_queue.qsize()))
+    logger.info("attempting to send {} data blocks to customer backend".format(send_datablocks_queue.qsize()))
     send_fails = 0
     while send_fails < 3:
 
-        if data_backend_type == "file":        
-            if send_datablocks_queue.empty() : # we managed to write all datablock items
+        if send_datablocks_queue.empty() : # we managed to handle all datablock items
+            if data_backend_type == "file": 
                 logger.info("all datablocks written to file")
-                return True
-        elif data_backend_type == 'mqtt': #we also need to check for UPPs in case of MQTT backend
-            if send_datablocks_queue.empty() and upp_mqtt_queue.empty():
-                logger.info("all datablocks and UPPs sent via MQTT")
-                return True
+            elif data_backend_type == 'mqtt':
+                logger.info("all UPPs and datablocks sent via MQTT")
+            return True
 
         if not send_datablocks_queue.empty():
             # get and send next datablock item
@@ -515,7 +504,7 @@ def send_datablocks(data_backend_type:str, destination:str)->bool:
             if data_backend_type == "file":
                 send_ok = send_data_to_file(blockdata, destination)
             elif data_backend_type == "mqtt":
-                send_ok = send_data_to_mqtt(blockdata, destination+"/datablocks")
+                send_ok = send_data_to_mqtt(blockdata, destination)
             else:
                 logger.error("data_backend_type must be either mqtt or file, please check configuration")
                 sys.exit(1)
@@ -527,20 +516,6 @@ def send_datablocks(data_backend_type:str, destination:str)->bool:
                 send_fails += 1
                 send_datablocks_queue.put(blockdata) # put item back for next try
                 logger.error("sending data block failed")
-
-        if not upp_mqtt_queue.empty() and data_backend_type == 'mqtt': # if the backend is not MQTT we don't process the UPP MQTT queue
-            # get and send MQTT UPP item
-            upp_mqtt = upp_mqtt_queue.get()
-            send_ok = send_data_to_mqtt(upp_mqtt, destination+"/upps")
-
-            if send_ok:
-                upp_mqtt_queue.task_done()
-                send_fails = 0
-            else:
-                send_fails += 1
-                upp_mqtt_queue.put(upp_mqtt) # put item back for next try
-                logger.error("sending UPP via MQTT failed")
-
 
     # if we reach this point sending failed too often
     logger.error("giving up on sending data to customer backend")
@@ -641,9 +616,6 @@ seal_queue = persistqueue.Queue(PATH_SEAL_QUEUE) # stores aggregated data blocks
 PATH_SEND_BLOCK_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-sendblockqueue")
 send_datablocks_queue = persistqueue.Queue(PATH_SEND_BLOCK_QUEUE) # stores data that has been sealed and anchored for transfer to customer backend
 
-PATH_UPP_MQTT_QUEUE = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-uppmqttqueue")
-upp_mqtt_queue = persistqueue.Queue(PATH_UPP_MQTT_QUEUE) # stores UPPs that have been send to ubirch and that should also be send via MQTT (e.g. for processing/pre-processing directly at actuators)
-
 PATH_SENT_DATABLOCKS = os.path.join(PATH_PERSISTENT_STORAGE, DEVICE_UUID.hex+"-sentdatablocks") # path used to store the data arriving at the mock customer backend
 
 # OPC-UA setup
@@ -743,6 +715,12 @@ logger.info("starting main loop")
 last_aggregate_data = time.time()
 last_seal_blocks = time.time()
 
+# for MQTT data sending, add UPP data for e.g. actuators/direct verification start
+if config["data_backend_type"] == "mqtt":
+    ADD_UPP_TO_DATABLOCK = True
+else:
+    ADD_UPP_TO_DATABLOCK = False
+
 try:
     while True:
         # receiving MQTT and OPC-UA is handled in callbacks, so no related code here
@@ -758,13 +736,13 @@ try:
         if SEAL_INTERVAL == 0: # if set to immediate sealing
             if not seal_queue.empty(): # is there new data?
                 last_seal_blocks = time.time()
-                seal_datablocks(protocol,api,DEVICE_UUID) 
+                seal_datablocks(protocol,api,DEVICE_UUID,ADD_UPP_TO_DATABLOCK) 
         elif time.time()-last_seal_blocks > SEAL_INTERVAL: # if set to interval: time for sealing and anchoring the aggregated blocks?
             last_seal_blocks = time.time()
-            seal_datablocks(protocol,api,DEVICE_UUID)            
+            seal_datablocks(protocol,api,DEVICE_UUID,ADD_UPP_TO_DATABLOCK)            
 
         # is data which was previously sealed and anchored for sending to customer backend available?
-        if not send_datablocks_queue.empty() or (not upp_mqtt_queue.empty() and config["data_backend_type"] == "mqtt"): 
+        if not send_datablocks_queue.empty(): 
             if config["data_backend_type"] == "file":
                 destination = PATH_SENT_DATABLOCKS
             elif config["data_backend_type"] == "mqtt":

@@ -145,7 +145,7 @@ If using MQTT for sending the sealed datablocks, the following configuration opt
 - `mqtt_send_address`: Address of MQTT broker.
 - `mqtt_send_port`: Port of MQTT broker.
 - `mqtt_send_tls_enabled`: Whether to use TLS or not. Can be true/false. Can be omitted (= disabled). Make sure to also set correct port.
-- `mqtt_send_topic`: The topic to publish the datablocks on. Datablocks will go to 'mqtt_send_topic'/datablocks and UPPs to the 'mqtt_send_topic'/upps topic.
+- `mqtt_send_topic`: The topic to publish the datablocks on. Datablocks for MQTT will have the base64 encoded matching UPP and a space separator added as a payload prefix before the actual datablock.
 - `mqtt_send_client_id`: Client ID to send to broker. Set to `""` to auto-generate. Must be unqiue on broker side.
 - `mqtt_send_username`: Username for authentication at server. Can be omitted or `null`.
 - `mqtt_send_password`: Password for authentication at server. Can be omitted or `null`.
