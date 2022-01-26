@@ -6,7 +6,8 @@ import time
 import ed25519
 from paho.mqtt import client as MqttClient
 from uuid import UUID
-from queue import Queue
+from collections import deque
+import base64
 
 import ubirch
 
@@ -101,8 +102,7 @@ def mqtt_connect(address:str, port:int, client_id:str, enable_tls:bool, client_t
 def mqtt_subscribe(client: MqttClient, topics: list):
     """Subscribe to all topics from the topics list using the given client."""
     def on_message(client, userdata, msg: MqttClient.MQTTMessage):
-        global datablock_queue
-        global upp_queue
+        global datablock_deque
 
         # handle payload string
         try:
@@ -110,8 +110,9 @@ def mqtt_subscribe(client: MqttClient, topics: list):
         except UnicodeDecodeError:
             logger.error(f"undecodable message payload on topic {msg.topic}: {binascii.b2a_hex(msg.payload)}") 
             return
-        logger.info("MQTT-receiver: received message: topic: {}, payload: {}".format(msg.topic, payload_string))
-        datablock_queue.put(payload_string)
+        logger.info(f"MQTT-receiver: received message from topic {msg.topic}")
+        logger.debug("MQTT-receiver: payload: {payload_string}")
+        datablock_deque.appendleft(payload_string) # append left so the processing is FIFO (left in, right out)
     
     for topic in topics:
         logger.info("MQTT-receiver: subscribing to topic {}".format(topic))
@@ -119,11 +120,35 @@ def mqtt_subscribe(client: MqttClient, topics: list):
     client.on_message = on_message
 ########################################################################
 
+def process_datablocks():
+    """"
+    Process all datablocks currently held in the queue
+    """
+    global datablock_deque
+
+    while len(datablock_deque) > 0:
+        payload_string = str(datablock_deque.pop())
+        payload_elements = payload_string.split(" ",1)
+        if len(payload_elements) != 2:
+            logger.error(f"unable to split payload into UPP and datablock, discarding payload: {payload_string}")
+            continue
+        try:
+            upp = base64.b64decode(payload_elements[0], validate=True)
+        except Exception as e:
+            logger.error(f"unable to decode UPP, discarding payload: {payload_string}")
+            continue
+        datablock = payload_elements[1]
+        logger.info("Processing datablock with:")
+        logger.info(f"UPP: {upp}")
+        logger.info(f"data: {datablock}")
+        #TODO: verify, process data, put back in case of temporary error (i.e. no connection)
+
+
 
 #### start of main code section ###
 
 # non-persistent queues for keeping received datablocks and UPPs in
-datablock_queue = Queue()
+datablock_deque = deque() # double ended queue
 
 if len(sys.argv) < 2:
     print("example usage:")
@@ -177,10 +202,11 @@ u_protocol = VerifyProto(u_keystore, NANOCLIENT_UUID, NANOCLIENT_PUBKEY)
 logger.info("starting main loop")
 last_check = 0
 try:
-    while True:           
-        if time.time() - last_check > 1.0 :
-            last_check = time.time()
-            logger.info(f"{datablock_queue.qsize()} datablocks waiting for processing")
+    while True:
+        if len(datablock_deque) > 0:
+            logger.info(f"attempting to process {len(datablock_deque)} datablocks")
+            process_datablocks()
+
         time.sleep(0.0001)
 except KeyboardInterrupt:
     pass
