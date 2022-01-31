@@ -10,8 +10,10 @@ from time import time, sleep
 import uuid
 import sys
 import json
+import numpy as np
+import matplotlib.pyplot as plt
 
-SLEEP_INTERVAL = 0.05
+SLEEP_INTERVAL = 0.0
 DECIMAL_PLACES = 1
 
 def on_connect_rcvr(client:mqtt.Client, userdata, flags, rc):
@@ -66,12 +68,21 @@ client_sndr.connect(config["mqtt_send_address"],config["mqtt_send_port"])
 in_flight = False
 last_send_time = 0
 
-while True:
-    last_send_time = time() # remember publish time in global
-    client_sndr.publish(topic_sndr, "some test data", qos=config["mqtt_send_qos"]) # send the data
-    in_flight = True
-    while in_flight == True:
-        client_sndr.loop()
-        client_rcvr.loop() # evaluation of timing is done in receive callback, which resets in flight flag too
-    sleep(SLEEP_INTERVAL)
-    
+try:
+    while True:
+        last_send_time = time() # remember publish time in global
+        client_sndr.publish(topic_sndr, "some test data", qos=config["mqtt_send_qos"]) # send the data
+        in_flight = True
+        while in_flight == True:
+            client_sndr.loop()
+            client_rcvr.loop() # evaluation of timing is done in receive callback, which resets in flight flag too
+        sleep(SLEEP_INTERVAL)
+except KeyboardInterrupt:
+    pass
+
+# do scatter plot of delays over rounds on exit
+rounds = [*range(len(rtt_array))]
+plt.scatter(rounds, rtt_array)
+plt.ylabel("Round Trip Time [s]")
+plt.xlabel("Round Number")
+plt.show()
