@@ -6,7 +6,8 @@ import json
 import hashlib
 import requests
 
-
+# remove '/anchor' to disable anchoring lookup; increases speed
+# but no anchoring information will be shown (only curr/prev UPP)
 VERIFICATION_SERVICE = "https://verify.%s.ubirch.com/api/upp/verify/anchor"
 
 DEFAULT_ISPATH = "False"
