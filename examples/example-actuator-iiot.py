@@ -1,4 +1,6 @@
 import binascii
+from hashlib import sha256
+import hashlib
 import json
 import logging
 import sys
@@ -106,7 +108,7 @@ def mqtt_subscribe(client: MqttClient, topics: list):
 
         # handle payload string
         try:
-            payload_string = msg.payload.decode('utf-8')
+            payload_string = msg.payload.decode(STRING_ENCODING)
         except UnicodeDecodeError:
             logger.error(f"undecodable message payload on topic {msg.topic}: {binascii.b2a_hex(msg.payload)}") 
             return
@@ -127,7 +129,7 @@ def process_datablocks():
     global datablock_deque
 
     while len(datablock_deque) > 0:
-        payload_string = str(datablock_deque.pop())
+        payload_string = datablock_deque.pop()
         payload_elements = payload_string.split(" ",1)
         if len(payload_elements) != 2:
             logger.error(f"unable to split payload into UPP and datablock, discarding payload: {payload_string}")
@@ -135,13 +137,29 @@ def process_datablocks():
         try:
             upp = base64.b64decode(payload_elements[0], validate=True)
         except Exception as e:
-            logger.error(f"unable to decode UPP, discarding payload: {payload_string}")
+            logger.error(f"unable to base64-decode UPP, discarding payload: {payload_string}")
             continue
         datablock = payload_elements[1]
-        logger.info("Processing datablock with:")
-        logger.info(f"UPP: {upp}")
-        logger.info(f"data: {datablock}")
-        #TODO: verify, process data, put back in case of temporary error (i.e. no connection)
+        logger.debug("Processing datablock with:")
+        logger.debug(f"UPP: {upp}")
+        logger.debug(f"data: {datablock}")
+        # verify MQTT UPP with known nanoclient pubkey
+        try:
+            upp_unpacked = u_protocol.message_verify(upp)
+        except Exception as e:
+            logger.error(f"could not verify UPP: {repr(e)}")
+            logger.debug(f"discarding payload: {payload_string}")
+            continue # process next datablock
+        logger.info("MQTT UPP verified OK")
+        # calc block hash
+        datablock_hash = hashlib.sha512(datablock.encode(STRING_ENCODING)).digest()
+        logger.info(f"datablock hash is: {datablock_hash.hex()}")
+
+        # verify hash with upp hash
+        # get backend UPP (block/timeout?)
+        # compare UPPs
+        # call act_on_data()
+        # put back in case of temporary error (i.e. no connection)
 
 
 
@@ -162,6 +180,8 @@ logger.info("actuator example started")
 logger.info("loading config")
 with open(sys.argv[1], 'r') as f:
     config = json.load(f)
+
+STRING_ENCODING='utf-8'
 
 ENVIRONMENT = config['api_environment']
 
