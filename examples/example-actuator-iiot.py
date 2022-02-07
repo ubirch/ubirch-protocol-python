@@ -122,6 +122,29 @@ def mqtt_subscribe(client: MqttClient, topics: list):
     client.on_message = on_message
 ########################################################################
 
+def get_UPP_from_BE(payload_hash: bytes, api: ubirch.API):
+    """ Asks ubirch backend for a UPP with payload_hash. Returns UPP and prev. UPP data or None, None if not found. """
+    response = api.verify(payload_hash, quick=True) # we need the quick verify endpoint here for timing reasons
+    if response.status_code == 200:
+        try:
+            upp_info = json.loads(response.content)
+            # print(f"Received UPP info from verify endpoint:\n {upp_info}\n")
+            backend_upp = binascii.a2b_base64(upp_info.get('upp'))
+            backend_prev_upp_base64 = upp_info.get('prev')
+            if backend_prev_upp_base64 is not None:
+                backend_prev_upp = binascii.a2b_base64(backend_prev_upp_base64)
+            else:
+                backend_prev_upp = None
+            return backend_upp, backend_prev_upp
+
+        except Exception as e:
+            logger.error(f"error while getting UPP from backend: {repr(e)}")
+            raise
+    elif response.status_code == 404:  # not found
+        return None, None
+    else:
+        raise Exception(f"Error when checking if UPP exists. Response code: {response.status_code}, Response content: {repr(response.content)}")
+
 def process_datablocks():
     """"
     Process all datablocks currently held in the queue
@@ -133,12 +156,12 @@ def process_datablocks():
         payload_elements = payload_string.split(" ",1)
         if len(payload_elements) != 2:
             logger.error(f"unable to split payload into UPP and datablock, discarding payload: {payload_string}")
-            continue
+            continue # do next block
         try:
             upp = base64.b64decode(payload_elements[0], validate=True)
         except Exception as e:
             logger.error(f"unable to base64-decode UPP, discarding payload: {payload_string}")
-            continue
+            continue # do next block
         datablock = payload_elements[1]
         logger.debug("Processing datablock with:")
         logger.debug(f"UPP: {upp}")
@@ -161,12 +184,38 @@ def process_datablocks():
         if datablock_hash != upp_payload_hash:
             logger.error(f"MQTT UPP hash does not match datablock hash")
             logger.error(f"discarding payload: {payload_string}")
-            continue
+            continue # do next block
         logger.debug("hashes of MQTT UPP and datablock match")
-        # get backend UPP (block/timeout?)
+        # get backend UPP, wait for it if necessary
+        polling_start = time.time()
+        backend_upp = None
+        while time.time()-polling_start < UPP_POLLING_TIMEOUT:
+            try:
+                backend_upp, _ = get_UPP_from_BE(datablock_hash,u_api)
+            except Exception as e:
+                logger.error(f"could not get UPP from backend: {repr(e)}")
+                logger.error(f"will retry payload processing later")
+                datablock_deque.append(payload_string) # put data back for retrying later
+                return # abort processing for now
+            
+            if backend_upp != None:
+                break # we got the UPP, exit loop
+            logger.info("UPP is currently unknown at backend, will retry shortly...")
+            time.sleep(UPP_POLLING_DELAY)
+        if backend_upp == None: # we ran into the timeout or the UPP was not anchored at all
+            logger.error(f"backend did not receive UPP (within timeout time)")
+            logger.error(f"discarding payload: {payload_string}")
+            continue # do next block
+
+        logger.debug(f"received UPP from BE: {backend_upp}")
+            
         # compare UPPs
-        # call act_on_data()
-        # put back in case of temporary error (i.e. no connection)
+        if upp != backend_upp:
+            logger.error(f"MQTT UPP does not match backend UPP")
+            logger.error(f"discarding payload: {payload_string}")
+            continue # do next block
+        # call act_on_data(), or queue
+        logger.warning("Data is OK, but act_on_data() not implemented yet")
 
 
 
@@ -189,6 +238,9 @@ with open(sys.argv[1], 'r') as f:
     config = json.load(f)
 
 STRING_ENCODING='utf-8'
+
+UPP_POLLING_TIMEOUT = 5 # seconds, how long to wait for UPP to be verifable at backend when processing data block
+UPP_POLLING_DELAY = 0.01  # seconds, how long to wait between UPP backend polling requests
 
 ENVIRONMENT = config['api_environment']
 
