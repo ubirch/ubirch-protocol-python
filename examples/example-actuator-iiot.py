@@ -216,14 +216,34 @@ def verify_datablocks():
             logger.error(f"discarding payload: {payload_string}")
             continue # do next block
         # put data into queue (left in to right out= FIFO)
-        logger.info("adding data to 'verified data' queue")
+        logger.debug("adding data to 'verified data' queue")
         verified_datablocks_deque.appendleft(datablock)
 
-def act_on_data():
+def act_on_data(data_topic : str):
+    """
+    This is a simple example function acting depending on the verified data. It simply extracts
+    the data from data_topic and acts accordingly and does not do more complex processing like
+    structure or order checks or similar.
+    """
     global verified_datablocks_deque
     while len(verified_datablocks_deque) > 0:
-        logger.warning("Not implemented, dropping verified data")
-        verified_datablocks_deque.pop()
+        data_str = verified_datablocks_deque.pop() # get verified data
+        data_json = json.loads(data_str) # parse json
+        messages = data_json['block_msgs']
+        # simply find the first message in this block with the correct topic
+        # and parse its data
+        value = -1 # = not found
+        for message in messages:
+            if message['msg_type']== 'MQTTMessage':
+                content = message['msg_content']
+                if content['msg_topic'] == data_topic:
+                    value = int(content['msg_payload'])
+
+        logger.info(f"acting on new value from {data_topic}: {value}")
+        # TODO: act on the new value
+
+
+        
 
 
 
@@ -297,7 +317,7 @@ try:
             verify_datablocks()
         if len(verified_datablocks_deque) > 0:
             logger.info(f"attempting to act on {len(verified_datablocks_deque)} verified datablocks")
-            act_on_data()
+            act_on_data("ubirch/test/temperature")
 
         time.sleep(0.0001)
 except KeyboardInterrupt:
