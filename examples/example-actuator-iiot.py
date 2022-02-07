@@ -104,7 +104,7 @@ def mqtt_connect(address:str, port:int, client_id:str, enable_tls:bool, client_t
 def mqtt_subscribe(client: MqttClient, topics: list):
     """Subscribe to all topics from the topics list using the given client."""
     def on_message(client, userdata, msg: MqttClient.MQTTMessage):
-        global datablock_deque
+        global datablock_input_deque
 
         # handle payload string
         try:
@@ -114,7 +114,7 @@ def mqtt_subscribe(client: MqttClient, topics: list):
             return
         logger.info(f"MQTT-receiver: received message from topic {msg.topic}")
         logger.debug("MQTT-receiver: payload: {payload_string}")
-        datablock_deque.appendleft(payload_string) # append left so the processing is FIFO (left in, right out)
+        datablock_input_deque.appendleft(payload_string) # append left so the processing is FIFO (left in, right out)
     
     for topic in topics:
         logger.info("MQTT-receiver: subscribing to topic {}".format(topic))
@@ -145,14 +145,15 @@ def get_UPP_from_BE(payload_hash: bytes, api: ubirch.API):
     else:
         raise Exception(f"Error when checking if UPP exists. Response code: {response.status_code}, Response content: {repr(response.content)}")
 
-def process_datablocks():
+def verify_datablocks():
     """"
     Process all datablocks currently held in the queue
     """
-    global datablock_deque
+    global datablock_input_deque
+    global verified_datablocks_deque
 
-    while len(datablock_deque) > 0:
-        payload_string = datablock_deque.pop()
+    while len(datablock_input_deque) > 0:
+        payload_string = datablock_input_deque.pop()
         payload_elements = payload_string.split(" ",1)
         if len(payload_elements) != 2:
             logger.error(f"unable to split payload into UPP and datablock, discarding payload: {payload_string}")
@@ -195,7 +196,7 @@ def process_datablocks():
             except Exception as e:
                 logger.error(f"could not get UPP from backend: {repr(e)}")
                 logger.error(f"will retry payload processing later")
-                datablock_deque.append(payload_string) # put data back for retrying later
+                datablock_input_deque.append(payload_string) # put data back for retrying later
                 return # abort processing for now
             
             if backend_upp != None:
@@ -214,15 +215,24 @@ def process_datablocks():
             logger.error(f"MQTT UPP does not match backend UPP")
             logger.error(f"discarding payload: {payload_string}")
             continue # do next block
-        # call act_on_data(), or queue
-        logger.warning("Data is OK, but act_on_data() not implemented yet")
+        # put data into queue (left in to right out= FIFO)
+        logger.info("adding data to 'verified data' queue")
+        verified_datablocks_deque.appendleft(datablock)
+
+def act_on_data():
+    global verified_datablocks_deque
+    while len(verified_datablocks_deque) > 0:
+        logger.warning("Not implemented, dropping verified data")
+        verified_datablocks_deque.pop()
 
 
 
 #### start of main code section ###
 
 # non-persistent queues for keeping received datablocks and UPPs in
-datablock_deque = deque() # double ended queue
+# as well as the already verified data
+datablock_input_deque = deque() # double ended queue
+verified_datablocks_deque = deque()
 
 if len(sys.argv) < 2:
     print("example usage:")
@@ -282,9 +292,12 @@ logger.info("starting main loop")
 last_check = 0
 try:
     while True:
-        if len(datablock_deque) > 0:
-            logger.info(f"attempting to process {len(datablock_deque)} datablocks")
-            process_datablocks()
+        if len(datablock_input_deque) > 0:
+            logger.info(f"attempting to verify {len(datablock_input_deque)} datablocks")
+            verify_datablocks()
+        if len(verified_datablocks_deque) > 0:
+            logger.info(f"attempting to act on {len(verified_datablocks_deque)} verified datablocks")
+            act_on_data()
 
         time.sleep(0.0001)
 except KeyboardInterrupt:
