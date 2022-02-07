@@ -148,14 +148,21 @@ def process_datablocks():
             upp_unpacked = u_protocol.message_verify(upp)
         except Exception as e:
             logger.error(f"could not verify UPP: {repr(e)}")
-            logger.debug(f"discarding payload: {payload_string}")
+            logger.error(f"discarding payload: {payload_string}")
             continue # process next datablock
-        logger.info("MQTT UPP verified OK")
+        logger.debug("MQTT UPP verified OK")
+        logger.debug(f"unpacked UPP:\n{upp_unpacked}")
+        upp_payload_hash = upp_unpacked[-2]
+        logger.debug(f"UPP payload hash is: {upp_payload_hash.hex()}")
         # calc block hash
         datablock_hash = hashlib.sha512(datablock.encode(STRING_ENCODING)).digest()
-        logger.info(f"datablock hash is: {datablock_hash.hex()}")
-
+        logger.debug(f"datablock hash is: {datablock_hash.hex()}")        
         # verify hash with upp hash
+        if datablock_hash != upp_payload_hash:
+            logger.error(f"MQTT UPP hash does not match datablock hash")
+            logger.error(f"discarding payload: {payload_string}")
+            continue
+        logger.debug("hashes of MQTT UPP and datablock match")
         # get backend UPP (block/timeout?)
         # compare UPPs
         # call act_on_data()
