@@ -71,7 +71,7 @@ last_send_time = 0
 try:
     while True:
         last_send_time = time() # remember publish time in global
-        client_sndr.publish(topic_sndr, "some test data", qos=config["mqtt_send_qos"]) # send the data
+        client_sndr.publish(topic_sndr, str(int(time()*1000)), qos=config["mqtt_send_qos"]) # send the data
         in_flight = True
         while in_flight == True:
             client_sndr.loop()
