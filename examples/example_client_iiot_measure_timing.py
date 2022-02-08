@@ -120,4 +120,5 @@ for name in sorted(statistics,reverse=True):
         value_array.append(time_offset)
     plt.scatter(block_nr_array,value_array,label=name, marker=next(marker))
 plt.legend(loc="upper left")
+plt.axhline(y=1000, color='r', linestyle='-') # add 1000 ms limit as line
 plt.show()
