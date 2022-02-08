@@ -12,6 +12,7 @@ import ubirch
 DEFAULT_ENV    = "dev"
 DEFAULT_INPUT  = "upp.bin"
 DEFAULT_OUTPUT = "response_upp.bin"
+DEFAULT_ISHEX  = "False"
 
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(funcName)20.20s() %(levelname)-8.8s %(message)s', level=logging.INFO)
@@ -30,6 +31,7 @@ class Main:
         self.input : str = None
 
         self.iskeyreg : bool = False
+        self.ishex : bool = False
 
         self.upp : bytes = None
         self.api : ubirch.API = None
@@ -50,6 +52,9 @@ class Main:
         )
         self.argparser.add_argument("auth", metavar="AUTH", type=str,
             help="uBirch device authentication token"
+        )
+        self.argparser.add_argument("--ishex", "-x", metavar="ISHEX", type=str, default=DEFAULT_ISHEX,
+            help="if true, the input will be interpreted as a hex-encoded string (default: %s)" % DEFAULT_ISHEX
         )
         self.argparser.add_argument("--env", "-e", metavar="ENV", type=str, default=DEFAULT_ENV,
             help="environment to operate in; dev, demo or prod (default: %s)" % DEFAULT_ENV
@@ -73,6 +78,7 @@ class Main:
         self.env = self.args.env
         self.input = self.args.input
         self.output = self.args.output
+        self.ishex_str = self.args.ishex
 
         # process the uuid
         try:
@@ -89,6 +95,12 @@ class Main:
 
             return False
 
+        # get the bool for ishex
+        if self.ishex_str.lower() in ["1", "yes", "y", "true"]:
+            self.ishex = True
+        else:
+            self.ishex = False
+
         return True
 
     def read_upp(self) -> bool:
@@ -98,6 +110,10 @@ class Main:
 
             with open(self.input, "rb") as fd:
                 self.upp = fd.read()
+
+            # check whether hex decoding is needed
+            if self.ishex == True:
+                self.upp = binascii.unhexlify(self.upp)
         except Exception as e:
             logger.exception(e)
 
@@ -153,7 +169,8 @@ class Main:
                     logger.info(r.content)
                 else:
                     logger.error("The key resgistration message for \"%s\" was not accepted; code: %d" % (self.uuid_str, r.status_code))
-                    logger.error(binascii.hexlify(r.content).decode())
+                    logger.error("Reason: %s" % r.reason)
+                    logger.error("Text: %s" % r.content)
             else:
                 r = self.api.send(self.uuid, self.upp)
 
