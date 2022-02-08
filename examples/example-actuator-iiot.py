@@ -3,6 +3,8 @@ from hashlib import sha256
 import hashlib
 import json
 import logging
+import os
+import pickle
 import sys
 import time
 import ed25519
@@ -115,6 +117,8 @@ def mqtt_subscribe(client: MqttClient, topics: list):
         logger.info(f"MQTT-receiver: received message from topic {msg.topic}")
         logger.debug("MQTT-receiver: payload: {payload_string}")
         datablock_input_deque.appendleft(payload_string) # append left so the processing is FIFO (left in, right out)
+        global last_mqtt_receive #TODO: remove (timing debugging)
+        last_mqtt_receive = time.time() #TODO: remove (timing debugging)
     
     for topic in topics:
         logger.info("MQTT-receiver: subscribing to topic {}".format(topic))
@@ -152,6 +156,9 @@ def verify_datablocks():
     global datablock_input_deque
     global verified_datablocks_deque
 
+    global last_verify_start #TODO: remove (debugging)
+    last_verify_start = time.time() #TODO: remove (timing debugging)
+
     while len(datablock_input_deque) > 0:
         payload_string = datablock_input_deque.pop()
         payload_elements = payload_string.split(" ",1)
@@ -167,6 +174,7 @@ def verify_datablocks():
         logger.debug("Processing datablock with:")
         logger.debug(f"UPP: {upp}")
         logger.debug(f"data: {datablock}")
+        datablock_nr = json.loads(datablock)['block_nr'] #TODO remove timing debug
         # verify MQTT UPP with known nanoclient pubkey
         try:
             upp_unpacked = u_protocol.message_verify(upp)
@@ -188,6 +196,7 @@ def verify_datablocks():
             continue # do next block
         logger.debug("hashes of MQTT UPP and datablock match")
         # get backend UPP, wait for it if necessary
+        save_datapoint("051_get_BE_UPP_start",datablock_nr,int(time.time()*1000)) #TODO remove timing debug
         polling_start = time.time()
         backend_upp = None
         while time.time()-polling_start < UPP_POLLING_TIMEOUT:
@@ -207,9 +216,9 @@ def verify_datablocks():
             logger.error(f"backend did not receive UPP (within timeout time)")
             logger.error(f"discarding payload: {payload_string}")
             continue # do next block
-
+        save_datapoint("052_get_BE_UPP_end",datablock_nr,int(time.time()*1000))  #TODO remove timing debug
         logger.debug(f"received UPP from BE: {backend_upp}")
-            
+        logger.info(f"getting UPP from BE took {int((time.time()-polling_start)*1000)} ms") #TODO: remove (timing debugging)
         # compare UPPs
         if upp != backend_upp:
             logger.error(f"MQTT UPP does not match backend UPP")
@@ -218,6 +227,9 @@ def verify_datablocks():
         # put data into queue (left in to right out= FIFO)
         logger.debug("adding data to 'verified data' queue")
         verified_datablocks_deque.appendleft(datablock)
+    
+    global last_verify_end #TODO: remove (debugging)
+    last_verify_end = time.time() #TODO: remove (timing debugging)
 
 def act_on_data(data_topic : str):
     """
@@ -238,9 +250,46 @@ def act_on_data(data_topic : str):
                 content = message['msg_content']
                 if content['msg_topic'] == data_topic:
                     value = int(content['msg_payload'])
+                    msg_queue_ts_ms = int(message['msg_queue_ts_ms']) #TODO: remove (timing debugging)
 
         logger.info(f"acting on new value from {data_topic}: {value}")
         # TODO: act on the new value
+        logger.info("saving debug timing statistics") # TODO remove this timing debug part:
+        block_nr = data_json['block_nr']
+        global last_mqtt_receive
+        global last_verify_start
+        global last_verify_end
+        save_datapoint("010_queued",block_nr, msg_queue_ts_ms)
+        save_datapoint("020_aggregated",block_nr, data_json['block_ts_ms'])
+        save_datapoint("030_seal_start",block_nr,data_json['seal_ts_ms'])
+        save_datapoint("040_received",block_nr, int(last_mqtt_receive*1000))
+        save_datapoint("050_verify_start",block_nr, int(last_verify_start*1000))
+        save_datapoint("060_verify_end",block_nr, int(last_verify_end*1000))
+        save_datapoint("070_acting",block_nr, int(time.time()*1000))
+        save_datapoint("000_time_ref",block_nr, value) # value is the timestamp when sending
+
+        logger.info(f"payload value: {value}")
+
+        
+
+#TODO remove timing debug
+# timing debug statistics helper function
+def save_datapoint(data_name:str, measurement_ref: str, value):
+    """"
+    Loads a dict with measurements from a file, appends the new measurement, the saves the file again
+    """
+    filename = data_name+'.pckl'
+
+    if os.path.isfile(filename):
+        with open(filename, 'rb') as handle:
+            dict = pickle.load(handle)
+    else:
+        dict = {}
+
+    dict[measurement_ref] = value
+
+    with open(filename, 'wb') as handle:
+        pickle.dump(dict, handle)
 
 
         
@@ -248,6 +297,11 @@ def act_on_data(data_topic : str):
 
 
 #### start of main code section ###
+
+#TODO: remove me, for debugging timing:
+last_mqtt_receive = 0
+last_verify_start = 0
+last_verify_end = 0
 
 # non-persistent queues for keeping received datablocks and UPPs in
 # as well as the already verified data

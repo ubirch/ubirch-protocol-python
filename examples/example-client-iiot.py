@@ -343,7 +343,9 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID, add_UPP_to_databl
         # make sure we can go back to this point in the UPP signature chaining later in case of problems with the UPP/sending
         protocol.persist(uuid)
 
+        save_datapoint("031_send_UPP_start",int(current_block_number),int(time.time()*1000)) #TODO remove timing debug
         sent_upp = send_UPP(protocol, api, uuid, datablock_json)
+        save_datapoint("032_send_UPP_end",int(current_block_number),int(time.time()*1000)) #TODO remove timing debug
 
         if len(sent_upp) > 1 :
             # everything is OK: queue sealed customer data for sending later and persist the last signature of the sent UPP
@@ -354,6 +356,7 @@ def seal_datablocks(protocol:Proto, api:ubirch.API, uuid:UUID, add_UPP_to_databl
 
             protocol.persist(uuid)
             seal_queue.task_done() # persist our changes to the sealing queue
+            save_datapoint("033_seal_end",int(current_block_number),int(time.time()*1000)) #TODO remove timing debug
         elif sent_upp == None:
             # we are unable to send the UPP (at the moment), restore seal queue from file and restore UPP signature chain, then return
 
@@ -558,6 +561,26 @@ def send_data_to_mqtt(datablock:str,topic: str)-> bool:
 
 
 ########################################################################
+
+#TODO remove timing debug
+# timing debug statistics helper function
+def save_datapoint(data_name:str, measurement_ref: str, value):
+    """"
+    Loads a dict with measurements from a file, appends the new measurement, the saves the file again
+    """
+    filename = data_name+'.pckl'
+
+    if os.path.isfile(filename):
+        with open(filename, 'rb') as handle:
+            dict = pickle.load(handle)
+    else:
+        dict = {}
+
+    dict[measurement_ref] = value
+
+    with open(filename, 'wb') as handle:
+        pickle.dump(dict, handle)
+
 
 
 #### start of main code section ###
