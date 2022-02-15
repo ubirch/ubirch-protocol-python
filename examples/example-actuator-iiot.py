@@ -256,10 +256,22 @@ def act_on_data(data_topic : str, serial_port : str):
                     msg_queue_ts_ms = int(message['msg_queue_ts_ms']) #TODO: remove (timing debugging)
 
         logger.info(f"acting on new value from {data_topic}: {value}")
-        # send command data via serial to actuator
-        r = random.randint(0,255) # for now we simply set a new random color for the LED
-        g = random.randint(0,255)
-        b = random.randint(0,255)
+        # create command to send
+        ## simply set a new random color for the LED:
+        #r = random.randint(0,255) 
+        #g = random.randint(0,255)
+        #b = random.randint(0,255)
+        # alternate LED color every 5 seconds (based on sent timestamp value):
+        seconds = int(value/1000)
+        if seconds%10 in range(0,5):
+            r = 255
+            g = 0
+            b = 0
+        else:
+            r = 0
+            g = 255
+            b = 0
+
         actuator_command= f"{r}:{g}:{b}#".encode(STRING_ENCODING)
         
         logger.info(f"sending actuator command '{actuator_command}' via {serial_port}")
