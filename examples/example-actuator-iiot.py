@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import pickle
+import random
 import sys
 import time
 import ed25519
@@ -12,6 +13,7 @@ from paho.mqtt import client as MqttClient
 from uuid import UUID
 from collections import deque
 import base64
+import serial
 
 import ubirch
 
@@ -231,11 +233,12 @@ def verify_datablocks():
     global last_verify_end #TODO: remove (debugging)
     last_verify_end = time.time() #TODO: remove (timing debugging)
 
-def act_on_data(data_topic : str):
+def act_on_data(data_topic : str, serial_port : str):
     """
     This is a simple example function acting depending on the verified data. It simply extracts
     the data from data_topic and acts accordingly and does not do more complex processing like
-    structure or order checks or similar.
+    structure or order checks or similar. A command to an actuator (calliope mini for demo purposes)
+    is send via serial_port after the value is analyzed.
     """
     global verified_datablocks_deque
     while len(verified_datablocks_deque) > 0:
@@ -253,22 +256,30 @@ def act_on_data(data_topic : str):
                     msg_queue_ts_ms = int(message['msg_queue_ts_ms']) #TODO: remove (timing debugging)
 
         logger.info(f"acting on new value from {data_topic}: {value}")
-        # TODO: act on the new value
+        # send command data via serial to actuator
+        r = random.randint(0,255) # for now we simply set a new random color for the LED
+        g = random.randint(0,255)
+        b = random.randint(0,255)
+        actuator_command= f"{r}:{g}:{b}#".encode(STRING_ENCODING)
+        
+        logger.info(f"sending actuator command '{actuator_command}' via {serial_port}")
+        ser = serial.Serial(serial_port, 115200, timeout=0.150)        
+        ser.write(actuator_command)
+
         logger.info("saving debug timing statistics") # TODO remove this timing debug part:
         block_nr = data_json['block_nr']
         global last_mqtt_receive
         global last_verify_start
         global last_verify_end
+        save_datapoint("000_time_ref",block_nr, value) # value in payload is the timestamp when sending
         save_datapoint("010_queued",block_nr, msg_queue_ts_ms)
         save_datapoint("020_aggregated",block_nr, data_json['block_ts_ms'])
         save_datapoint("030_seal_start",block_nr,data_json['seal_ts_ms'])
         save_datapoint("040_received",block_nr, int(last_mqtt_receive*1000))
         save_datapoint("050_verify_start",block_nr, int(last_verify_start*1000))
-        save_datapoint("060_verify_end",block_nr, int(last_verify_end*1000))
-        save_datapoint("070_acting",block_nr, int(time.time()*1000))
-        save_datapoint("000_time_ref",block_nr, value) # value is the timestamp when sending
-
-        logger.info(f"payload value: {value}")
+        save_datapoint("060_verify_end",block_nr, int(last_verify_end*1000))        
+        
+        save_datapoint("070_acting",block_nr, int(time.time()*1000)) # we are done with actuating here, save time
 
         
 
@@ -371,7 +382,7 @@ try:
             verify_datablocks()
         if len(verified_datablocks_deque) > 0:
             logger.info(f"attempting to act on {len(verified_datablocks_deque)} verified datablocks")
-            act_on_data("ubirch/test/temperature")
+            act_on_data("ubirch/test/temperature","/dev/ttyACM0")
 
         time.sleep(0.0001)
 except KeyboardInterrupt:
