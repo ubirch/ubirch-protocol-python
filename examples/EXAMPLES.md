@@ -1,29 +1,31 @@
-# uBirch-Protocol-Python Examples
+# uBirch-Protocol-Python Examples <!-- omit in toc -->
 This file documents how to use the examples provided alongside the [uBirch-Protocol-Python](https://github.com/ubirch/ubirch-protocol-python). Those examples aim to provide an insight of how to use the [ubirch-protocol](https://pypi.org/project/ubirch-protocol/) python library, which is implemented in the `/ubirch/` directory in this repository.
 
 ## Table of contents
-- [uBirch-Protocol-Python Examples](#ubirch-protocol-python-examples)
-  - [Table of contents](#table-of-contents)
-  - [From measurement to blockchain-anchored UPP](#from-measurement-to-blockchain-anchored-upp)
-    - [Setup](#setup)
-    - [Generating and managing a keypair](#generating-and-managing-a-keypair)
-    - [Registering a public key](#registering-a-public-key)
-    - [Gathering Data](#gathering-data)
-    - [Creating an UPP](#creating-an-upp)
-    - [Sending an UPP](#sending-an-upp)
-    - [Verifying an UPP](#verifying-an-upp)
-    - [Verifying an UPP chain](#verifying-an-upp-chain)
-    - [Examining an UPP](#examining-an-upp)
-    - [Checking the anchoring status of an UPP](#checking-the-anchoring-status-of-an-upp)
-    - [Verifying data](#verifying-data)
-  - [Sending data to the Simple Data Service](#sending-data-to-the-simple-data-service)
-  - [Example uBirch client implementation](#example-ubirch-client-implementation)
-  - [Create a hash from an JSON object](#create-a-hash-from-an-json-object)
-  - [Test identity of the device](#test-identity-of-the-device)
-  - [Test the complete protocol](#test-the-complete-protocol)
-  - [Test the web of trust](#test-the-web-of-trust)
-  - [Verify ECDSA signed UPP](#verify-ecdsa-signed-upp)
-  - [Verify ED25519 signed UPP](#verify-ed25519-signed-upp)
+- [Table of contents](#table-of-contents)
+- [From measurement to blockchain-anchored UPP](#from-measurement-to-blockchain-anchored-upp)
+  - [Setup](#setup)
+  - [Generating and managing a keypair](#generating-and-managing-a-keypair)
+  - [Registering a public key](#registering-a-public-key)
+  - [Gathering Data](#gathering-data)
+  - [Creating an UPP](#creating-an-upp)
+  - [Sending an UPP](#sending-an-upp)
+  - [Verifying an UPP](#verifying-an-upp)
+  - [Verifying an UPP chain](#verifying-an-upp-chain)
+  - [Examining an UPP](#examining-an-upp)
+  - [Checking the anchoring status of an UPP](#checking-the-anchoring-status-of-an-upp)
+  - [Verifying data](#verifying-data)
+- [Sending data to the Simple Data Service](#sending-data-to-the-simple-data-service)
+- [Example uBirch client implementation](#example-ubirch-client-implementation)
+- [Create a hash from an JSON object](#create-a-hash-from-an-json-object)
+- [Test identity of the device](#test-identity-of-the-device)
+- [Test the complete protocol](#test-the-complete-protocol)
+- [Test the web of trust](#test-the-web-of-trust)
+- [Verify ECDSA signed UPP](#verify-ecdsa-signed-upp)
+- [Verify ED25519 signed UPP](#verify-ed25519-signed-upp)
+- [Managing Keys](#managing-keys)
+  - [Managing the local KeyStore](#managing-the-local-keystore)
+  - [Managing keys inside the uBirch Identity Service](#managing-keys-inside-the-ubirch-identity-service)
 
 ## From measurement to blockchain-anchored UPP
 The process needed to get an UPP to be anchored in the blockchain can be cut down into multiple steps. For each of those steps there is an example in this directory, demonstrating how to handle them. There are also examples showing a full example-client implementation.
@@ -68,33 +70,9 @@ The values used below are `f5ded8a3-d462-41c4-a8dc-af3fd072a217` for the UUID, `
 ### Generating and managing a keypair
 To create, or more precisely, to _sign_ an UPP, a device will need a keypair. This keypair consist of a private key (_signing key_) and public key (_verifying key_). The signing key is used to sign UPPs and the verifying key can be used by the uBirch backend to check, if the signature is valid and belongs to the correct sender/signer. So, logically it doesn't matter who knows to verifying key, but the signing key must be kept secret all the time. In a real use case a device might store it in a TPM ([Trusted platform module](https://en.wikipedia.org/wiki/Trusted_Platform_Module)) or use other counter measures against attackers reading the key from the device. For this demo, keypairs will be stored in a [JKS Keystore](https://en.wikipedia.org/wiki/Java_KeyStore) using the [`pyjks`](https://pypi.org/project/pyjks/) library. Therefore, you will have to choose and remember a file path for that keystore and a password used to encrypt it. The process of actually generating the keypair is handled by the [upp-creator.py](upp-creator.py) script and explained [below](#registering-a-public-key).
 
+To read generated keys from the KeyStore, see [below](#managing-the-local-keystore).
+
 **NOTE** that losing access to the signing key, especially if it is already registered at the uBirch backend, will take away the ability to create and send any new UPPs from that device/UUID, since there is no way of creating a valid signature that would be accepted by the backend.
-
-A keystore can be read out with the [`keystore-dumper.py`](keystore-dumper.py) script.
-
-```
-$ python keystore-dumper.py --help
-usage: keystore-dumper.py [-h] [--show-sk SHOW_SIGNING_KEY] KEYSTORE KEYSTORE_PASS
-```
-By default, only UUIDs und public keys (verifying keys) will be displayed. Displaying of private keys (signing keys) can be enabled by passing `-s true`. `KEYSTORE` is the path to the keystore file and `KEYSTORE_PASS` is the password needed to open/decrypt it. Below is an example with `-s` being set to `false`.
-```
-======================================================================================================================================
-UUID: 292e2f0b-1d9e-407f-9b1a-bda5a9560797
- VK : 2dc6fdf373c7e13abfe1f51ff0fe45417ad713c5fb8df90b76c3077355c4b5e9
- SK : ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
-======================================================================================================================================
-======================================================================================================================================
-UUID: 832e885c-be2a-44b1-ade6-c6c6dd718a3b
- VK : 43536e9793ab5b205ba62e614d12104cbb6f906b2a44b79c1cd01e87a724d5b1
- SK : ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
-======================================================================================================================================
-======================================================================================================================================
-UUID: 622e3933-8fdd-446f-b645-d3aa7ed8b638
- VK : cfd32f687366679d7ef73795bafa3bfca43421e092fbc2501f7f4bfe339bb15a
- SK : ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
-======================================================================================================================================
-```
-As you can see, the secret key is not printed and `█`s are used as placeholders.
 
 ### Registering a public key
 To enable the uBirch backend to verify an UPP, it needs to know the corresponding verifying key. Therefore, the device needs to send this key to the backend, before starting to send UPPs, which are supposed to be verified and anchored. Registering a verifying key is done by sending a special kind of UPP containing this key. This can be done by using two scripts:
@@ -439,7 +417,7 @@ export UBIRCH_UUID=<UUID>
 export UBIRCH_AUTH=<ubirch-authorization-token>
 export UBIRCH_ENV=[dev|demo|prod]
 ```
-It uses `test-identity.jsk` as a place to store/look for keypairs. The keystore-password can be read from the [script](test-identity.py) itself.
+It uses `test-identity.jks` as a place to store/look for keypairs. The keystore-password can be read from the [script](test-identity.py) itself.
 
 ## Test the complete protocol
 The [`test-protocol.py`](test-protocol.py) script sends a couple of UPPs to uBirch Niomon and verifies the backend response. It reads all information it needs interactively from the terminal. Once entered, all device information (UUID, ENV, AUTH TOKEN) are stored in a file called `demo-device.ini`. Devices keys are stored in `demo-device.jks` and the keystore-password can be read from the [script](test-protocol.py) itself. If no keys for the given UUID are found, the script will generated a keypair and stores it in the keystore file.
@@ -453,3 +431,46 @@ The [`verify-ecdsa.py`](verify-ecdsa.py) script verifies a hard-coded UPP which 
 
 ## Verify ED25519 signed UPP
 The [`verify-25519.py`](verify-25519.py) script verifies a hard-coded UPP which was signed with an ED25519 signing key using a ED25519 verifying key. All the information are contained in the script. This mode is normally used (in all other examples).
+
+## Managing Keys
+### Managing the local KeyStore
+`keystore-tool.py` is a script to manipulate contents of JavaKeyStores (JKS) as they are used by other example scripts. It supports displaying Keypair, adding new ones and also deleting entries.
+```
+$ python keystore-tool.py --help
+usage: keystore-tool.py [-h] KEYSTORE KEYSTORE_PASS {get,put,del} ...
+```
+Run `python keystore-tool.py a b get --help` to get a help message for the `get` operation. The first two arguments will be ignored in that case. `get` can be exchanges for `put` or `del` to get information about those operations respectively. One valid invocation of the script might look like this:
+```
+$ python keystore-tool.py devices.jks keystore get -u 55425678-1234-bf80-30b4-dcbabf80abcd -s true
+```
+It will search for an entry matching the given UUID (specified by `-u`) and print the corresponding KeyPair if found. The PrivateKey will also be shown (`-s true`).
+
+**Note that once an entry is deleted, it is gone. It is recommended to keep backups of KeyStores containing important keys.**
+
+### Managing keys inside the uBirch Identity Service
+The `pubkey-util.py` script can be used to manually add, delete, revoke or update device keys at the uBirch Identity Service. In most cases this won't be necessary since the other scripts documented above are capable of registering a key, which is enough most of the time. In total, this script supports five operations:
+```
+get_dev_keys - Get all PubKeys registered for a given device. This won't include revoked or deleted keys.
+get_key_info - Get information about a specific key (basically all information provided when registering it).
+put_new_key  - Register a new key for a device that has no keys yet, or add a new one if it already has one.
+delete_key   - Removes a key so that it can't be used/won't be recognized by the backend anymore.
+revoke_key   - Revokes a key so that it can't be used anymore for sending new UPPs, but is still usable to verify old ones (...).
+```
+In general a invocation of the `pubkey-util.py` script will look like this:
+```
+$ python pubkey-util.py ENV OPERATION ...PARAMETERS...
+```
+Each operation has an own set of sub-parammeters. To see more information about a specific operation run:
+```
+$ python pubkey-util.py ENV OPERATION --help
+```
+To see a general help message run:
+```
+$ python pubkey-util.py --help
+```
+
+For some operations a date string in a specific format will be needed (a specific case of ISO8601); this command can be used to generate date strings in this format:
+```
+$ TZ=UTC date "+%Y-%m-%dT%H:%M:%S.000Z"
+2022-02-23T11:11:11.000Z
+```
