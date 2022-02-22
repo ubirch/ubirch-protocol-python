@@ -275,8 +275,11 @@ def act_on_data(data_topic : str, serial_port : str):
         actuator_command= f"{r}:{g}:{b}#".encode(STRING_ENCODING)
         
         logger.info(f"sending actuator command '{actuator_command}' via {serial_port}")
-        ser = serial.Serial(serial_port, 115200, timeout=0.150)        
-        ser.write(actuator_command)
+        try:
+            ser = serial.Serial(serial_port, 115200, timeout=0.150)        
+            ser.write(actuator_command)
+        except serial.serialutil.SerialException as e:
+            logger.error(f"sending actuator command failed: {repr(e)}")
 
         logger.info("saving debug timing statistics") # TODO remove this timing debug part:
         block_nr = data_json['block_nr']
