@@ -357,7 +357,8 @@ NANOCLIENT_PUBKEY = ed25519.VerifyingKey(config['nanoclient_pubkey'], encoding='
 
 logger.info(f'using endpoints at {ENVIRONMENT}.ubirch.com')
 logger.info(f'nanoclient UUID is {NANOCLIENT_UUID}')
-logger.info(f'nanoclient public key is {NANOCLIENT_PUBKEY}')
+pubkey_string = NANOCLIENT_PUBKEY.to_ascii(encoding='hex').decode(STRING_ENCODING)
+logger.info(f'nanoclient public key is {pubkey_string}')
 
 # MQTT setup for receiving datablocks+UPPs via MQTT
 MQTT_RECEIVE_ADDRESS = config["mqtt_receive_address"]
