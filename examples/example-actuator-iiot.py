@@ -255,6 +255,8 @@ def act_on_data(data_node : str, serial_port : str):
                 if content['msg_node'] == data_node:
                     value = int(content['msg_value'])
                     msg_queue_ts_ms = int(message['msg_queue_ts_ms']) #TODO: remove (timing debugging)
+                    msg_src_ts_ms = int(content['msg_src_ts_ms']) #TODO: remove (timing debugging)
+                    msg_src_ts_ms = msg_src_ts_ms + 3600000 # workaround for 1h offset bug in RSConnect.Application
 
         logger.info(f"acting on new value from {data_node}: {value}")
         # create command to send
@@ -286,7 +288,7 @@ def act_on_data(data_node : str, serial_port : str):
         global last_mqtt_receive
         global last_verify_start
         global last_verify_end
-        save_datapoint("000_time_ref",block_nr, value) # value in payload is the timestamp when sending
+        save_datapoint("000_time_ref",block_nr, msg_src_ts_ms) # message timestamp of the data source = reference
         save_datapoint("010_queued",block_nr, msg_queue_ts_ms)
         save_datapoint("020_aggregated",block_nr, data_json['block_ts_ms'])
         save_datapoint("030_seal_start",block_nr,data_json['seal_ts_ms'])
