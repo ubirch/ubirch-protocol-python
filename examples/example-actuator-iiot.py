@@ -233,10 +233,10 @@ def verify_datablocks():
     global last_verify_end #TODO: remove (debugging)
     last_verify_end = time.time() #TODO: remove (timing debugging)
 
-def act_on_data(data_topic : str, serial_port : str):
+def act_on_data(data_node : str, serial_port : str):
     """
     This is a simple example function acting depending on the verified data. It simply extracts
-    the data from data_topic and acts accordingly and does not do more complex processing like
+    the data from data_node and acts accordingly and does not do more complex processing like
     structure or order checks or similar. A command to an actuator (calliope mini for demo purposes)
     is send via serial_port after the value is analyzed.
     """
@@ -249,25 +249,25 @@ def act_on_data(data_topic : str, serial_port : str):
         # and parse its data
         value = -1 # = not found
         for message in messages:
-            if message['msg_type']== 'MQTTMessage':
+            logger.debug(message)
+            if message['msg_type']== 'DataChangeNotif': # DataChangeNotif = OPCUA data change message
                 content = message['msg_content']
-                if content['msg_topic'] == data_topic:
-                    value = int(content['msg_payload'])
+                if content['msg_node'] == data_node:
+                    value = int(content['msg_value'])
                     msg_queue_ts_ms = int(message['msg_queue_ts_ms']) #TODO: remove (timing debugging)
 
-        logger.info(f"acting on new value from {data_topic}: {value}")
+        logger.info(f"acting on new value from {data_node}: {value}")
         # create command to send
         ## simply set a new random color for the LED:
         #r = random.randint(0,255) 
         #g = random.randint(0,255)
         #b = random.randint(0,255)
         # alternate LED color every 5 seconds (based on sent timestamp value):
-        seconds = int(value/1000)
-        if seconds%10 in range(0,5):
+        if value%2 == 0: # for even count values
             r = 255
             g = 0
             b = 0
-        else:
+        else: # for uneven count values
             r = 0
             g = 255
             b = 0
@@ -398,7 +398,7 @@ try:
             verify_datablocks()
         if len(verified_datablocks_deque) > 0:
             logger.info(f"attempting to act on {len(verified_datablocks_deque)} verified datablocks")
-            act_on_data("ubirch/test/temperature","/dev/ttyACM0")
+            act_on_data("ns=4;s=|var|RSConnect.Application.GVL_OPCUA.counter_input","/dev/ttyACM0")
 
         time.sleep(0.0001)
 except KeyboardInterrupt:
