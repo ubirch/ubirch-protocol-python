@@ -73,6 +73,8 @@ print("name,average delay [ms]")
 for name,value in averages.items():
     print(f"\"{name}\",{value:.1f}")
 
+average_actuation_delay = averages["070_acting.pckl"]
+
 
 plt.legend(loc="upper left")
 plt.axhline(y=1000, color='r', linestyle='-') # add 1000 ms limit as line
@@ -115,11 +117,38 @@ for curr_duration in durations_to_calculate:
     durations.append(duration_datapoints)
     durations_names.append(event_name)
 
-plt.figure(1)
+plt.figure(1) # plot distribution of delays
 plt.xlabel('event name')
 plt.ylabel('event duration [ms]')
 plt.xticks(ticks=range(1,len(durations)+1), labels=durations_names, rotation=10) # add x labels for events
 plt.violinplot(durations,showmedians=True)
+
+plt.figure(2) # plot pie/bar chart of distribution among average delays ( = biggest holdup)
+plt.gca().get_xaxis().set_visible(False)
+plt.ylabel("average time after sensed [ms]")
+labels = []
+delays = []
+last_value = 0
+last_name = "sensed"
+total_delay = 0
+for name in sorted(averages):
+    value = averages[name]
+    
+    label = last_name+"->"+name
+    labels.append(label)
+    delay = value-last_value
+    delays.append(delay)
+
+    bar = plt.bar(x= 0,height=delay, bottom= total_delay)
+    plt.bar_label(bar,label_type='center', labels=[f"{delay:4.0f} ms   // {delay/average_actuation_delay*100:5.1f}%"])
+    plt.text(y=total_delay + delay/2, x= 0.5, s=label)
+    
+    last_value = value    
+    last_name = name
+    total_delay += delay
+
+#plt.pie(delays,labels=labels, counterclock=False,startangle = 180, rotatelabels=True, autopct='%1.1f%%')
+
 
 
 plt.show()# show all figures
