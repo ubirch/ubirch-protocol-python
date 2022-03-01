@@ -24,6 +24,8 @@ for file in os.listdir("."):
 
 averages = {} # dict to hold averages for each datapoint
 
+plt.figure(0)
+
 marker = itertools.cycle((',', '+', '.', 'o', '*')) #markers to use for each kind of datapoint
 ref_name = '000_time_ref.pckl'
 limit_meas_name='070_acting.pckl' # measurement to check for limit
@@ -76,4 +78,49 @@ plt.legend(loc="upper left")
 plt.axhline(y=1000, color='r', linestyle='-') # add 1000 ms limit as line
 plt.xlabel("block number")
 plt.ylabel("time after data sensed [ms]")
-plt.show()
+
+
+# calculate event durations data
+durations_to_calculate = [
+    ("000_time_ref.pckl","070_acting.pckl"),
+
+    ("030_seal_start.pckl","033_seal_end.pckl"),
+    ("031_send_UPP_start.pckl","032_send_UPP_end.pckl"),
+
+    ("050_verify_start.pckl","060_verify_end.pckl"),
+    ("051_get_BE_UPP_start.pckl","052_get_BE_UPP_end.pckl"),
+
+    ("033_seal_end.pckl","040_received.pckl"),
+
+    ("000_time_ref.pckl", "030_seal_start.pckl")
+    ]
+durations = [] # will become of list of lists with the duration values for each event (i.e. durations[eventname][datapoint])
+durations_names = [] # the names for above list of lists
+
+for curr_duration in durations_to_calculate:
+    start_name, end_name = curr_duration
+    duration_datapoints = [] # list for storing results
+    for datapoint_start_ref in statistics[start_name]: # iterate over datapoints from start dataset
+        start_ts = statistics[start_name][datapoint_start_ref]
+        # find end timestamp for the same datapoint reference in end dataset
+        try:
+            end_ts = statistics[end_name][datapoint_start_ref]
+        except KeyError: # if there is no matching reference data
+            print(f"error: no end data found, skipping datapoint {datapoint_start_ref} in {end_name}")
+            continue
+        duration = end_ts-start_ts
+        duration_datapoints.append(duration)
+    # all points done, add calculated durations to list
+    event_name = start_name+"->"+end_name
+    durations.append(duration_datapoints)
+    durations_names.append(event_name)
+
+plt.figure(1)
+plt.xlabel('event name')
+plt.ylabel('event duration [ms]')
+plt.xticks(ticks=range(1,len(durations)+1), labels=durations_names, rotation=10) # add x labels for events
+plt.violinplot(durations,showmedians=True)
+
+
+plt.show()# show all figures
+
