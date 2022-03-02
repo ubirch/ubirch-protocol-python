@@ -84,23 +84,23 @@ plt.ylabel("time after data sensed [ms]")
 
 # calculate event durations data
 durations_to_calculate = [
-    ("000_time_ref.pckl","070_acting.pckl"),
+    ("000_time_ref.pckl","070_acting.pckl","total duration"),
 
-    ("030_seal_start.pckl","033_seal_end.pckl"),
-    ("031_send_UPP_start.pckl","032_send_UPP_end.pckl"),
+    ("030_seal_start.pckl","033_seal_end.pckl","sealing total"),
+    ("031_send_UPP_start.pckl","032_send_UPP_end.pckl","sending UPP"),
 
-    ("050_verify_start.pckl","060_verify_end.pckl"),
-    ("051_get_BE_UPP_start.pckl","052_get_BE_UPP_end.pckl"),
+    ("050_verify_start.pckl","060_verify_end.pckl","verifying total"),
+    ("051_get_BE_UPP_start.pckl","052_get_BE_UPP_end.pckl","getting UPP"),
 
-    ("033_seal_end.pckl","040_received.pckl"),
+    ("033_seal_end.pckl","040_received.pckl","client -> actuator transmission"),
 
-    ("000_time_ref.pckl", "030_seal_start.pckl")
+    ("000_time_ref.pckl", "030_seal_start.pckl","sensed -> seal start")
     ]
 durations = [] # will become of list of lists with the duration values for each event (i.e. durations[eventname][datapoint])
 durations_names = [] # the names for above list of lists
 
 for curr_duration in durations_to_calculate:
-    start_name, end_name = curr_duration
+    start_name, end_name, label_text = curr_duration
     duration_datapoints = [] # list for storing results
     for datapoint_start_ref in statistics[start_name]: # iterate over datapoints from start dataset
         start_ts = statistics[start_name][datapoint_start_ref]
@@ -113,7 +113,8 @@ for curr_duration in durations_to_calculate:
         duration = end_ts-start_ts
         duration_datapoints.append(duration)
     # all points done, add calculated durations to list
-    event_name = start_name+"->"+end_name
+    #event_name = start_name+"->"+end_name
+    event_name = label_text
     durations.append(duration_datapoints)
     durations_names.append(event_name)
 
@@ -126,27 +127,44 @@ plt.violinplot(durations,showmedians=True)
 plt.figure(2) # plot pie/bar chart of distribution among average delays ( = biggest holdup)
 plt.gca().get_xaxis().set_visible(False)
 plt.ylabel("average time after sensed [ms]")
-labels = []
 delays = []
+labels_iterator = iter([
+    "receive sensor data (client)",
+    "queue sensordata (client)",
+    "aggregate sensor data (client)",
+    "prepare sealing (client)",
+    "send UPP (client)",
+    "finish sealing (client)",
+    "transmit UPP + data to actuator (client + actuator)",
+    "prepare verification (actuator)",
+    "verify UPP locally (actuator)",
+    "get UPP from backend (actuator)",
+    "compare UPPs, finish verification (actuator)",
+    "act on verified data (actuator)",
+])
 last_value = 0
 last_name = "sensed"
 total_delay = 0
 for name in sorted(averages):
     value = averages[name]
     
-    label = last_name+"->"+name
-    labels.append(label)
+    try:
+        label = next(labels_iterator)
+    except StopIteration:
+        label = "label missing ("+last_name+"->"+name+")"
+
     delay = value-last_value
     delays.append(delay)
 
     bar = plt.bar(x= 0,height=delay, bottom= total_delay)
     plt.bar_label(bar,label_type='center', labels=[f"{delay:4.0f} ms   // {delay/average_actuation_delay*100:5.1f}%"])
-    plt.text(y=total_delay + delay/2, x= 0.5, s=label)
+    plt.text(y=total_delay + delay/2, x= 0.44, s=label, verticalalignment='center')
     
     last_value = value    
     last_name = name
     total_delay += delay
-
+#adjust plot for labels etc.
+plt.xlim(right=2.8)
 #plt.pie(delays,labels=labels, counterclock=False,startangle = 180, rotatelabels=True, autopct='%1.1f%%')
 
 
