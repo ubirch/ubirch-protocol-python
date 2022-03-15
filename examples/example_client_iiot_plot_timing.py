@@ -24,9 +24,41 @@ for file in os.listdir("."):
 
 averages = {} # dict to hold averages for each datapoint
 
+plt.style.use('ggplot') # let's choose a a bit prettier standard style
 plt.figure(0)
 
+# set up renaming and what to plot in scatter plot
+dont_plot_list = [# list of data (names) to ignore when plotting the scatter plot
+    #"070_acting.pckl",
+    #"060_verify_end.pckl",
+    "052_get_BE_UPP_end.pckl",
+    "051_get_BE_UPP_start.pckl",
+    #"050_verify_start.pckl",
+    #"040_received.pckl",
+    #"033_seal_end.pckl",
+    "032_send_UPP_end.pckl",
+    "031_send_UPP_start.pckl",
+    #"030_seal_start.pckl",
+    "020_aggregated.pckl",
+    #"010_queued.pckl",
+]
+rename_dict = { # dict for renaming scatter plot data. key is original name, value is new name
+    "070_acting.pckl":"Actuator Command Sent",
+    "060_verify_end.pckl":"Verification Done",
+    #"052_get_BE_UPP_end.pckl":"",
+    #"051_get_BE_UPP_start.pckl":"",
+    "050_verify_start.pckl":"Verification Start",
+    "040_received.pckl":"Data Received by Actuator Client",
+    "033_seal_end.pckl":"Anchoring Done",
+    #"032_send_UPP_end.pckl":"",
+    #"031_send_UPP_start.pckl":"",
+    "030_seal_start.pckl":"Anchoring Start",
+    #"020_aggregated.pckl":"",
+    "010_queued.pckl":"Data Received by Nanoclient",
+}
+
 marker = itertools.cycle((',', '+', '.', 'o', '*')) #markers to use for each kind of datapoint
+
 ref_name = '000_time_ref.pckl'
 limit_meas_name='070_acting.pckl' # measurement to check for limit
 limit_value = 1000 # value for limit percentage calculation
@@ -60,7 +92,18 @@ for name in sorted(statistics,reverse=True): # for each named set of datapoints 
         block_nr_array.append(int(meas_ref_nr))
         value_array.append(time_offset)
     # at this point all datapoints for this named set were processed
-    plt.scatter(block_nr_array,value_array,label=name, marker=next(marker))
+    
+    if name in dont_plot_list: # check if this is data that should actually be plotted
+        print(f"not plotting {name}")
+    else: # we should not ignore this
+        try: # check for proper name/renaming of dataset
+            scatterlabel = rename_dict[name]
+            print(f"renaming {name} to {scatterlabel}")
+        except KeyError: # if not found just use name as-is
+            scatterlabel=name
+        plt.scatter(block_nr_array,value_array,label=scatterlabel, marker=next(marker)) # add data to plot
+    
+    
     if nr_of_datapoints > 0:
         averages[name]=time_offset_sum/nr_of_datapoints
         if name == limit_meas_name: # if this is the set to check against the limit save number of points
@@ -78,7 +121,8 @@ average_actuation_delay = averages["070_acting.pckl"]
 
 plt.legend(loc="upper left")
 plt.axhline(y=1000, color='r', linestyle='-') # add 1000 ms limit as line
-plt.xlabel("block number")
+plt.axhline(y=0, color='black', linestyle='-') # add 0 ms reference as line
+plt.xlabel("event/datablock number")
 plt.ylabel("time after data sensed [ms]")
 
 
@@ -130,7 +174,7 @@ plt.ylabel("average time after sensed [ms]")
 delays = []
 labels_iterator = iter([
     "receive sensor data (client)",
-    "queue sensordata (client)",
+    "queue sensor data (client)",
     "aggregate sensor data (client)",
     "prepare sealing (client)",
     "send UPP (client)",
