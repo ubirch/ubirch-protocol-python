@@ -128,17 +128,17 @@ plt.ylabel("time after data sensed [ms]")
 
 # calculate event durations data
 durations_to_calculate = [
-    ("000_time_ref.pckl","070_acting.pckl","total duration"),
+    ("000_time_ref.pckl","070_acting.pckl","Total Duration"),
 
-    ("030_seal_start.pckl","033_seal_end.pckl","sealing total"),
-    ("031_send_UPP_start.pckl","032_send_UPP_end.pckl","sending UPP"),
+    ("030_seal_start.pckl","033_seal_end.pckl","Sealing Total"),
+    ("031_send_UPP_start.pckl","032_send_UPP_end.pckl","Sending UPP"),
 
-    ("050_verify_start.pckl","060_verify_end.pckl","verifying total"),
-    ("051_get_BE_UPP_start.pckl","052_get_BE_UPP_end.pckl","getting UPP"),
+    ("050_verify_start.pckl","060_verify_end.pckl","Verifying Total"),
+    ("051_get_BE_UPP_start.pckl","052_get_BE_UPP_end.pckl","Getting UPP"),
 
-    ("033_seal_end.pckl","040_received.pckl","client -> actuator transmission"),
+    ("033_seal_end.pckl","040_received.pckl","Client -> Actuator Transmission"),
 
-    ("000_time_ref.pckl", "030_seal_start.pckl","sensed -> seal start")
+    ("000_time_ref.pckl", "030_seal_start.pckl","Sensed -> Seal Start")
     ]
 durations = [] # will become of list of lists with the duration values for each event (i.e. durations[eventname][datapoint])
 durations_names = [] # the names for above list of lists
