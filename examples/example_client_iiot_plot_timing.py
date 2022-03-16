@@ -57,7 +57,8 @@ rename_dict = { # dict for renaming scatter plot data. key is original name, val
     "010_queued.pckl":"Data Received by Nanoclient",
 }
 
-marker = itertools.cycle((',', '+', '.', 'o', '*')) #markers to use for each kind of datapoint
+marker = itertools.cycle((',', '+', 'o', '.','*')) #markers to use for each kind of datapoint
+plt.scatter([],[])# quick hack to skip first color of palette
 
 ref_name = '000_time_ref.pckl'
 limit_meas_name='070_acting.pckl' # measurement to check for limit
@@ -122,23 +123,23 @@ average_actuation_delay = averages["070_acting.pckl"]
 plt.legend(loc="upper left")
 plt.axhline(y=1000, color='r', linestyle='-') # add 1000 ms limit as line
 plt.axhline(y=0, color='black', linestyle='-') # add 0 ms reference as line
-plt.xlabel("event/datablock number")
-plt.ylabel("time after data sensed [ms]")
+plt.xlabel("Event/Datablock Number")
+plt.ylabel("Time After Data Sensed [ms]")
 
 
 # calculate event durations data
 durations_to_calculate = [
-    ("000_time_ref.pckl","070_acting.pckl","Total Duration"),
+    ("000_time_ref.pckl","070_acting.pckl",""),
 
-    ("030_seal_start.pckl","033_seal_end.pckl","Sealing Total"),
-    ("031_send_UPP_start.pckl","032_send_UPP_end.pckl","Sending UPP"),
+   # ("030_seal_start.pckl","033_seal_end.pckl","Sealing Total"),
+   # ("031_send_UPP_start.pckl","032_send_UPP_end.pckl","Sending UPP"),
 
-    ("050_verify_start.pckl","060_verify_end.pckl","Verifying Total"),
-    ("051_get_BE_UPP_start.pckl","052_get_BE_UPP_end.pckl","Getting UPP"),
+   # ("050_verify_start.pckl","060_verify_end.pckl","Verifying Total"),
+   # ("051_get_BE_UPP_start.pckl","052_get_BE_UPP_end.pckl","Getting UPP"),
 
-    ("033_seal_end.pckl","040_received.pckl","Client -> Actuator Transmission"),
+   # ("033_seal_end.pckl","040_received.pckl","Client -> Actuator Transmission"),
 
-    ("000_time_ref.pckl", "030_seal_start.pckl","Sensed -> Seal Start")
+    #("000_time_ref.pckl", "030_seal_start.pckl","Sensed -> Seal Start")
     ]
 durations = [] # will become of list of lists with the duration values for each event (i.e. durations[eventname][datapoint])
 durations_names = [] # the names for above list of lists
@@ -163,14 +164,14 @@ for curr_duration in durations_to_calculate:
     durations_names.append(event_name)
 
 plt.figure(1) # plot distribution of delays
-plt.xlabel('event name')
-plt.ylabel('event duration [ms]')
+#plt.xlabel('event name')
+plt.ylabel('Total Duration [ms]')
 plt.xticks(ticks=range(1,len(durations)+1), labels=durations_names, rotation=10) # add x labels for events
 plt.violinplot(durations,showmedians=True)
 
 plt.figure(2) # plot pie/bar chart of distribution among average delays ( = biggest holdup)
 plt.gca().get_xaxis().set_visible(False)
-plt.ylabel("average time after sensed [ms]")
+plt.ylabel("Average Time After Data Sensed [ms]")
 delays = []
 labels_iterator = iter([
     "receive sensor data (client)",
@@ -201,8 +202,11 @@ for name in sorted(averages):
     delays.append(delay)
 
     bar = plt.bar(x= 0,height=delay, bottom= total_delay)
-    plt.bar_label(bar,label_type='center', labels=[f"{delay:4.0f} ms   // {delay/average_actuation_delay*100:5.1f}%"])
-    plt.text(y=total_delay + delay/2, x= 0.44, s=label, verticalalignment='center')
+    
+    bar_label_text = f"{delay:4.0f} ms   // {delay/average_actuation_delay*100:5.1f}%"
+    annotation_text = label
+    plt.bar_label(bar,label_type='center', labels=[bar_label_text])
+    plt.text(y=total_delay + delay/2, x= 0.44, s=annotation_text, verticalalignment='center')
     
     last_value = value    
     last_name = name
