@@ -174,18 +174,18 @@ plt.gca().get_xaxis().set_visible(False)
 plt.ylabel("Average Time After Data Sensed [ms]")
 delays = []
 labels_iterator = iter([
-    "receive sensor data (client)",
-    "queue sensor data (client)",
-    "aggregate sensor data (client)",
-    "prepare sealing (client)",
-    "send UPP (client)",
-    "finish sealing (client)",
-    "transmit UPP + data to actuator (client + actuator)",
-    "prepare verification (actuator)",
-    "verify UPP locally (actuator)",
-    "get UPP from backend (actuator)",
-    "compare UPPs, finish verification (actuator)",
-    "act on verified data (actuator)",
+    "Receive Sensor Data (Nanoclient)",
+    "Queue Sensor Data (Nanoclient)",
+    "Aggregate Sensor Data (Nanoclient)",
+    "Prepare Sealing (Nanoclient)",
+    "Send UPP (Nanoclient)",
+    "Finish Sealing (Nanoclient)",
+    "Transmit UPP + Data to Actuator (Nanoclient + Actuator Client)",
+    "Prepare Verification (Actuator Client)",
+    "Verify UPP Locally (Actuator Client)",
+    "Get UPP from Backend (Actuator Client)",
+    "Compare UPPs, Finish Verification (Actuator Client)",
+    "Act on Verified Data (Actuator Client)",
 ])
 last_value = 0
 last_name = "sensed"
@@ -202,7 +202,7 @@ for name in sorted(averages):
     delays.append(delay)
 
     bar = plt.bar(x= 0,height=delay, bottom= total_delay)
-    
+
     bar_label_text = f"{delay:4.0f} ms   // {delay/average_actuation_delay*100:5.1f}%"
     annotation_text = label
     plt.bar_label(bar,label_type='center', labels=[bar_label_text])
