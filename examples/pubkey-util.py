@@ -479,7 +479,7 @@ class Main:
         return self.handle_http_response(r)
 
     def run_revoke_key(self):
-        pubkey_sign_b64 = self.sign_pubkey()
+        pubkey_sign_b64 = self.sign_data_b64(binascii.unhexlify(self.pubkey_str))
 
         if pubkey_sign_b64 == None:
             return 1
