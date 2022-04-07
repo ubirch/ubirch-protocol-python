@@ -96,8 +96,8 @@ class Main:
         try:
             logger.info("Reading the input UPP for \"%s\" from \"%s\"" % (self.uuid_str, self.input))
 
-            with open(self.input, "rb") as fd:
-                self.upp = fd.read()
+            with open(self.input, "rb") as file:
+                self.upp = file.read()
         except Exception as e:
             logger.exception(e)
 
@@ -180,8 +180,8 @@ class Main:
 
     def store_response_upp(self) -> bool:
         try:
-            with open(self.output, "wb") as fd:
-                fd.write(self.response_upp)
+            with open(self.output, "wb") as file:
+                file.write(self.response_upp)
 
                 logger.info("The response UPP has been written to \"%s\"" % self.output)
         except Exception as e:

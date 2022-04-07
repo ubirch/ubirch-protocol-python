@@ -378,8 +378,8 @@ class Main:
                 logger.info("UPP [hex]: \"%s\"" % binascii.hexlify(self.upp).decode())
 
             # try to write the upp
-            with open(self.output, "wb") as fd:
-                fd.write(self.upp)
+            with open(self.output, "wb") as file:
+                file.write(self.upp)
 
             if self.nostdout == False:
                 logger.info("UPP written to \"%s\"" % self.output)

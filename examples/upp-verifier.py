@@ -140,8 +140,8 @@ class Main:
         try:
             logger.info("Reading the input UPP from \"%s\"" % self.input)
 
-            with open(self.input, "rb") as fd:
-                self.upp = fd.read()
+            with open(self.input, "rb") as file:
+                self.upp = file.read()
 
                 # check whether hex decoding is needed
                 if self.ishex == True:

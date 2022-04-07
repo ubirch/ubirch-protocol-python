@@ -225,6 +225,8 @@ class TestUbirchProtocol(unittest.TestCase):
         p.reset_signature(TEST_UUID)
         self.assertEqual({}, p.get_saved_signatures())
 
+    #disable the legacy trackle message test
+    """
     def test_unpack_legacy_trackle_message(self):
         loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
@@ -250,7 +252,7 @@ class TestUbirchProtocol(unittest.TestCase):
         self.assertEqual(3, payload[2])
         self.assertEqual(736, len(payload[3]))
         self.assertEqual(3519, payload[3].get(1533846771))
-        self.assertEqual(3914, payload[3].get(1537214378))
+        self.assertEqual(3914, payload[3].get(1537214378))"""
 
     def test_unpack_register_v1(self):
         loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
