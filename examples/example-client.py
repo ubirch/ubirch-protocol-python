@@ -16,12 +16,12 @@ from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYP
 
 DEFAULT_UBIRCH_ENV = "prod"
 UBIRCH_PUBKEYS = {
-    "dev": VerifyingKey("a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66", encoding="hex"),
+    "dev": VerifyingKey("39ff77632b034d0eba6d219c2ff192e9f24916c9a02672acb49fd05118aad251", encoding="hex"), # NOTE: this environment is not reliable
     "demo": VerifyingKey("a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66", encoding="hex"),
     "prod": VerifyingKey("ef8048ad06c0285af0177009381830c46cec025d01d86085e75a4f0041c2e690", encoding="hex")
 }
 UBIRCH_UUIDS = {
-    "dev": UUID(hex="9d3c78ff-22f3-4441-a5d1-85c636d486ff"),
+    "dev": UUID(hex="9d3c78ff-22f3-4441-a5d1-85c636d486ff"), # NOTE: this environment is not reliable
     "demo": UUID(hex="07104235-1892-4020-9042-00003c94b60b"),
     "prod": UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
 }
