@@ -11,7 +11,7 @@ from uuid import UUID
 import ubirch
 
 
-UBIRCH_REGISTRY_ENDPOINT = "https://identity.demo.ubirch.com/api/certs/v1/cert/register"
+UBIRCH_REGISTRY_ENDPOINT = "https://identity.%s.ubirch.com/api/certs/v1/cert/register"
 
 
 DEFAULT_OUTPUT = "x509.cert"
@@ -45,6 +45,7 @@ class Main:
         self.validity_time : int = None
         self.readfromoutput_str : str = None
         self.readfromoutput : bool = None
+        self.env : str = None
 
         self.vk : ecdsa.VerifyingKey = None
         self.sk : ecdsa.SigningKey = None
@@ -64,6 +65,9 @@ class Main:
         self.argparser = argparse.ArgumentParser(
             description="Create a X.509 certificate for a keypair and register it.",
             epilog="This tool only supports ECDSA Keypairs with the NIST256p curve and Sha256 as hash function! If no keypair is found for the given UUID in the given keystore, a new keypair will be created and stored."
+        )
+        self.argparser.add_argument("env", metavar="ENV", type=str,
+            help="the uBirch environment to work on; one of 'dev', 'demo' or 'prod'"
         )
         self.argparser.add_argument("keystore", metavar="KEYSTORE", type=str,
             help="keystore file path; e.g.: test.jks"
@@ -99,6 +103,7 @@ class Main:
         self.output = self.args.output
         self.readfromoutput_str = self.args.read_cert_from_output
         self.validity_time_str = self.args.validity_time
+        self.env = self.args.env
 
         # check the uuid argument
         try:
@@ -224,12 +229,12 @@ class Main:
         return True
 
     def send_x509_cert(self) -> bool:
-        logger.info("Sending the certificate to '%s' ..." % UBIRCH_REGISTRY_ENDPOINT)
+        logger.info("Sending the certificate to '%s' ..." % (UBIRCH_REGISTRY_ENDPOINT % self.env))
 
         try:
             # send the cert
             r = requests.post(
-                UBIRCH_REGISTRY_ENDPOINT, data=self.x509_cert_str,
+                (UBIRCH_REGISTRY_ENDPOINT % self.env), data=self.x509_cert_str,
                 headers={
                     'accept': 'application/json',
                     'content-type': 'application/json'
