@@ -5,12 +5,15 @@ import msgpack
 import binascii
 import uuid
 import ed25519
+import ecdsa
+import hashlib
 
 import ubirch
 
 
 DEFAULT_INPUT = "/dev/stdin"
 DEFAULT_ISHEX = "false"
+DEFAULT_ISECD = "false"
 
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(funcName)20.20s() %(levelname)-8.8s %(message)s', level=logging.INFO)
@@ -64,6 +67,8 @@ class Main:
 
         self.ishex : bool = None
         self.ishex_str : str = None
+        self.isecd : bool = None
+        self.isecd_str : str = None
 
         # initialize the argument parser
         self.setup_argparse()
@@ -87,6 +92,9 @@ class Main:
         self.argparser.add_argument("--ishex", "-x", metavar="ISHEX", type=str, default=DEFAULT_ISHEX,
             help="Sets whether the UPP input data is a hex string or binary; e.g. true, false (default: %s)" % DEFAULT_ISHEX
         )
+        self.argparser.add_argument("--isecd", "-c", metavar="ISECD", type=str, default=DEFAULT_ISECD,
+            help="Sets whether the key provided with -k is a ECDSA NIST256p SHA256 key (true) or a ED25519 key (false) (default: %s)" % DEFAULT_ISECD
+        )
         self.argparser.add_argument("--input", "-i", metavar="INPUT", type=str, default=DEFAULT_INPUT,
             help="UPP input file path; e.g. upp.bin or /dev/stdin (default: %s)" % DEFAULT_INPUT
         )
@@ -102,36 +110,19 @@ class Main:
         self.vk_uuid_str = self.args.verifying_key_uuid
         self.input = self.args.input
         self.ishex_str = self.args.ishex
-
-        # check if a verifying key was supplied
-        if self.vk_str != "AUTO":
-            try:
-                # convert the string
-                self.vk = ed25519.VerifyingKey(self.vk_str, encoding="hex")
-            except Exception as e:
-                logger.error("Invalid verifying key supplied via --verifying-key/-k: \"%s\"" % self.vk_str)
-                logger.exception(e)
-
-                return False
-
-            if self.vk_uuid_str == "EMPTY":
-                logger.error("--verifying-key-uuid/-u must be specified when --verifying-key/-k is specified!")
-
-                return False
-
-            try:
-                self.vk_uuid = uuid.UUID(hex=self.vk_uuid_str)
-            except Exception as e:
-                logger.error("Invalid UUID supplied via --verifying-key-uuid/-u: \"%s\"" % self.vk_uuid_str)
-                logger.exception(e)
-
-                return False
+        self.isecd_str = self.args.isecd
 
         # get the ishex value
         if self.ishex_str.lower() in ["1", "yes", "y", "true"]:
             self.ishex = True
         else:
             self.ishex = False
+
+        # get the isecd value
+        if self.isecd_str.lower() in ["1", "yes", "y", "true"]:
+            self.isecd = True
+        else:
+            self.isecd = False
 
         return True
 
@@ -140,8 +131,8 @@ class Main:
         try:
             logger.info("Reading the input UPP from \"%s\"" % self.input)
 
-            with open(self.input, "rb") as file:
-                self.upp = file.read()
+            with open(self.input, "rb") as fd:
+                self.upp = fd.read()
 
                 # check whether hex decoding is needed
                 if self.ishex == True:
@@ -164,15 +155,43 @@ class Main:
         return True
 
     def check_cli_vk(self) -> bool:
-        try:
-            if self.vk != None:
-                self.keystore.insert_ed25519_verifying_key(self.vk_uuid, self.vk)
+        # check if a verifying key was supplied
+        if self.vk_str != "AUTO":
+            # check if a uuid was supplied
+            if self.vk_uuid_str == "EMPTY":
+                logger.error("--verifying-key-uuid/-u must be specified when --verifying-key/-k is specified!")
 
-                logger.info("Inserted \"%s\": \"%s\" (UUID/VK) into the keystore" % (self.vk_uuid_str, self.vk_str))
-        except Exception as e:
-            logger.exception(e)
+                return False
 
-            return False
+            # load the uuid
+            try:
+                self.vk_uuid = uuid.UUID(hex=self.vk_uuid_str)
+            except Exception as e:
+                logger.error("Invalid UUID supplied via --verifying-key-uuid/-u: \"%s\"" % self.vk_uuid_str)
+                logger.exception(e)
+
+                return False
+
+            # check the keytype, load it and insert it into the keystore
+            try:
+                if self.isecd == False:
+                    logger.info("Loading the key as ED25519 verifying key")
+
+                    self.vk = ed25519.VerifyingKey(self.vk_str, encoding="hex")
+                    self.keystore.insert_ed25519_verifying_key(self.vk_uuid, self.vk)
+                else:
+                    logger.info("Loading the key as ECDSA NIST256p SHA256 verifying key")
+
+                    self.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(self.vk_str), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+                    self.keystore.insert_ecdsa_verifying_key(self.vk_uuid, self.vk)
+            except Exception as e:
+                logger.error("Error loading the verifying key and inserting it into the keystore")
+                logger.exception(e)
+
+                return False
+
+            logger.info("Inserted \"%s\": \"%s\" (UUID/VK) into the keystore" % (self.vk_uuid_str, self.vk_str))
+
 
         return True
 
