@@ -19,7 +19,8 @@ DEFAULT_HASH     = "sha512"
 DEFAULT_ISJSON   = "False"
 DEFAULT_OUTPUT   = "upp.bin"
 DEFAULT_NOSTDOUT = "False"
-DEFAULT_ISHL    = "False"
+DEFAULT_ISHL     = "False"
+DEFAULT_ECDSA    = "False"
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(funcName)20.20s() %(levelname)-8.8s %(message)s', level=logging.INFO)
 logger = logging.getLogger()
@@ -78,6 +79,8 @@ class Main:
         self.ishl : bool = None
         self.ishl_str : str = None
         self.ishash : bool = False
+        self.ecdsa_str : str = None
+        self.ecdsa : bool = None
 
         self.hasher : object = None
         self.keystore : ubirch.KeyStore = None
@@ -137,6 +140,9 @@ class Main:
         self.argparser.add_argument("--ishl", "-l", metavar="ISHASHLINK", type=str, default=DEFAULT_ISHL,
             help="implied --isjson to be true; if set to true, the script will look for a hashlink list in the json object and use it to decide which fields to hash; true or false (default: %s)" % DEFAULT_ISHL
         )
+        self.argparser.add_argument("--ecdsa", "-c", metavar="ECDSA", type=str, default=DEFAULT_ECDSA,
+            help="if set to true, the script will generate a ECDSA key (NIST256p, SHA256) instead of an ED25519 key in case no key was found for the UUID in the given keystore (default: %s)" % DEFAULT_ECDSA
+        )
 
     def process_args(self) -> bool:
         # parse cli arguments (exists on err)
@@ -155,6 +161,7 @@ class Main:
         self.output = self.args.output
         self.nostdout_str = self.args.nostdout
         self.ishl_str = self.args.ishl
+        self.ecdsa_str = self.args.ecdsa
 
         # get the keyreg value
         if self.keyreg_str.lower() in ["1", "yes", "y", "true"]:
@@ -219,9 +226,15 @@ class Main:
 
         # check if ishl is true
         if (self.ishl == True and self.isjson == False):
-            logger.warning("Overwriting '--isjson false' because --ishl is true")
+            logger.warning("Overwriting '--isjson false' because '--ishl' is 'true'")
 
             self.isjson = True
+
+        # get the bool for ishl
+        if self.ecdsa_str.lower() in ["1", "yes", "y", "true"]:
+            self.ecdsa = True
+        else:
+            self.ecdsa = False
 
         # success
         return True
@@ -235,11 +248,26 @@ class Main:
                 if self.nostdout == False:
                     logger.info("No keys found for \"%s\" in \"%s\" - generating a keypair" % (self.uuid_str, self.keystore_path))
 
-                self.keystore.create_ed25519_keypair(self.uuid)
+                    if self.ecdsa == True:
+                        logger.info("Generating a ECDSA keypair instead of ED25519!")
+
+                if self.ecdsa == True:
+                    self.keystore.create_ecdsa_keypair(self.uuid)
+                else:
+                    self.keystore.create_ed25519_keypair(self.uuid)
 
             if self.nostdout == False:
-                logger.info("Public/Verifying key for \"%s\" [base64]: \"%s\"" %
-                    (self.uuid_str, binascii.b2a_base64(self.keystore.find_verifying_key(self.uuid).to_bytes(), newline=False).decode()))
+                vk = self.keystore.find_verifying_key(self.uuid)
+
+                if type(vk) == ubirch.ubirch_ks.ecdsa.VerifyingKey:
+                    vk_b = vk.to_string()
+                    k_t = "ECDSA"
+                else:
+                    vk_b = vk.to_bytes()
+                    k_t = "ED25519"
+
+                logger.info("Public/Verifying key for \"%s\" [%s, base64]: \"%s\"" %
+                    (self.uuid_str, k_t, binascii.b2a_base64(vk_b, newline=False).decode()))
         except Exception as e:
             logger.exception(e)
 
