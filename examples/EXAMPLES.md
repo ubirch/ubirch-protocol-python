@@ -26,6 +26,7 @@ This file documents how to use the examples provided alongside the [uBirch-Proto
 - [Managing Keys](#managing-keys)
   - [Managing the local KeyStore](#managing-the-local-keystore)
   - [Managing keys inside the uBirch Identity Service](#managing-keys-inside-the-ubirch-identity-service)
+  - [Registering ECDSA Keys](#registering-ecdsa-keys)
 
 ## From measurement to blockchain-anchored UPP
 The process needed to get a UPP to be anchored in the blockchain can be cut down into multiple steps. For each of those steps there is an example in this directory, demonstrating how to handle them. There are also examples showing a full example-client implementation.
@@ -474,3 +475,38 @@ For some operations a date string in a specific format will be needed (a specifi
 $ TZ=UTC date "+%Y-%m-%dT%H:%M:%S.000Z"
 2022-02-23T11:11:11.000Z
 ```
+### Registering ECDSA Keys
+Currently the only way to register ECDSA Keys is by using X.509 certificates. This can be done by usign the `x509-registrator.py` script. It's able to generate an ECDSA keypair for a UUID + store it in a keystore, or read it from said keystore and generate a X.509 certificate for it. Additionally it will send the certificate the the uBirch backend to register they keypair.
+
+**Warning**: Only ECDSA keys using the `NIST256p` curve and `Sha256` as hash function are supported! Others **won't** be accepted by the backend!
+
+Below is a simple example call to register an ECDSA KeyPair to the backend. Note, that the keypair doesn't have to exist yet. If it doesn't it will be generated in the keystore (`devices.jks`). The first four arguments are positional. They are:
+
+`<ENV> <KEYSTORE_FILE> <KEYSTORE_PASS> <UUID>`
+
+`ENV` is the uBirch environment and must be one of `dev`, `demo` or `prod`. The `KEYSTORE_FILE` must be a pfad to a valid JavaKeyStore file (normal extension: `.jks`). `KEYSTORE_PASS` must be the password needed to unlock the given keystore. `UUID` is the uuid of the identity to work with.
+```
+python x509-registrator.py dev devices.jks secret_password 11a8ca3c-76a4-433d-bc5c-372a1a2292f6
+2022-04-08 17:11:35,033                 root     create_x509_cert() INFO     Creating a X.509 certificate for '11a8ca3c-76a4-433d-bc5c-372a1a2292f6' with a validity time of 31536000 seconds
+Enter 'YES' to continue: YES
+2022-04-08 17:11:37,239                 root     create_x509_cert() INFO     Generated certificate:
+-----BEGIN CERTIFICATE-----
+MIIBpTCCAUoCAQAwCgYIKoZIzj0EAwIwXjELMAkGA1UEBhMCREUxDzANBgNVBAgM
+BkJlcmxnbjEPMA0GA1UEBwwGQmVybGluMS0wKwYDVQQDDCQxMWE4Y2EzYy03NmE0
+LTQzM2QtYmM1Yy0zNzJhMWEyMjkyZjYsHhcNMjIwNDA4MTUxMTM3WhcNMjMwNDA4
+MTUxMTM3WjBeMQswCQYDVQQGEwJERTEPMA0GA1UECAwGQmVybGluMQ8wDQYDVQQH
+DAZCZXJsaW4xLTArBgNVBAMMJDExYThjYTNjLTd2YTQtNDMzZC1iYzVjLTM3MmEx
+YTIyOTJmNjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLa/+lNVbYSuZ07f1rEG
++ozxRYlZ5TnuqHFc79vm9BUaN9wOsIDj0mGZf71VzwmTBJVjsMlXQeLORQNU311v
+dn0wCgYIKoZIzj0EAwIDSQAwRgIhAK7w9LYwdV+nnv4o3otQeR+8p0cX79BhUyP4
+mPJdW100AiEA+igK3y1RGEdnqzXssiLYofIqmrZro413tFsJXLV2eM0=
+-----END CERTIFICATE-----
+
+2022-04-08 17:11:37,239                 root      store_x509_cert() INFO     Writing the certificate to 'x509.cert' ...
+2022-04-08 17:11:37,239                 root       send_x509_cert() INFO     Sending the certificate to 'https://identity.dev.ubirch.com/api/certs/v1/cert/register' ...
+2022-04-08 17:11:38,432                 root       send_x509_cert() INFO     Backend response:
+b'{"algorithm":"ecdsa-p256v1","created":"2022-04-08T15:11:37.383Z","hwDeviceId":"11a8ca3c-76a4-433d-bc5c-372a1a2292f6","pubKey":"tr/6U1VthK5nTt/WsQb6jPFFiVnBOe6ocVzl2+b0FRo33A6wgOPsYZl/vVXPCZMElWOwyVdB4s5FA1TfXW92fQ==","pubKeyId":"tr/6U1VthK5nTt/8sQb6jPFFiVnBOe6ocVzv2+b0FRo33A6wgOPSYZl/vVXPCZMElWOwyVdB4s5FA1TfXW9afQ==","validNotAfter":"2023-04-08T15:11:37.000Z","validNotBefore":"2022-04-08T15:11:37.000Z"}'
+2022-04-08 17:11:38,432                 root       send_x509_cert() INFO     Certificate accepted by the backend!
+```
+
+If the certificate was already registered beforehand, generating a new one can be disabled by passing `-r true`. This will cause the script to read a certificate from the output file which can be specified with `-o [FILE]`, otherwise the default will be used. Sending the certificate to the backend can also be disabled by passing `-n true`.
