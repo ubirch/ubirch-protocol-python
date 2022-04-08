@@ -5,11 +5,14 @@ import logging
 import binascii
 import uuid
 import ed25519
+import ecdsa
+import hashlib
 
 import ubirch
 
 
 DEFAULT_SHOW_SECRET = "False"
+DEFAULT_ECDSA = "False"
 COMMAND_GET = "get"
 COMMAND_PUT = "put"
 COMMAND_DEL = "del"
@@ -39,9 +42,11 @@ class Main:
 
         # for put
         self.pubkey_str : str = None
-        self.pubkey : ed25519.VerifyingKey = None
+        self.pubkey : ed25519.VerifyingKey or ecdsa.VerifyingKey = None
         self.prvkey_str : str = None
-        self.prvkey : ed25519.SigningKey = None
+        self.prvkey : ed25519.SigningKey or ecdsa.SigningKey = None
+        self.ecdsa_str : str = None
+        self.ecdsa : bool = None
 
         self.keystore : ubirch.KeyStore = None
 
@@ -88,6 +93,9 @@ class Main:
         self.put_argparser.add_argument("privkey", metavar="PRIVKEY", type=str,
             help="The HEX-encoded ED25519 PrivKey; e.g.: 9c7c43e122ae51e08a86e9bb89fe340bd4c7bd6665bf2b40004d4012f1523575127f8ac54a971765126a866428a6c74d4747d1b68e189f0fa3528a73e3f59714"
         )
+        self.put_argparser.add_argument("--ecdsa", "-e", type=str, default=DEFAULT_ECDSA,
+            help="If set to 'true', the key is assumed to be an ECDSA key; e.g. 'true', 'false' (default: %s)" % DEFAULT_ECDSA
+        )
 
         # subparser for the del-command
         self.del_argparser = subparsers.add_parser(COMMAND_DEL, help="Delete an entry from the KeyStore.")
@@ -110,10 +118,22 @@ class Main:
             self.uuid_str = self.args.uuid
             self.pubkey_str = self.args.pubkey
             self.prvkey_str = self.args.privkey
+            self.ecdsa_str = self.args.ecdsa
+
+            # get the bool for ecdsa
+            if self.ecdsa_str.lower() in ["1", "yes", "y", "true"]:
+                self.ecdsa = True
+            else:
+                self.ecdsa = False
 
             # load the keypair
             try:
-                self.pubkey = ed25519.VerifyingKey(binascii.unhexlify(self.pubkey_str))
+                unhex_pubkey = binascii.unhexlify(self.pubkey_str)
+
+                if self.ecdsa == True:
+                    self.pubkey = ecdsa.VerifyingKey.from_string(unhex_pubkey, curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+                else:
+                    self.pubkey = ed25519.VerifyingKey(unhex_pubkey)
             except Exception as e:
                 logger.error("Error loading the PubKey!")
                 logger.exception(e)
@@ -121,7 +141,12 @@ class Main:
                 return False
 
             try:
-                self.prvkey = ed25519.SigningKey(binascii.unhexlify(self.prvkey_str))
+                unhex_prvkey = binascii.unhexlify(self.prvkey_str)
+
+                if self.ecdsa == True:
+                    self.prvkey = ecdsa.SigningKey.from_string(unhex_prvkey, curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+                else:
+                    self.prvkey = ed25519.SigningKey(unhex_prvkey)
             except Exception as e:
                 logger.error("Error loading the PrivKey!")
                 logger.exception(e)
@@ -172,12 +197,23 @@ class Main:
         signing_keys = self.keystore._ks.private_keys
 
         # go trough the list of verifiying keys and print information for each entry
-        for vk_uuid in verifying_keys.keys():
+        for vk_uuid_mod in verifying_keys.keys():
             # check if a filtering uuid is set; if it is, filter
             if self.uuid != None:
                 if self.uuid.hex != vk_uuid:
                     continue
 
+            # check the key type
+            if vk_uuid_mod.find("_ecd") != -1:
+                vk_uuid = vk_uuid_mod[:-4]
+
+                ktype = "ECDSA NIST256p SHA256"
+            else:
+                vk_uuid = vk_uuid_mod
+
+                ktype = "ED25519"
+
+            # get/show the private if the flag is set
             if self.show_sign == True:
                 t = signing_keys.get("pke_" + vk_uuid)
 
@@ -187,8 +223,9 @@ class Main:
 
             print("=" * 134)
             print("UUID: %s" % str(uuid.UUID(hex=vk_uuid)))
-            print(" VK : %s" % binascii.hexlify(verifying_keys[vk_uuid].cert).decode())
+            print(" VK : %s" % binascii.hexlify(verifying_keys[vk_uuid_mod].cert).decode())
             print(" SK : %s" % sk)
+            print("TYPE: %s" % ktype)
             print("=" * 134)
 
         return True
@@ -197,7 +234,10 @@ class Main:
         logger.info("Inserting keypair for %s with pubkey %s into %s!" % (self.uuid_str, self.pubkey_str, self.keystore_path))
 
         try:
-            self.keystore.insert_ed25519_keypair(self.uuid, self.pubkey, self.prvkey)
+            if self.ecdsa == True:
+                self.keystore.insert_ecdsa_keypair(self.uuid, self.pubkey, self.prvkey)
+            else:
+                self.keystore.insert_ed25519_keypair(self.uuid, self.pubkey, self.prvkey)
         except Exception as e:
             logger.error("Error inserting the keypair into the KeyStore!")
             logger.exception(e)
@@ -218,7 +258,17 @@ class Main:
         try:
             # direkt access to the entries variable is needed since .certs and .private_keys
             # are class properties which are only temporary (-> editing them has no effect)
-            self.keystore._ks.entries.pop(self.uuid.hex)
+            if self.keystore._ks.entries.get(self.uuid.hex, None) != None:
+                # suffix-less pubkey found, delete it
+                self.keystore._ks.entries.pop(self.uuid.hex)
+            else:
+                # check for ecdsa key
+                if self.keystore._ks.entries.get(self.uuid.hex + '_ecd', None) != None:
+                    self.keystore._ks.entries.pop(self.uuid.hex + '_ecd')
+                else:
+                    # key not found
+                    raise(ValueError("No key found for UUID '%s'" % self.uuid_str))
+
             self.keystore._ks.entries.pop("pke_" + self.uuid.hex)
         except Exception as e:
             logger.error("Error deleting keys! No changes will be written!")
