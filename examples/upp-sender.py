@@ -121,6 +121,8 @@ class Main:
 
     def init_api(self) -> bool:
         try:
+            logger.info("Configuring the API to use the '%s' environment!" % self.env)
+
             # initialize the uBirch api
             self.api = ubirch.API(env=self.env, debug=True)
             self.api.set_authentication(self.uuid, self.auth)
