@@ -127,6 +127,7 @@ class Protocol(object):
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         """
         Sign the request when finished.
+        !IMPORTANT! This function also takes care of the hashing, before signing, depending on the key type.
         :param uuid: the uuid of the sender to identify the correct key pair
         :param message: the bytes to sign
         :return: the signature
@@ -136,7 +137,8 @@ class Protocol(object):
     @abstractmethod
     def _verify(self, uuid: UUID, message: bytes, signature: bytes):
         """
-        Verify the message. Throws exception if not verifiable.
+        Verify the message. Throws exception if not verifiable.        
+        !IMPORTANT! This function also takes care of the hashing, before verifying, depending on the key type.
         :param uuid: the uuid of the sender to identify the correct key pair
         :param message: the message bytes to verify
         :param signature: the signature to use for verification
@@ -156,7 +158,7 @@ class Protocol(object):
         """
         # sign the message and store the signature
         serialized = self._serialize(msg)[0:-1]
-        signature = self._sign(uuid, self._hash(serialized))
+        signature = self._sign(uuid, serialized)
         # replace last element in array with the signature
         msg[-1] = signature
         return signature, self._serialize(msg)
@@ -216,16 +218,6 @@ class Protocol(object):
 
         # serialize result and return the message
         return serialized
-
-    def _prepare_and_verify(self, uuid: UUID, message: bytes, signature: bytes) -> bytes:
-        """
-        Verify the message. Throws exception if not verifiable. The message is first prepared by hashing it.
-        :param uuid: the uuid of the sender to identify the correct key pair
-        :param message: the message bytes to verify
-        :param signature: the signature to use for verification
-        :return:
-        """
-        return self._verify(uuid, self._hash(message), signature)
 
     def unpack_upp(self, msgpackUPP: bytes) -> list:
         """
@@ -298,7 +290,7 @@ class Protocol(object):
 
         # verify the message
         try:
-            self._prepare_and_verify(uuid, msg, sig)
+            self._verify(uuid, msg, sig)
         except (BadSignatureError, BadSignatureErrorEcdsa):
             return False
 

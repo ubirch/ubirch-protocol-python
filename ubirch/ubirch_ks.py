@@ -234,16 +234,16 @@ class KeyStore(object):
         if type(cert) == ED25519Certificate:
             algo = 'ECC_ED25519'
         elif type(cert) == ECDSACertificate:
-            raise Exception("Certificate generation currently not supported for ECDSA keys!")
+            algo = 'ecdsa-p256v1'
         else:
-            raise Exception("Unexpected certificate class %s" % str(vk.__class__))
+            raise Exception("Unexpected certificate class %s" % str(cert.__class__))
 
         return {
-            "algorithm": 'ECC_ED25519',
+            "algorithm": algo,
             "created": int(created.timestamp()),
             "hwDeviceId": uuid.bytes,
-            "pubKey": vk.to_bytes(),
-            "pubKeyId": vk.to_bytes(),
+            "pubKey": cert.cert,
+            "pubKeyId": cert.cert,
             "validNotAfter": int(not_after.timestamp()),
             "validNotBefore": int(not_before.timestamp())
         }

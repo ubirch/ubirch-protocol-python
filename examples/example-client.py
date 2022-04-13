@@ -1,4 +1,5 @@
 import binascii
+from curses import keyname
 import hashlib
 import json
 import logging
@@ -6,20 +7,34 @@ import pickle
 import random
 import sys
 import time
+import ecdsa
+import ed25519
 from uuid import UUID
 
-from ed25519 import VerifyingKey
 from requests import codes, Response
 
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN
 
-DEFAULT_UBIRCH_ENV = "prod"
-UBIRCH_PUBKEYS = {
-    "dev": VerifyingKey("39ff77632b034d0eba6d219c2ff192e9f24916c9a02672acb49fd05118aad251", encoding="hex"), # NOTE: this environment is not reliable
-    "demo": VerifyingKey("a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66", encoding="hex"),
-    "prod": VerifyingKey("ef8048ad06c0285af0177009381830c46cec025d01d86085e75a4f0041c2e690", encoding="hex")
+DEFAULT_KEY_TYPE = "ed25519"
+UBIRCH_PUBKEYS_ED = {
+    "dev": ed25519.VerifyingKey("39ff77632b034d0eba6d219c2ff192e9f24916c9a02672acb49fd05118aad251", encoding="hex"), # NOTE: this environment is not reliable
+    "demo": ed25519.VerifyingKey("a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66", encoding="hex"),
+    "prod": ed25519.VerifyingKey("ef8048ad06c0285af0177009381830c46cec025d01d86085e75a4f0041c2e690", encoding="hex")
 }
+
+UBIRCH_PUBKEYS_EC = {
+    "dev": ecdsa.VerifyingKey.from_string(binascii.unhexlify(
+        "2e753c064bc671940fcb98165542fe3c70340cff5d53ad47f0304ef2166f4f223b9572251b5fe8aee54c4fb812da79590caf501beba0911b7fcd3add2eb0180c"
+    ), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256), # NOTE: this environment is not reliable
+    "demo": ecdsa.VerifyingKey.from_string(binascii.unhexlify(
+        "c66fa222898146347741dbcb26b184d4e06cddb01ff04238f457e006b891937ea7e115185fed2c9ab60af2d66497a2e1aedf65ce38941ab5c68a3468544f948c"
+    ), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256), # NOTE: this environment is not reliable
+    "prod": ecdsa.VerifyingKey.from_string(binascii.unhexlify(
+        "a49758a0937437741314c0558d955089ed61860ba64154f2da45fd23b9178d2ca8225e3410e6bd317db848100004157bc55d88162d4a58c9c2d5a2ce22f3908d"
+    ), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256), # NOTE: this environment is not reliable
+}
+
 UBIRCH_UUIDS = {
     "dev": UUID(hex="9d3c78ff-22f3-4441-a5d1-85c636d486ff"), # NOTE: this environment is not reliable
     "demo": UUID(hex="07104235-1892-4020-9042-00003c94b60b"),
@@ -34,22 +49,50 @@ logger = logging.getLogger()
 class Proto(ubirch.Protocol):
     """ implement the ubirch-protocol, including creating and saving signatures """
 
-    def __init__(self, key_store: ubirch.KeyStore, uuid: UUID, env: str = DEFAULT_UBIRCH_ENV) -> None:
+    def __init__(self, key_store: ubirch.KeyStore, uuid: UUID, env: str, key_type: str) -> None:
         super().__init__()
         self.__ks = key_store
 
         # check if the device already has keys or generate a new pair
         if not self.__ks.exists_signing_key(uuid):
-            self.__ks.create_ed25519_keypair(uuid)
+            #check the key type before creating new keys
+            if key_type == "ed25519":
+                logger.info("generating new keypair with ed25519 algorithm")
+
+                self.__ks.create_ed25519_keypair(uuid)
+            elif key_type == "ecdsa":
+                logger.info("generating new keypair with ecdsa algorithm")
+
+                self.__ks.create_ecdsa_keypair(uuid)
+            else:
+                raise ValueError("unknown key type")
+
+        # figure out, which key type is used, which is relevant for the backend response verification
+        temp_vk = self.__ks.find_verifying_key(uuid)
+        if isinstance(temp_vk, ed25519.VerifyingKey):
+            temp_key_type = "ed25519"    
+        elif isinstance(temp_vk, ecdsa.VerifyingKey):
+            temp_key_type = "ecdsa"
 
         # check env
-        if env not in UBIRCH_PUBKEYS.keys():
-            raise ValueError("Invalid ubirch env! Must be one of {}".format(list(UBIRCH_PUBKEYS.keys())))
+        if env not in UBIRCH_PUBKEYS_ED.keys():
+            raise ValueError("Invalid ubirch env! Must be one of {}".format(list(UBIRCH_PUBKEYS_ED.keys())))
 
-        # check if the keystore already has the backend key for verification or insert verifying key
-        if not self.__ks.exists_verifying_key(UBIRCH_UUIDS[env]):
-            self.__ks.insert_ed25519_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS[env])
-
+        # check if the keystore has the same key_type for the device UUID and the backend response 
+        if temp_key_type == "ecdsa": 
+            if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex, None) != None:
+                # suffix-less pubkey found, delete it
+                self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex)
+            
+            self.__ks.insert_ecdsa_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_EC[env])
+        # 
+        elif temp_key_type == "ed25519": 
+            if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex+'_ecd', None) != None:
+                # suffix-less pubkey found, delete it
+                self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex+'_ecd')
+            
+            self.__ks.insert_ed25519_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_ED[env])
+        
         # load last signature for device
         self.load(uuid)
 
@@ -71,25 +114,46 @@ class Proto(ubirch.Protocol):
             pass
 
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
-        return self.__ks.find_signing_key(uuid).sign(message)
+        signing_key = self.__ks.find_signing_key(uuid)
+        
+        if isinstance(signing_key, ecdsa.SigningKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(signing_key, ed25519.SigningKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Signing Key is neither ed25519, nor ecdsa!"))    
+        
+        return signing_key.sign(final_message)
 
     def _verify(self, uuid: UUID, message: bytes, signature: bytes):
-        return self.__ks.find_verifying_key(uuid).verify(signature, message)
+        verifying_key = self.__ks.find_verifying_key(uuid)
+
+        if isinstance(verifying_key, ecdsa.VerifyingKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(verifying_key, ed25519.VerifyingKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Verifying Key is neither ed25519, nor ecdsa!"))    
+         
+        return verifying_key.verify(signature, final_message)
 
 
 class UbirchClient:
     """ an example implementation for the ubirch-client in Python """
 
-    def __init__(self, uuid: UUID, auth: str, env: str = DEFAULT_UBIRCH_ENV):
+    def __init__(self, uuid: UUID, auth: str, env: str, _key_type:str):
         self.env = env
         self.uuid = uuid
         self.auth = auth
+        self.key_type = _key_type
 
         # create a keystore for the device
         self.keystore = ubirch.KeyStore("demo-device.jks", "keystore")
 
         # create an instance of the protocol with signature saving
-        self.protocol = Proto(self.keystore, self.uuid, self.env)
+        self.protocol = Proto(self.keystore, self.uuid, self.env, key_type=self.key_type)
 
         # create an instance of the UBIRCH API and set the auth token
         self.api = ubirch.API(env=self.env)
@@ -208,17 +272,22 @@ def get_message(uuid: UUID) -> dict:
 # initialize/"run" the Main class
 if __name__ == "__main__":
 
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         print("usage:")
-        print("  python3 example-client.py <UUID> <ubirch-auth-token> [ubirch-env]")
+        print("  python3 example-client.py <UUID> <ubirch-auth-token> <ubirch-env> [key-type]")
         sys.exit(1)
 
     # extract cli arguments
-    env = sys.argv[3] if len(sys.argv) > 3 else DEFAULT_UBIRCH_ENV
+    keytype = sys.argv[4].lower() if len(sys.argv) > 4 else DEFAULT_KEY_TYPE
+    if keytype not in ["ed25519","ecdsa"]:
+        print("please use one of the following key types: 'ed25519','ecdsa'")        
+        sys.exit(1)
+
+    env = sys.argv[3]
     uuid = UUID(hex=sys.argv[1])
     auth = sys.argv[2]
 
-    client = UbirchClient(uuid=uuid, auth=auth, env=env)
+    client = UbirchClient(uuid, auth, env, keytype)
 
     data = get_message(uuid)
 

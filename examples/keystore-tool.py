@@ -238,6 +238,9 @@ class Main:
                 self.keystore.insert_ecdsa_keypair(self.uuid, self.pubkey, self.prvkey)
             else:
                 self.keystore.insert_ed25519_keypair(self.uuid, self.pubkey, self.prvkey)
+            
+            # write changes
+            self.keystore._ks.save(self.keystore._ks_file, self.keystore._ks_password)
         except Exception as e:
             logger.error("Error inserting the keypair into the KeyStore!")
             logger.exception(e)
@@ -268,8 +271,10 @@ class Main:
                 else:
                     # key not found
                     raise(ValueError("No key found for UUID '%s'" % self.uuid_str))
-
-            self.keystore._ks.entries.pop("pke_" + self.uuid.hex)
+            try:
+                self.keystore._ks.entries.pop("pke_" + self.uuid.hex)
+            except KeyError:
+                pass
         except Exception as e:
             logger.error("Error deleting keys! No changes will be written!")
             logger.exception(e)
