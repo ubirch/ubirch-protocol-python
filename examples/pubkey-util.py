@@ -4,10 +4,12 @@ import argparse
 import requests
 import uuid
 import ed25519
+import ecdsa
 import binascii
 import json
 import base64
 import msgpack
+import hashlib
 
 import ubirch
 
@@ -31,6 +33,10 @@ GET_DEVICE_KEYS_PATH = "/current/hardwareId/%s" # completed with the uuid
 GET_KEY_INFO_PATH = "/%s" # completed with the pubkeyId (equal to pubkey) in b64
 REVOKE_KEY_PATH = "/revoke"
 PUT_KEY_MSGPACK_PATH = "/mpack"
+
+# key algorithm strings for the format below
+KEY_ALGO_ECDSA = "ecdsa-p256v1"
+KEY_ALGO_ED25519 = "ECC_ED25519"
 
 # body formats
 DEL_PUBKEY_FMT = '{'\
@@ -88,6 +94,8 @@ class Main:
         self.base_url : str = None              # store the complete url (incl. env)
 
         # not every variable is needed for every command; still, all are listed here for clarity
+        self.ecdsa_str : str = None             # for get_key_info, put_new_key, delete_key and revoke_key
+        self.ecdsa : bool = None                # for get_key_info, put_new_key, delete_key and revoke_key
         self.uuid_str : str = None              # for get_dev_keys, put_new_key, delete_key and revoke_key
         self.uuid : uuid.UUID = None            # for get_dev_keys, put_new_key, delete_key and revoke_key
         self.pubkey_str : str = None            # for put_new_key, delete_key, revoke_key, get_key_info
@@ -103,8 +111,8 @@ class Main:
         self.use_msgpack : bool = None          # for put_new_key
 
         # the privkey needs to be loaded as actual key (not string) for some operations
-        self.prvkey : ed25519.SigningKey = None
-        self.old_prvkey : ed25519.SigningKey = None
+        self.prvkey : ed25519.SigningKey or ecdsa.SigningKey = None
+        self.old_prvkey : ed25519.SigningKey or ecdsa.SigningKey = None
 
         self.upp : bytes = None
         self.api : ubirch.API = None
@@ -117,7 +125,7 @@ class Main:
     def setup_argparse(self):
         self.argparser = argparse.ArgumentParser(
             description="A tool to perform pubkey operations with the uBirch Identity Service",
-            epilog="Choose an environment + command and use the '--help'/'-h' option to see a command-specific help message; e.g.: python %s dev revoke_key -h. Note that for many operations (like putting a new PubKey), only the PrivKey is needed. That is because in case of ED25519 keys, the PubKey can be generated out of the PrivKey, because the PrivKey is generally regarded to as a seed for the keypair."
+            epilog="Choose an environment + command and use the '--help'/'-h' option to see a command-specific help message; e.g.: python %s dev revoke_key -h. Note that global parameters, like '-e ...' and '-d ...' MUST be specified before the operation specific parameters; otherwise they won't be accepted/cause errors."
         )
 
         # set up the main parameters
@@ -126,6 +134,9 @@ class Main:
         )
         self.argparser.add_argument("--debug", "-d", type=str, default="false",
             help="Enables/Disables debug logging. When enabled, all HTTP bodies will be printed before sending; 'true'/'false' (Default: 'false')"
+        )
+        self.argparser.add_argument("--ecdsa", "-e", type=str, default="false",
+            help="If set to 'true', all keys will be treated as ECDSA keys; 'true'/'false' (Default: 'false')"
         )
 
         # generate a subparser group; the dest parameter is needed so that the program knows
@@ -142,7 +153,7 @@ class Main:
         # subparser + arguments for the get_key_info operation
         self.get_key_info_parser = subparsers.add_parser(GET_KEY_INFO_CMD, help="Get information for a specific PubKey.")
         self.get_key_info_parser.add_argument("pubkey", metavar="PUBKEY_HEX", type=str,
-            help="ED25519 Pubkey to retrieve information for in HEX"
+            help="ED25519 or ECDSA NIST256p Pubkey to retrieve information for in HEX"
         )
 
         # subparser + arguments for the put_new_key operation
@@ -151,7 +162,7 @@ class Main:
             help="The device UUID to register a key for. E.g.: f99de1c4-3859-5326-a155-5696f00686d9"
         )
         self.put_new_key_parser.add_argument("prvkey", metavar="PRIVKEY_HEX", type=str,
-            help="The ED25519 PrivKey corresponding to the PubKey in HEX."
+            help="The ED25519 or ECDSA NIST256p Pubkey PrivKey corresponding to the PubKey in HEX."
         )
         self.put_new_key_parser.add_argument("created", metavar="CREATED", type=str,
             help="Date at which the PubKey was created; (format: 2020-12-30T11:11:11.000Z)"
@@ -172,13 +183,13 @@ class Main:
         # subparser + arguments for the delete_key operation
         self.del_key_parser = subparsers.add_parser(DELETE_KEY_CMD, help="Delete a registered PubKey.")
         self.del_key_parser.add_argument("prvkey", metavar="PRIVKEY_HEX", type=str,
-            help="ED25519 PrivKey in HEX corresponding to the PubKey to be deleted."
+            help="ED25519 or ECDSA NIST256p Pubkey PrivKey in HEX corresponding to the PubKey to be deleted."
         )
 
         # subparser + arguments for the revoke_key operation
         self.revoke_key_parser = subparsers.add_parser(REVOKE_KEY_CMD, help="Revoke a registered PubKey.")
         self.revoke_key_parser.add_argument("prvkey", metavar="PRIVKEY_HEX", type=str,
-            help="ED25519 PrivKey in HEX corresponding to the PubKey to be revoked."
+            help="ED25519 or ECDSA NIST256p Pubkey PrivKey in HEX corresponding to the PubKey to be revoked."
         )
        
         return 
@@ -190,6 +201,14 @@ class Main:
         # the env argument is needed for every command - get it
         self.env = self.args.env
         self.cmd_str = self.args.cmd
+        self.ecdsa_str = self.args.ecdsa
+
+        if self.ecdsa_str.lower() in ["1", "yes", "y", "true"]:
+            self.ecdsa = True
+
+            logging.info("Using ECDSA keys!")
+        else:
+            self.ecdsa = False
 
         if self.args.debug.lower() in ["1", "yes", "y", "true"]:
             logger.level = logging.DEBUG
@@ -233,9 +252,14 @@ class Main:
 
             # the prvkey needs to be loaded to be usable
             try:
-                self.prvkey = ed25519.SigningKey(binascii.unhexlify(self.prvkey_str))
+                prvkey_unhex = binascii.unhexlify(self.prvkey_str)
+
+                if self.ecdsa == True:
+                    self.prvkey = ecdsa.SigningKey.from_string(prvkey_unhex, curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+                else:
+                    self.prvkey = ed25519.SigningKey(prvkey_unhex)
             except Exception as e:
-                logger.error("Error loading the ED25519 private key!")
+                logger.error("Error loading the private key!")
                 logger.exception(e)
 
                 return False
@@ -243,7 +267,11 @@ class Main:
             logger.info("PrivKey loaded!")
 
             # get the pubkey
-            self.pubkey_str = binascii.hexlify(self.prvkey.get_verifying_key().to_bytes()).decode("utf8")
+            if self.ecdsa == True:
+                # note while .to_string() may sound like the key is being returned as ASCII string, it isn't - it's bytes
+                self.pubkey_str = binascii.hexlify(self.prvkey.get_verifying_key().to_string()).decode("utf8")
+            else:
+                self.pubkey_str = binascii.hexlify(self.prvkey.get_verifying_key().to_bytes()).decode("utf8")
 
             logger.info("PubKey extracted from the PrivKey: %s" % self.pubkey_str)
 
@@ -265,17 +293,26 @@ class Main:
             # the old prvkey needs to be loaded to be usable to sign the update
             if self.old_prvkey_str != None:
                 try:
-                    self.old_prvkey = ed25519.SigningKey(binascii.unhexlify(self.old_prvkey_str))
+                    old_prvkey_unhex = binascii.unhexlify(self.old_prvkey_str)
+
+                    if self.ecdsa == True:
+                        self.old_prvkey = ecdsa.SigningKey.from_string(old_prvkey_unhex, curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+                    else:
+                        self.old_prvkey = ed25519.SigningKey(old_prvkey_unhex)
                 except Exception as e:
-                    logger.error("Error loading the old ED25519 private key!")
+                    logger.error("Error loading the old private key!")
                     logger.exception(e)
 
                     return False
 
                 logger.info("Old PrivKey loaded!")
 
-                # get the old pubkey from the privkey
-                self.old_pubkey_str = binascii.hexlify(self.old_prvkey.get_verifying_key().to_bytes()).decode("utf8")
+                # get the old pubkey
+                if self.ecdsa == True:
+                    # note while .to_string() may sound like the key is being returned as ASCII string, it isn't - it's bytes
+                    self.old_pubkey_str = binascii.hexlify(self.old_prvkey.get_verifying_key().to_string()).decode("utf8")
+                else:
+                    self.old_pubkey_str = binascii.hexlify(self.old_prvkey.get_verifying_key().to_bytes()).decode("utf8")
 
                 logger.info("Old PubKey extracted from old PrivKey: %s" % self.old_pubkey_str)
 
@@ -390,11 +427,16 @@ class Main:
     def run_put_new_key_json(self):
         url = self.base_url        
 
+        if self.ecdsa == True:
+            key_alg = KEY_ALGO_ECDSA
+        else:
+            key_alg = KEY_ALGO_ED25519
+
         # check if this is a key update
         if self.old_prvkey_str != None:
             # format the innter message
             inner_msg = PUT_PUBKEY_UPDATE_FMT_INNER % (
-                "ECC_ED25519", self.key_created_at, self.uuid_str, self.pubkey_b64, self.pubkey_b64,
+                key_alg, self.key_created_at, self.uuid_str, self.pubkey_b64, self.pubkey_b64,
                 self.old_pubkey_b64, self.key_valid_not_after, self.key_valid_not_before
             )
 
@@ -412,7 +454,7 @@ class Main:
         else:
             # format the innter message
             inner_msg = PUT_NEW_PUBKEY_FMT_INNER % (
-                "ECC_ED25519", self.key_created_at, self.uuid_str, self.pubkey_b64,
+                key_alg, self.key_created_at, self.uuid_str, self.pubkey_b64,
                 self.pubkey_b64, self.key_valid_not_after, self.key_valid_not_before
             )
 
