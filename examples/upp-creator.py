@@ -5,6 +5,9 @@ import logging
 import pickle
 import sys
 import time
+import ed25519
+import ecdsa
+import hashlib
 import argparse
 from uuid import UUID
 
@@ -49,7 +52,17 @@ class Proto(ubirch.Protocol):
             pickle.dump(signatures, f)
 
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
-        return self._ks.find_signing_key(uuid).sign(message)
+        signing_key = self._ks.find_signing_key(uuid)
+        
+        if isinstance(signing_key, ecdsa.SigningKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(signing_key, ed25519.SigningKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Signing Key is neither ed25519, nor ecdsa!"))    
+        
+        return signing_key.sign(final_message)
 ########################################################################
 
 

@@ -24,6 +24,8 @@ import logging
 import pickle
 import sys
 import time
+import ecdsa
+import ed25519
 from uuid import UUID
 
 import requests
@@ -76,10 +78,30 @@ class Proto(ubirch.Protocol):
             pass
 
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
-        return self.__ks.find_signing_key(uuid).sign(message)
+        signing_key = self.__ks.find_signing_key(uuid)
+        
+        if isinstance(signing_key, ecdsa.SigningKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(signing_key, ed25519.SigningKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Signing Key is neither ed25519, nor ecdsa!"))    
+        
+        return signing_key.sign(final_message)
 
     def _verify(self, uuid: UUID, message: bytes, signature: bytes):
-        return self.__ks.find_verifying_key(uuid).verify(signature, message)
+        verifying_key = self.__ks.find_verifying_key(uuid)
+
+        if isinstance(verifying_key, ecdsa.VerifyingKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(verifying_key, ed25519.VerifyingKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Verifying Key is neither ed25519, nor ecdsa!"))    
+         
+        return verifying_key.verify(signature, final_message)
 
 ########################################################################
 

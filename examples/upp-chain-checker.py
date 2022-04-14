@@ -5,7 +5,9 @@ import msgpack
 import binascii
 import uuid
 import ed25519
+import ecdsa
 import json
+import hashlib
 
 import ubirch
 from ubirch.ubirch_protocol import UNPACKED_UPP_FIELD_UUID, UNPACKED_UPP_FIELD_PREV_SIG, UNPACKED_UPP_FIELD_SIG
@@ -26,7 +28,17 @@ class Proto(ubirch.Protocol):
         self.ks : ubirch.KeyStore = ks
 
     def _verify(self, uuid: uuid.UUID, message: bytes, signature: bytes):
-        return self.ks.find_verifying_key(uuid).verify(signature, message)
+        verifying_key = self.ks.find_verifying_key(uuid)
+
+        if isinstance(verifying_key, ecdsa.VerifyingKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(verifying_key, ed25519.VerifyingKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Verifying Key is neither ed25519, nor ecdsa!"))    
+         
+        return verifying_key.verify(signature, final_message)
 
 
 class Main:
@@ -35,7 +47,7 @@ class Main:
         self.args : argparse.Namespace = None
 
         self.vk_str : str = None
-        self.vk : ed25519.VerifyingKey = None
+        self.vk : ed25519.VerifyingKey or ecdsa.VerifyingKey = None
         self.vk_uuid : uuid.UUID = None
         self.vk_uuid_str : str = None
 
@@ -81,7 +93,7 @@ class Main:
             help="If true, the script expects a JSON file for INPUTFILE (see below); e.g. true, false (default: %s)" % DEFAULT_ISHEX
         )
         self.argparser.add_argument("--is-hex", "-x", metavar="ISHEX", type=str, default=DEFAULT_ISHEX,
-            help="If true, the script hex-encoded UPPs from the input file; e.g. true, false (default: %s)" % DEFAULT_ISHEX
+            help="If true, the script expects hex-encoded UPPs from the input file; e.g. true, false (default: %s)" % DEFAULT_ISHEX
         )
         
         return 
@@ -99,8 +111,15 @@ class Main:
 
         # check the VK
         try:
-            # convert the string
-            self.vk = ed25519.VerifyingKey(self.vk_str, encoding="hex")
+            # get the key type from the key length
+            if len(self.vk_str) == 128:
+                logger.info("Determined the key to be ECDSA")
+
+                self.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(self.vk_str), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+            else:
+                logger.info("Determined the key to be ED25519")
+
+                self.vk = ed25519.VerifyingKey(self.vk_str, encoding="hex")
         except Exception as e:
             logger.error("Invalid verifying key: \"%s\"" % self.vk_str)
             logger.exception(e)
@@ -187,7 +206,10 @@ class Main:
     def check_cli_vk(self) -> bool:
         try:
             if self.vk != None:
-                self.keystore.insert_ed25519_verifying_key(self.vk_uuid, self.vk)
+                if isinstance(self.vk, ed25519.VerifyingKey):
+                    self.keystore.insert_ed25519_verifying_key(self.vk_uuid, self.vk)
+                else:
+                    self.keystore.insert_ecdsa_verifying_key(self.vk_uuid, self.vk)
 
                 logger.info("Inserted \"%s\": \"%s\" (UUID/VK) into the keystore" % (self.vk_uuid_str, self.vk_str))
         except Exception as e:

@@ -6,6 +6,7 @@ import binascii
 import uuid
 import ed25519
 import ecdsa
+import ecdsa
 import hashlib
 
 import ubirch
@@ -41,9 +42,19 @@ class Proto(ubirch.Protocol):
             self.ks.insert_ed25519_verifying_key(self.UUID_DEMO, self.PUB_DEMO)
         if not self.ks.exists_verifying_key(self.UUID_PROD):
             self.ks.insert_ed25519_verifying_key(self.UUID_PROD, self.PUB_PROD)
-
+    
     def _verify(self, uuid: uuid.UUID, message: bytes, signature: bytes):
-        return self.ks.find_verifying_key(uuid).verify(signature, message)
+        verifying_key = self.ks.find_verifying_key(uuid)
+
+        if isinstance(verifying_key, ecdsa.VerifyingKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(verifying_key, ed25519.VerifyingKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Verifying Key is neither ed25519, nor ecdsa!"))    
+         
+        return verifying_key.verify(signature, final_message)
 
 
 class Main:
