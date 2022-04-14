@@ -16,6 +16,9 @@ from requests import codes, Response
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN
 
+KS_NAME = "demo-device.jks"
+KS_PASSWORD = "keystore"
+
 DEFAULT_KEY_TYPE = "ed25519"
 UBIRCH_PUBKEYS_ED = {
     "dev": ed25519.VerifyingKey("39ff77632b034d0eba6d219c2ff192e9f24916c9a02672acb49fd05118aad251", encoding="hex"), # NOTE: this environment is not reliable
@@ -29,10 +32,10 @@ UBIRCH_PUBKEYS_EC = {
     ), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256), # NOTE: this environment is not reliable
     "demo": ecdsa.VerifyingKey.from_string(binascii.unhexlify(
         "c66fa222898146347741dbcb26b184d4e06cddb01ff04238f457e006b891937ea7e115185fed2c9ab60af2d66497a2e1aedf65ce38941ab5c68a3468544f948c"
-    ), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256), # NOTE: this environment is not reliable
+    ), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256),
     "prod": ecdsa.VerifyingKey.from_string(binascii.unhexlify(
         "a49758a0937437741314c0558d955089ed61860ba64154f2da45fd23b9178d2ca8225e3410e6bd317db848100004157bc55d88162d4a58c9c2d5a2ce22f3908d"
-    ), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256), # NOTE: this environment is not reliable
+    ), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256),
 }
 
 UBIRCH_UUIDS = {
@@ -85,7 +88,6 @@ class Proto(ubirch.Protocol):
                 self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex)
             
             self.__ks.insert_ecdsa_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_EC[env])
-        # 
         elif temp_key_type == "ed25519": 
             if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex+'_ecd', None) != None:
                 # suffix-less pubkey found, delete it
@@ -150,7 +152,7 @@ class UbirchClient:
         self.key_type = _key_type
 
         # create a keystore for the device
-        self.keystore = ubirch.KeyStore("demo-device.jks", "keystore")
+        self.keystore = ubirch.KeyStore(KS_NAME, KS_PASSWORD)
 
         # create an instance of the protocol with signature saving
         self.protocol = Proto(self.keystore, self.uuid, self.env, key_type=self.key_type)
