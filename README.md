@@ -11,11 +11,23 @@ The library consists of three parts which can be used individually:
 * `ubirch.KeyStore` - a simple key store based on [pyjks](https://pypi.org/project/pyjks/) to store keys and certificates
 
 > the [ubirch](https://ubirch.com) protocol uses the [Ed25519](https://ed25519.cr.yp.to/) signature scheme by default.
- 
-## Usage
 
-Install the library: `pip install ubirch-protocol`
-  
+## Installation
+
+Optionally create environment to install to:
+
+`$ python -m venv venv`
+
+`$ . venv/bin/activate`
+
+Install the requirements and ubirch library using pip:
+
+`$ pip install -r requirements.txt`
+
+`$ pip install ubirch-protocol`
+
+If this isn't the master branch, follow the guide [documentation/not_master_branch.md](documentation/not_master_branch.md) on how to install from `/ubirch`
+
 ### Creating keypair and messages
 
 ```python
@@ -145,77 +157,6 @@ vk = sk.get_verifying_key()
 
 keystore.insert_ed25519_keypair(hwDeviceId, vk, sk)
 ```
-
-### Running the example
-
-```bash
-python3 -m venv venv3
-. venv3/bin/activate
-pip install -r requirements.txt
-pip install ubirch-protocol
-PYTHONPATH=. python3 examples/test-protocol.py
-```
-
-At the first launch the script generates a random UUID for your device and you will be asked
-about the authentication token and the device group. You can safely ignore the device group, just press Enter.
-The script creates a file `demo-device.ini` which is loaded upon running the script again. If
-you need to change anything edit that file.
-
-The script goes through a number of steps:
-
-1. checks the existence of the device and deletes the device if it exists
-2. registers the device with the backend
-3. generates a new identity for that device and stores it in the key store
-4. registers the new identity with the backend
-5. sends two consecutive chained messages to the backend
-
-### Example: Web-of-Trust
-
-#### Before First Execution
-
-```bash
-python3 -m venv venv3
-pip install -r requirements.txt
-```
-
-#### Running The Example
-
-```bash
-. venv3/bin/activate
-PYTHONPATH=. python3 examples/test-web-of-trust.py
-```
-
-During first launch the script generates key pairs for two users. Each user has one device and key pairs are created for 
-these, too. All key pairs are stored in `test-web-of-trust.jks` while the association of users, their device and the 
-respective key pair is stored in `demo-web-of-trust.ini`. In consecutive runs no new key pairs are generated and instead
-the ones referenced in `demo-web-of-trust.ini` are used.
-
-The script always uploads all public keys, followed by creating and uploading a web-of-trust and searching all public 
-keys trusted by `deviceA`. This search is repeated with different parameters. The results are then printed onto the
-terminal.
-
-The web-of-trust created looks as follows (trust knows a direction; always bidirectional in this example):
-
-```
-deviceA <--trustLevel=100--> user1 <--trustLevel=50--> user2 <--trustLevel=100--> deviceB
-```
-
-The first search for all trusted keys is for a minimum trust of 50 and a depth of 3 resulting in the the following keys
-being found:
-
-* user1
-* user2
-* deviceB
-
-The second search increases the minimum trust to 60 resulting in:
-
-* user1
-
-And the third search is with a minimum trust of 50 again while the depth is now 2 resulting in:
-
-* user1
-* user2
-
 
 ### Testing
 

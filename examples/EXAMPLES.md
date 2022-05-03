@@ -1,4 +1,4 @@
-# uBirch-Protocol-Python Examples <!-- omit in toc -->
+# uBirch-Protocol-Python Examples
 This file documents how to use the examples provided alongside the [uBirch-Protocol-Python](https://github.com/ubirch/ubirch-protocol-python). Those examples aim to provide an insight of how to use the [ubirch-protocol](https://pypi.org/project/ubirch-protocol/) python library, which is implemented in the `/ubirch/` directory in this repository.
 
 ## Table of contents
@@ -15,14 +15,15 @@ This file documents how to use the examples provided alongside the [uBirch-Proto
   - [Examining a UPP](#examining-a-upp)
   - [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-a-upp)
   - [Verifying data](#verifying-data)
-- [Sending data to the Simple Data Service](#sending-data-to-the-simple-data-service)
-- [Example uBirch client implementation](#example-ubirch-client-implementation)
-- [Create a hash from an JSON object](#create-a-hash-from-an-json-object)
-- [Test identity of the device](#test-identity-of-the-device)
-- [Test the complete protocol](#test-the-complete-protocol)
-- [Test the web of trust](#test-the-web-of-trust)
-- [Verify ECDSA signed UPP](#verify-ecdsa-signed-upp)
-- [Verify ED25519 signed UPP](#verify-ed25519-signed-upp)
+- [Example Implementations](#example-implementations)
+  - [Sending data to the Simple Data Service](#sending-data-to-the-simple-data-service)
+  - [Example uBirch client implementation](#example-ubirch-client-implementation)
+  - [Test the complete protocol](#test-the-complete-protocol)
+  - [Test identity of the device](#test-identity-of-the-device)
+- [Miscellaneous](#miscellaneous)
+  - [Create a hash from an JSON object](#create-a-hash-from-an-json-object) 
+  - [Verify ECDSA signed UPP](#verify-ecdsa-signed-upp)
+  - [Verify ED25519 signed UPP](#verify-ed25519-signed-upp)
 - [Managing Keys](#managing-keys)
   - [Managing the local KeyStore](#managing-the-local-keystore)
   - [Managing keys inside the uBirch Identity Service](#managing-keys-inside-the-ubirch-identity-service)
@@ -31,25 +32,6 @@ This file documents how to use the examples provided alongside the [uBirch-Proto
 ## From measurement to blockchain-anchored UPP
 The process needed to get a UPP to be anchored in the blockchain can be cut down into multiple steps. For each of those steps there is an example in this directory, demonstrating how to handle them. There are also examples showing a full example-client implementation.
 
-1. [Setup](#setup)
-  
-2. [Generating and managing a keypair](#generating-and-managing-a-keypair)
-
-3. [Registering a public key](#registering-a-public-key)
-
-4. [Gathering Data](#gathering-data)
-   
-5. [Creating a UPP](#creating-an-upp)
-
-6. [Sending a UPP](#sending-an-upp)
-
-7. [Verifying a UPP](#verifying-an-upp)
-
-8. [Examining a UPP](#examining-an-upp)
-
-9.  [Checking the anchoring status of a UPP](#checking-the-anchoring-status-of-a-upp)
-
-10. [Verifying data](#verifying-data)
 ### Setup
 Before anything, you will need to do/get a couple of things:
 - Choose a stage to work on
@@ -58,7 +40,7 @@ Before anything, you will need to do/get a couple of things:
   - https://console.demo.ubirch.com for the `demo` stage
   - https://console.dev.ubirch.com for the `dev` stage
 - Get a UUID (can be generated randomly, for example [here](https://www.uuidgenerator.net/), or on the basis of certain device properties like MAC-Addresses)
-- Create a "Thing" at the uBirch-Console; remember/note down the used UUID and the generated Auth-Token. For details on how to create a Thing, check the[Ubirch console documentation](https://developer.ubirch.com/console.html). 
+- Create a "Thing" at the uBirch-Console; remember/note down the used UUID and the generated Auth-Token / password. For details on how to create a Thing, check the [Ubirch console documentation](https://developer.ubirch.com/console.html). 
 
 You should now have the following information at hand:
 - The stage you want to work on (later referred to as `env`)
@@ -117,14 +99,17 @@ UPPs are usually used to anchor the hash of some kind of data. This data, in the
 ```
 Translated to a hypothetical use case this could be a measurement taken at `1625163338` (Unix-Timestamp), stating that the sensor measured `11.2 C` in temperature (`T`) and `35.8 %H` in humidity (`H`). The  status - `S` - is `'OK'`. There is no script for this step, since it can easily be done by hand.
 
-**Note: _If you use a JSON format for your data, the data has to be alphabetically sorted, all whitespace removed and 
+### Data Format
+**Note:**
+If you use a JSON format for your data, the data has to be alphabetically sorted, all whitespace removed and 
 serialized into a simple string, before the hash of the data is generated. This ensures, that you can always regenerate
-the same hash for your data. This is already implemented in the examples, like the following line of code shows:_**
+the same hash for your data. This is already implemented in the examples, like the following lines of code show:
 ```python
+message = '{"ts": 1625163338, "T": 11.2, "H": 35.8, "S": "OK" }'
 serialized = json.dumps(message, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
 ```
 This will create a string from the above examplary JSON object:
-`{"H":35.8,"S":"OK","T":11.2,"ts":1625163338}`
+`b'{"H":35.8,"S":"OK","T":11.2,"ts":1625163338}'`
 
 ### Creating a UPP
 After gathering some measurement data a UPP can be created. The UPP won't contain the actual measurement data, but a hash of it. The example script to create UPPs is [`upp-creator.py`](upp-creator.py).
@@ -142,7 +127,7 @@ The script allows multiple modes of operation, which can be set through differen
 - `--kspwd/-p` The password to decrypt/encrypt the keystore. You must remember this, or you will lose access to the keystore and all its contents.
 - `--keyreg/-k` Tells the script that the UPP that should be generated is a key registration UPP. The effect of that is that the script will ignore any custom input data and the `--hash` parameter (below). Instead, the UPP will contain the public key certificate. This parameter is a binary flag which can have two values: `true` or `false`.
 - `--hash` Sets the hash algorithm to be used to generate the hash of the input data. The produced hash will then be inserted into the payload field of the UPP. This parameter can have three values: `sha512`, `sha256` and `off`. When set to off, the input data will be directly put into the UPP without hashing it. This is only useful in some special cases like when manually assembling key registration messages (normally the `--keyreg` option should be used for that).
-- `--isjson/-j` A binary flag that indicates that the input data is in JSON format. The script will serialize the JSON object before calculating the hash. This has the advantage one doesn't have to remember the order in which fields are listed in a JSON object to still be able to reconstruct the hash later on. Serializing the JSON is done like this: `json.dumps(self.data, separators=(',', ':'), sort_keys=True, ensure_ascii=False)` where `self.data` contains the JSON object which was loaded like this: `self.data = json.loads(self.dataStr)` where `dataStr` contains the input string, which should represent a JSON object. This flag can have two values: `true` or `false`.
+- `--isjson/-j` A binary flag that indicates that the input data is in JSON format. The script will serialize the JSON object before calculating the hash. This has the advantage one doesn't have to remember the order in which fields are listed in a JSON object to still be able to reconstruct the hash later on. Serializing the JSON is done like explained above in [Data Format](#data-format). This flag can have two values: `true` or `false`.
 - `--output/-o` Tells the script where to write the generated UPP to.
 - `--nostdout/-n` Binary flag to disable printing of any log messages to standard output. This can be used for piping a created UPP to another program. For this `--output /dev/stdout` would have to be set.
 - `UUID` The UUID of the device as a hex-string, like `f5ded8a3-d462-41c4-a8dc-af3fd072a217`.
@@ -305,7 +290,9 @@ Prev. UPP: "liPEEPXe2KPUYkHEqNyvP9ByohfEQMvoTzPB2AqaKmjxDGHIQ1ZwNdGReacDu14K/06S
 2021-07-02 16:09:34,727                 root           get_status() INFO     The UPP has been fully anchored!
 [{'label': 'PUBLIC_CHAIN', 'properties': {'timestamp': '2021-07-02T14:03:22.093Z', 'hash': '0xd1fe1f27a315089e5522eb7c8124962774b335c24d1ed7281091b447a8d3bca2', 'public_chain': 'ETHEREUM_TESTNET_RINKEBY_TESTNET_NETWORK', 'prev_hash': '06700cdb7b196292eceac71520fad2e46890e2d8f74510f1bc4296c6a0e16a631cff533989c9b83363f72051105b8f0bfaf59706a5258d8d275abc93d67d5b4d'}}]
 ```
-The UPP has been anchored. **Note** that when running on `prod` the output regarding the anchoring status will be significantly longer:
+The UPP has been anchored. 
+
+**Note** that when running on `prod` the output regarding the anchoring status will be significantly more detailed:
 ```
 $ python3 upp-anchoring-status.py --env prod --ishash true "dfQu7wBCL2aCuAqWLkyHEXCzTlKHdfMr7PMrxEcwY6A="
 2021-07-02 16:13:47,509                 root  get_hash_from_input() INFO     Extracted hash from input: "dfQu7wBCL2aCuAqWLkyHEXCzTlKHdfMr7PMrxEcwY6A="
@@ -325,7 +312,7 @@ usage: data-verifier.py [-h] [--ispath ISPATH] [--env ENV] [--isjson ISJSON] [--
 ```
 - `--ispath/-i` Specifies wether the input is to be treated as a data-file path or direct input data. `true` or `false`.
 - `--env-e` The stage to check on. Should be the one the UPP corresponding to the data was sent to. `prod`, `demo` or `dev`.
-- `--isjson/-j` A binary flag that indicates that the input data is in JSON format. The script will serialize the JSON object before calculating the hash. This has the advantage one doesn't have to remember the order in which fields are listed in a JSON object to still be able to reconstruct the hash later on. Serializing the JSON is done like this: `json.dumps(self.data, separators=(',', ':'), sort_keys=True, ensure_ascii=False)` where `self.data` contains the JSON object which was loaded like this: `self.data = json.loads(self.dataStr)` where `dataStr` contains the input string which should represent a JSON object. This flag can have two values: `true` or `false`. It should only be set to `true` if the data represents a JSON object and if it also was serialized when creating the UPP.
+- `--isjson/-j` A binary flag that indicates that the input data is in JSON format. The script will serialize the JSON object before calculating the hash. This has the advantage one doesn't have to remember the order in which fields are listed in a JSON object to still be able to reconstruct the hash later on. Serializing the JSON is done like explained above in [Data Format](#data-format). This flag can have two values: `true` or `false`. It should only be set to `true` if the data represents a JSON object and if it also was serialized when creating the UPP.
 - `--hash/-a` Sets the hashing algorithm to use. `sha256`, `sha512` or `off`. It should match the algorithm used when creating the corresponding UPP. Setting it to `off` means that the input data actually already is the hash of the data. In this case this script will simply look up the hash.
 - `--ishl/-l` enables Hashlink functionality. This means that the script will expect the input data to be a valid JSON object and to contain a list called `hashLink` at root-level. This list contains the names of all fields that should be taken into account when calculating the hash. Different JSON-levels can are represented like this: `[..., "a.b", ...]`.
 
@@ -363,7 +350,8 @@ Prev. UPP: "liPEEAcQQjUYkkAgkEIAADyUtgvEQJViO08kxDSmJWebjNDFAVFwqxGUANe9XkNqi549
 
 Just like with [`upp-anchoring-status.py`](upp-anchoring-status.py), it might take a short while after sending the corresponding UPP to the backend before it will be anchored.
 
-## Sending data to the Simple Data Service
+## Example Implementations
+### Simple Data Service
 The [`data-sender.py`](data-sender.py) example-script allows sending of data to the simple data service. This should only be used for demo purposes. Ubirch will not guarantee, to keep all data, which is sent to this endpoint.
 ```
 $ python3 data-sender.py --help
@@ -382,8 +370,8 @@ optional arguments:
 
 Note that the input data should follow this pattern: {"timestamp": TIMESTAMP, "uuid": "UUID", "msg_type": 0, "data": DATA, "hash": "UPP_HASH"}. For more information take a look at the EXAMPLES.md file.
 ```
-
-## Example uBirch client implementation
+###
+### Example uBirch client
 [`example-client.py`](example-client.py) implements a full example uBirch client. It generates a keypair if needed, registers it at the uBirch backend if it doesn't know it yet, creates and sends a UPP and handles/verfies the response from the uBirch backend. The used message format looks like this:
 ```
 {
@@ -401,17 +389,26 @@ usage: python3 example-client.py <UUID> <ubirch-auth-token> [ubirch-env]
 - `ubirch-env` (optional) specifies the environment/stage to operator on. `dev`, `demo` or `prod` (default).
 Keys are loaded from/stored to `demo-device.jks`. The keystore-password can be read from the [script](example-client.py) itself.
 
+###
+### Test the complete protocol
+The [`test-protocol.py`](test-protocol.py) script sends a couple of UPPs to uBirch Niomon and verifies the backend response. It reads all information it needs interactively from the terminal. Once entered, all device information (UUID, ENV, AUTH TOKEN) are stored in a file called `demo-device.ini`. Devices keys are stored in `demo-device.jks` and the keystore-password can be read from the [script](test-protocol.py) itself. If no keys for the given UUID are found, the script will generated a keypair and stores it in the keystore file.
 
-## Create a hash from an JSON object
-[`create-hash.py`](create-hash.py) takes a string representing a JSON object as input, serializes it, and calculates the corresponding SHA256 hash.
-```
-$ python3 create-hash.py '{"ts": 1625163338, "T": 11.2, "H": 35.8, "S": "OK"}'
-   input: {"ts": 1625163338, "T": 11.2, "H": 35.8, "S": "OK"}
-rendered: {"H":35.8,"S":"OK","T":11.2,"ts":1625163338}
-    hash: dfQu7wBCL2aCuAqWLkyHEXCzTlKHdfMr7PMrxEcwY6A=
-```
 
-## Test identity of the device
+**copied from Readme:** At the first launch the script generates a random UUID for your device and you will be asked
+about the authentication token and the device group. You can safely ignore the device group, just press Enter.
+The script creates a file `demo-device.ini` which is loaded upon running the script again. If
+you need to change anything edit that file.
+
+The script goes through a number of steps:
+
+1. checks the existence of the device and deletes the device if it exists
+2. registers the device with the backend
+3. generates a new identity for that device and stores it in the key store
+4. registers the new identity with the backend
+5. sends two consecutive chained messages to the backend
+
+###
+### Test identity of the device
 The [`test-identity.py`](test-identity.py) script tests registering and de-registering a public key of a device at the uBirch backend. To function it needs the following variables to be set using the environment:
 ```sh
 export UBIRCH_UUID=<UUID>
@@ -420,18 +417,23 @@ export UBIRCH_ENV=[dev|demo|prod]
 ```
 It uses `test-identity.jks` as a place to store/look for keypairs. The keystore-password can be read from the [script](test-identity.py) itself.
 
-## Test the complete protocol
-The [`test-protocol.py`](test-protocol.py) script sends a couple of UPPs to uBirch Niomon and verifies the backend response. It reads all information it needs interactively from the terminal. Once entered, all device information (UUID, ENV, AUTH TOKEN) are stored in a file called `demo-device.ini`. Devices keys are stored in `demo-device.jks` and the keystore-password can be read from the [script](test-protocol.py) itself. If no keys for the given UUID are found, the script will generated a keypair and stores it in the keystore file.
+## Miscellaneous
+### Create a hash from an JSON object
+[`create-hash.py`](create-hash.py) takes a string representing a JSON object as input, serializes it, and calculates the corresponding SHA256 hash.
+```
+$ python3 create-hash.py '{"ts": 1625163338, "T": 11.2, "H": 35.8, "S": "OK"}'
+   input: {"ts": 1625163338, "T": 11.2, "H": 35.8, "S": "OK"}
+rendered: {"H":35.8,"S":"OK","T":11.2,"ts":1625163338}
+    hash: dfQu7wBCL2aCuAqWLkyHEXCzTlKHdfMr7PMrxEcwY6A=
+```
 
-## Test the web of trust
-[`test-web-of-trust.py`](test-web-of-trust.py)
-**TODO**
-
-## Verify ECDSA signed UPP
+###
+### Verify ECDSA signed UPP
 The [`verify-ecdsa.py`](verify-ecdsa.py) script verifies a hard-coded UPP which was signed with an ECDSA signing key using a ECDSA verifying key. All the information are contained in the script.
 
-## Verify ED25519 signed UPP
-The [`verify-25519.py`](verify-25519.py) script verifies a hard-coded UPP which was signed with an ED25519 signing key using a ED25519 verifying key. All the information are contained in the script. This mode is normally used (in all other examples).
+###
+### Verify ED25519 signed UPP
+The [`verify-ed25519.py`](verify-ed25519.py) script verifies a hard-coded UPP which was signed with an ED25519 signing key using a ED25519 verifying key. All the information are contained in the script. This mode is normally used (in all other examples).
 
 ## Managing Keys
 ### Managing the local KeyStore
