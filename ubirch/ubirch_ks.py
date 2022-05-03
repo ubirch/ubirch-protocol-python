@@ -34,6 +34,9 @@ ECDSA_OID = (1, 2, 840, 10045, 4, 3, 2)
 
 
 class ED25519Certificate(TrustedCertEntry):
+    """!
+    A ED25519 Certificate
+    """
 
     def __init__(self, alias: str, verifying_key: ed25519.VerifyingKey, **kwargs):
         super().__init__(**kwargs)
@@ -42,6 +45,9 @@ class ED25519Certificate(TrustedCertEntry):
         self.timestamp = int(datetime.utcnow().timestamp())
 
 class ECDSACertificate(TrustedCertEntry):
+    """!
+    A ECDSA Certificate
+    """
 
     def __init__(self, alias: str, verifying_key: ecdsa.VerifyingKey, **kwargs):
         super().__init__(**kwargs)
@@ -50,19 +56,19 @@ class ECDSACertificate(TrustedCertEntry):
         self.timestamp = int(datetime.utcnow().timestamp())
 
 class KeyStore(object):
-    """
-    The ubirch key store handles the keys relevant for the ubirch protocol.
+    """!
+    Assists at handling keys relevant for the ubirch protocol easier
     """
 
     def __init__(self, keystore_file: str, password: str) -> None:
-        """Initialize the ubirch-protocol for the device with the given UUID."""
+        """! Initialize the ubirch-protocol for the device with the given UUID."""
         super().__init__()
         self._ks_file = keystore_file
         self._ks_password = password
         self._load_keys()
 
     def _load_keys(self) -> None:
-        """Load or create new crypto-keys. The keys are stored in a local key store."""
+        """! Load or create new crypto-keys. The keys are stored in a local key store."""
         try:
             self._ks = jks.KeyStore.load(self._ks_file, self._ks_password)
         except FileNotFoundError:
@@ -70,7 +76,7 @@ class KeyStore(object):
             self._ks = jks.KeyStore.new("jks", [])
 
     def insert_ed25519_signing_key(self, uuid: UUID, sk: ed25519.SigningKey):
-        """Store an existing ED25519 signing key in the key store."""
+        """! Store an existing ED25519 signing key in the key store."""
         # encode the ED25519 private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
         private_key_info.setComponentByName('version', 'v1')
@@ -83,12 +89,12 @@ class KeyStore(object):
         self._ks.entries['pke_' + uuid.hex] = pke
 
     def insert_ed25519_verifying_key(self, uuid: UUID, vk: ed25519.VerifyingKey):
-        """Store an existing ED25519 verifying key in the key store."""
+        """! Store an existing ED25519 verifying key in the key store."""
         self._ks.entries[uuid.hex] = ED25519Certificate(uuid.hex, vk)
 
     def insert_ed25519_keypair(self, uuid: UUID, vk: ed25519.VerifyingKey, sk: ed25519.SigningKey) -> (
     ed25519.VerifyingKey, ed25519.SigningKey):
-        """Store an existing ED25519 key pair in the key store."""
+        """! Store an existing ED25519 key pair in the key store."""
         if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
@@ -99,12 +105,12 @@ class KeyStore(object):
         return vk, sk
 
     def create_ed25519_keypair(self, uuid: UUID) -> (ed25519.VerifyingKey, ed25519.SigningKey):
-        """Create a new ED25519 key pair and store in key store."""
+        """! Create a new ED25519 key pair and store in key store."""
         sk, vk = ed25519.create_keypair(entropy=urandom)
         return self.insert_ed25519_keypair(uuid, vk, sk)
 
     def insert_ecdsa_signing_key(self, uuid, sk: ecdsa.SigningKey):
-        """Insert an existing ECDSA signing key."""
+        """! Insert an existing ECDSA signing key."""
         # encode the ECDSA private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
         private_key_info.setComponentByName('version', 'v1')
@@ -122,7 +128,7 @@ class KeyStore(object):
         self._ks.entries[uuid.hex + '_ecd'] = ECDSACertificate(uuid.hex, vk)
 
     def insert_ecdsa_keypair(self, uuid: UUID, vk: ecdsa.VerifyingKey, sk: ecdsa.SigningKey) -> (ecdsa.VerifyingKey, ecdsa.SigningKey):
-        """Insert an existing ECDSA key pair into the key store."""
+        """! Insert an existing ECDSA key pair into the key store."""
         if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
@@ -133,22 +139,22 @@ class KeyStore(object):
         return (vk, sk)
 
     def create_ecdsa_keypair(self, uuid: UUID, curve: ecdsa.curves.Curve = ecdsa.NIST256p, hashfunc=hashlib.sha256) -> (ecdsa.VerifyingKey, ecdsa.SigningKey):
-        """Create new ECDSA key pair and store in key store"""
+        """! Create new ECDSA key pair and store in key store"""
 
         sk = ecdsa.SigningKey.generate(curve=curve, entropy=urandom, hashfunc=hashfunc)
         vk = sk.get_verifying_key()
         return self.insert_ecdsa_keypair(uuid, vk, sk)
 
     def exists_signing_key(self, uuid: UUID):
-        """Check whether this UUID has a signing key in the key store."""
+        """! Check whether this UUID has a signing key in the key store."""
         return 'pke_' + uuid.hex in self._ks.private_keys
 
     def exists_verifying_key(self, uuid: UUID):
-        """Check whether this UUID has a verifying key in the key store."""
+        """! Check whether this UUID has a verifying key in the key store."""
         return uuid.hex in self._ks.certs or (uuid.hex + '_ecd') in self._ks.certs
 
     def find_signing_key(self, uuid: UUID) -> ed25519.SigningKey or ecdsa.SigningKey:
-        """Find the signing key for this UUID."""
+        """! Find the signing key for this UUID."""
         # try to find a matching sk for the uuid
         try:
             sk : PrivateKeyEntry = self._ks.private_keys['pke_' + uuid.hex]
@@ -174,7 +180,7 @@ class KeyStore(object):
             raise Exception("stored key with unknown algorithm OID: '{}'".format(sk._algorithm_oid))
 
     def _find_cert(self, uuid: UUID) -> ECDSACertificate or ED25519Certificate:
-        """ Find the stored cert for uuid """
+        """! Find the stored cert for uuid """
         cert = None
 
         if self.exists_verifying_key(uuid) == True:
@@ -206,7 +212,7 @@ class KeyStore(object):
         return cert
 
     def find_verifying_key(self, uuid: UUID) -> ed25519.VerifyingKey or ecdsa.VerifyingKey:
-        """Find the verifying key for this UUID."""
+        """! Find the verifying key for this UUID."""
         cert = self._find_cert(uuid)
 
         if type(cert) == ED25519Certificate:
@@ -217,7 +223,7 @@ class KeyStore(object):
         return None
 
     def get_certificate(self, uuid: UUID, validityInDays : int = 3650) -> dict or None:
-        """Get the public key info for key registration"""
+        """! Get the public key info for key registration"""
         # try to find the cert
         cert = self._find_cert(uuid)
 

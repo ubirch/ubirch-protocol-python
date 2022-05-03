@@ -1,3 +1,27 @@
+##
+# @file ubirch_api.py
+#
+# @brief Example Python program with Doxygen style comments.
+#
+# @section description_doxygen_example Description
+# Example Python program with Doxygen style comments.
+#
+# @section libraries_main Libraries/Modules
+# - time standard library (https://docs.python.org/3/library/time.html)
+#   - Access to sleep function.
+# - sensors module (local)
+#   - Access to Sensor and TempSensor classes.
+#
+# @section notes_doxygen_example Notes
+# - Comments are Doxygen compatible.
+#
+# @section todo_doxygen_example TODO
+# - None.
+#
+# @section author_doxygen_example Author(s)
+# - Created by Ubirch GmbH
+#
+
 # ubirch API
 #
 # @author Matthias L. Jugel
@@ -34,7 +58,7 @@ DATA_SERVICE = "data"
 
 
 class API(object):
-    """ubirch API accessor methods."""
+    """! Ubirch API accessor methods"""
 
     def __init__(self, env="demo", debug=False) -> None:
         super().__init__()
@@ -56,9 +80,17 @@ class API(object):
         }
 
     def get_url(self, service: str) -> str or None:
+        """!
+        @param service has to be "key", "niomon", "verify" or "data"
+        @return URL of this service
+        """
         return self._services.get(service, None)
 
     def set_authentication(self, uuid: UUID, auth: str or None):
+        """!
+        @param uuid the UUID of the authentification to add
+        @param auth the auth key / password of the ubirch thing
+        """
         if auth is not None:
             self._auth[uuid] = auth
 
@@ -72,10 +104,10 @@ class API(object):
         return headers
 
     def is_identity_registered(self, uuid: UUID) -> bool:
-        """
+        """!
         Check if this identity is registered with the backend.
-        :param uuid: the UUID of the identity to check
-        :return: true if the identity exists
+        @param uuid the UUID of the identity to check
+        @return true if the identity exists
         """
         logger.debug("is identity registered?: {}".format(uuid))
         r = requests.get(self.get_url(KEY_SERVICE) + "/current/hardwareId/" + str(uuid))
@@ -83,10 +115,10 @@ class API(object):
         return r.status_code == requests.codes.ok and r.json()
 
     def register_identity(self, key_registration: bytes) -> Response:
-        """
+        """!
         Register an identity with the backend.
-        :param key_registration: the key registration data
-        :return: the response from the server
+        @param key_registration the key registration data
+        @return the response from the server
         """
         if key_registration.startswith(b'{'):
             return self._register_identity_json(json.loads(bytes.decode(key_registration)))
@@ -107,10 +139,10 @@ class API(object):
         return r
 
     def deregister_identity(self, key_deregistration: bytes) -> Response:
-        """
+        """!
         De-register an identity at the backend. Deletes the public key.
-        :param key_deregistration: the public key signed
-        :return: the response from the server
+        @param key_deregistration the public key signed
+        @return the response from the server
         """
         if key_deregistration.startswith(b'{'):
             return self._deregister_identity_json(json.loads(bytes.decode(key_deregistration)))
@@ -139,11 +171,11 @@ class API(object):
         return r
 
     def send(self, uuid: UUID, data: bytes) -> Response:
-        """
+        """!
         Send data to the ubirch authentication service (Niomon). Requires encoding before sending.
-        :param uuid: the sender's UUID
-        :param data: the msgpack or JSON encoded data to send
-        :return: the response from the server
+        @param uuid the sender's UUID
+        @param data the msgpack or JSON encoded data to send
+        @return the response from the server
         """
         if data.startswith(b'{'):
             return self._send_json(uuid, json.loads(bytes.decode(data)))
@@ -171,12 +203,12 @@ class API(object):
         return r
 
     def verify(self, data: bytes, quick=False) -> Response:
-        """
+        """!
         Verify a given hash with the ubirch backend. Returns all available verification
         data.
-        :param data: the hash of the message to verify
-        :param quick: only run quick check to verify that the hash has been stored in backend
-        :return: if the verification was successful and the data related to it
+        @param data the hash of the message to verify
+        @param quick only run quick check to verify that the hash has been stored in backend
+        @return if the verification was successful and the data related to it
         """
         logger.debug("verifying hash: {}".format(base64.b64encode(data).decode()))
         url = self.get_url(VERIFICATION_SERVICE)
@@ -189,11 +221,11 @@ class API(object):
         return r
 
     def send_data(self, uuid: UUID, data: bytes) -> Response:
-        """
+        """!
         Send data to the ubirch data service. Requires encoding before sending.
-        :param uuid: the sender's UUID
-        :param data: the msgpack or JSON encoded data to send
-        :return: the response from the server
+        @param uuid the sender's UUID
+        @param data the msgpack or JSON encoded data to send
+        @return the response from the server
         """
         if data.startswith(b'{'):
             return self._send_data_json(uuid, data)
