@@ -295,7 +295,7 @@ if __name__ == "__main__":
 
     logger.info("Created an example data message: %s" % str(data))
 
-    # todo >> send data message to data service / cloud / customer backend here <<
+    # todo  send data message to data service / cloud / customer backend here <<
 
     try:
         client.run(data)

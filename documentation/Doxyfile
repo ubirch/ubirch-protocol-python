@@ -13,7 +13,7 @@
 # TAG += value [value, ...]
 # Values that contain spaces should be placed between quotes (\" \").
 
-#
+#==
 #=========================
 #===========================================================================
 # CHANGES IN THIS DOXYFILE:
@@ -22,7 +22,7 @@
 # https://www.woolseyworkshop.com/2020/06/25/documenting-python-programs-with-doxygen/
 PROJECT_NAME           = "Ubirch Protocol in Python"
 PROJECT_LOGO           = static/ubirch-logo.png
-INPUT                  = ../ubirch pages
+INPUT                  = ../ubirch/ ./pages/
 JAVADOC_AUTOBRIEF      = YES
 OPTIMIZE_OUTPUT_JAVA   = YES
 EXTRACT_ALL            = YES
@@ -32,7 +32,7 @@ GENERATE_LATEX         = NO
 
 # MAIN PAGE
 # https://stackoverflow.com/questions/9502426/how-to-make-an-introduction-page-with-doxygen
-USE_MDFILE_AS_MAINPAGE = pages/main_page.md
+USE_MDFILE_AS_MAINPAGE = pages/MainPage.md
 
 # LAYOUT
 # https://www.doxygen.nl/manual/customize.html#minor_tweaks_header_css
@@ -56,7 +56,7 @@ DOT_TRANSPARENT = YES
 
 #===========================================================================
 #=========================
-#
+#==
 
 #---------------------------------------------------------------------------
 # Project related configuration options

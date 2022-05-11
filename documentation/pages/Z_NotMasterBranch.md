@@ -1,4 +1,4 @@
-# Install different branch than master
+@page notMaster Install different branch than master
 
 **Install ubirch-protocol from folder** `ubirch/`
 
