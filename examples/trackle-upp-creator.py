@@ -231,7 +231,7 @@ class Main:
                 0x13,               # chained uppV1
                 self.uuid.bytes,
                 prevsig,
-                0x55,               # trackle upp type
+                0x54,               # trackle upp type
                 self.payload,
                 0
             ]
