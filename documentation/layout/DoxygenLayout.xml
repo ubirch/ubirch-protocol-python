@@ -42,7 +42,8 @@
   <class>
     <briefdescription visible="yes"/>
     <includes visible="$SHOW_HEADERFILE"/>
-    <memberdecl>
+    <!-- DONT SHOW ALL FUNCTIONS TWO TIMES
+    <memberdecl visible="no">
       <nestedclasses visible="yes" title=""/>
       <publictypes title="" visible="no"/>
       <services title=""/>
@@ -76,7 +77,10 @@
       <related title="" subtitle=""/>
       <membergroups visible="yes"/>
     </memberdecl>
-    <detaileddescription title=""/>
+    -->
+    <!-- DETAILED DESCRIPTION ISN'T REALLY THAT DETAILED -->
+    <detaileddescription visible="no" title=""/>
+
     <usedfiles visible="$SHOW_USED_FILES"/>
     <inheritancegraph visible="$CLASS_GRAPH"/>
     <collaborationgraph visible="$COLLABORATION_GRAPH"/>

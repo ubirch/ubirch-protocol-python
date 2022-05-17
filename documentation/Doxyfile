@@ -22,7 +22,7 @@
 # https://www.woolseyworkshop.com/2020/06/25/documenting-python-programs-with-doxygen/
 PROJECT_NAME           = "Ubirch Protocol in Python"
 PROJECT_LOGO           = static/ubirch-logo.png
-INPUT                  = ../ubirch/ ./pages/
+INPUT                  = pages/MainPage.md ../ubirch pages ../examples
 JAVADOC_AUTOBRIEF      = YES
 OPTIMIZE_OUTPUT_JAVA   = YES
 EXTRACT_ALL            = YES

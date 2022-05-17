@@ -16,7 +16,7 @@ from requests import codes, Response
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN
 
-KS_NAME = "demo-device.jks"
+KS_NAME = "devices.jks"
 KS_PASSWORD = "keystore"
 
 DEFAULT_KEY_TYPE = "ed25519"
@@ -295,7 +295,7 @@ if __name__ == "__main__":
 
     logger.info("Created an example data message: %s" % str(data))
 
-    # todo  send data message to data service / cloud / customer backend here <<
+    # todo send data message to data service / cloud / customer backend here <<
 
     try:
         client.run(data)

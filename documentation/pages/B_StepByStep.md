@@ -1,27 +1,37 @@
 @page stepByStep Step by step instructions
 @tableofcontents
 
-<!-- These markdown files are supposed to be read only by doxygen. 
-So don't wonder about the @ref - or similar statements
-Please refer to the official documentation -->
+<!-- These markdown files are supposed to be read by doxygen, 
+a software for generating documentation. So don't wonder about the @page, 
+@ref - or similar statements. Please refer as well to the 
+official documentation at developer.ubirch.com -->
+
+*The code can be found in one place in `StepByStepExample.py` as well.*
 
 Make sure to follow the setup steps in [Quickstart](@ref quickstart) first.
 
+## Additional setup steps
 
-### Example uBirch client
-[`example-client.py`](example-client.py) implements a full example uBirch client. It generates a keypair if needed, registers it at the uBirch backend if it doesn't know it yet, creates and sends a UPP and handles/verfies the response from the uBirch backend. The used message format looks like this:
-```
-{
-  "id": "UUID",
-  "ts": TIMESTAMP,
-  "data": "DATA"
-}
-```
-It has two positional and one optional command line parameters.
-```
-usage: python3 example-client.py <UUID> <ubirch-auth-token> [ubirch-env]
-```
-- `UUID` is the UUID as hex-string like `f5ded8a3-d462-41c4-a8dc-af3fd072a217`
-- `ubirch-auth-token` is the uBirch authentication token for the specified UUID, e.g.: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
-- `ubirch-env` (optional) specifies the environment/stage to operator on. `dev`, `demo` or `prod` (default).
-Keys are loaded from/stored to `demo-device.jks`. The keystore-password can be read from the [script](example-client.py) itself.
+### About the stage
+Choose a stage to work on
+- Get an account for the uBirch-Console
+  - https://console.prod.ubirch.com for the `prod` stage
+  - https://console.demo.ubirch.com for the `demo` stage
+  - https://console.dev.ubirch.com for the `dev` stage
+
+
+### About the Keystore
+### Generating and managing a keypair
+To create, or more precisely, to _sign_ a UPP, a device will need a keypair. 
+This keypair consist of a private key (_signing key_) and public key (_verifying key_). 
+
+The signing key is used to sign UPPs and the verifying key can be used by the uBirch backend to check, if the signature is valid and belongs to the correct sender/signer. 
+So, logically it doesn't matter who knows the verifying key, but the signing key must be kept secret all the time. 
+In a real use case a device might store it in a TPM ([Trusted platform module](https://en.wikipedia.org/wiki/Trusted_Platform_Module)) or use other counter measures against attackers reading the key from the device. 
+
+For this demo, keypairs will be stored in a [JKS Keystore](https://en.wikipedia.org/wiki/Java_KeyStore) using the [`pyjks`](https://pypi.org/project/pyjks/) library. 
+Therefore, you will have to choose and remember a file path for that keystore and a password used to encrypt it. 
+The process of actually generating the keypair is handled by the script.
+
+TODO: Explain Keystore (Password) security
+

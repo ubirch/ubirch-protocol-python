@@ -1,12 +1,18 @@
 
 # About auto-generating a documentation with Doxygen
 
-### First, Install [Doxygen](https://www.doxygen.nl/index.html)
-- I had Issues with installation from source, dependency problems 
-- So just install with brew: (Made with version 1.9.3)
+### First, Install [Doxygen](https://www.doxygen.nl/index.html) (Made with version 1.9.3)
+- There are Issues with installation from source: dependency problems 
 
-`brew install doxygen@1.9.3`
+**MacOS:**: Install with brew
 
+`$ brew install doxygen`
+
+**Linux Operating Systems**: Install with `apt-get`
+
+`$ sudo apt-get install doxygen`
+
+**Windows and other OS**: Refer to [Doxygen's Download Page](https://doxygen.nl/download.html).
 ### Run
 inside of `documentation/` run
 
@@ -55,7 +61,6 @@ Write a comment using standard HTML syntax
 This is a comment
 -->
 ```
-
 
 ### BUGS!
 A Comment in a Markdown File isn't allowed to be on the first line. Otherwise a weirdly named second file is generated
