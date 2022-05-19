@@ -89,7 +89,7 @@ The [`verify-ecdsa.py`](verify-ecdsa.py) script verifies a hard-coded UPP which 
 
 ###
 ### Verify ED25519 signed UPP
-The [`verify-ed25519.py`](verify-ed25519.py) script verifies a hard-coded UPP which was signed with an ED25519 signing key using a ED25519 verifying key. All the information are contained in the script. This mode is normally used (in all other examples).
+The [`verify-ed25519.py`](verify-ed25519.py) script verifies a hard-coded UPP which was signed with an ED25519 signing key using a ED25519 verifying key. All the information are contained in the script. This mode is normally used (in all other tools).
 
 ## Managing Keys
 ### Managing the local KeyStore

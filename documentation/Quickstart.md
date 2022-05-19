@@ -71,6 +71,10 @@ To anchor a hash of the data to the Ubirch blockchain run these few lines:
   import ubirch
   from UbirchWrapper import UbirchClient
   
+  import ubirch.ubirch_api.API.deregister_identity
+  
+  deregister_identity()
+  
   client = UbirchClient(uuid, auth, keystore_name=keystore_name, keystore_password=keystore_password)
   client.checkRegisterPubkey()
   
