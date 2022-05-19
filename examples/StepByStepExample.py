@@ -18,7 +18,7 @@ logger.info("Created an example data message: %s" % str(data))
 
 #======================== Setup Variables ========================#
 uuid = UUID(hex = "80a80c6e-4a7b-46d4-977b-08efad0d1be2" )  # f5ded8a3-d462-41c4-a8dc-af3fd072a217
-auth            = "fa5c7f58-e05a-4466-9d77-0d7099aa3172"    # xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+auth            = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"    # xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 keystore_name     = "devices.jks"
 keystore_password = "keystore"    # 'XXXXXXXXXXX'
