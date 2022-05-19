@@ -9,7 +9,7 @@ Welcome in the documentation of the [ubirch-protocol](https://github.com/ubirch/
 
 <h1> Getting Started </h1>
 
-Take a look at the [Quickstart](@ref quickstart) or at the more detailed [Step by Step guide](@ref stepByStep).
+Take a look at the [Quickstart](@ref Quickstart) or at the more detailed [Step by Step guide](@ref stepByStep).
 
 Afterwards consider the Article about a [UPP's Lifecycle](@ref uppLifecycle)
 
