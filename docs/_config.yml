@@ -1,1 +1,8 @@
 theme: jekyll-theme-minimal
+logo: img/ubirch-logo-single.png
+title: Developer Pages
+subtitle: Documentation and Tutorials
+# description: A collection of concepts, documentation and tutorials to make your IoT device data trustworthy by using the Ubirch Turst Protocol.
+description: Building Trust for the Internet of Things by Leveraging Blockchain
+show_downloads: false
+highlighter: rouge

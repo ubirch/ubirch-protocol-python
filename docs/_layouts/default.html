@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'en-US' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src=“https://www.googletagmanager.com/gtag/js?id=UA-87735109-5“></script>
+  <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-87735109-5');
+  </script>
+  <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
+  <link rel="stylesheet" type="text/css" href="//unpkg.com/swagger-ui-dist@3.12.1/swagger-ui.css">
+  <!--[if lt IE 9]>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js"></script>
+  <![endif]-->
+  <style type="text/css">
+    .inactive {font-weight: normal; }
+    .active { font-weight: bold; }
+    header ul {
+      list-style-type: none;
+    }
+    header .logo {
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    header .logo a {
+      text-align: center;
+    }
+    header img {
+      max-width: 200px;
+    }
+
+    #swagger-ui section {
+      margin-left: 0;
+    }
+
+    .swagger-ui .info .title small pre {
+      margin: 0;
+      font-family: Titillium Web,sans-serif;
+      color: #fff;
+      padding: 0px;
+      background: initial;
+      border-radius: 5px;
+      border: inherit;
+      overflow-x: auto;
+    }
+  </style>
+  <link rel="icon" href="img/icon/cropped-ubirch-leaf-bk-1-32x32.png" sizes="32x32"/>
+  <link rel="icon" href="img/icon/cropped-ubirch-leaf-bk-1-192x192.png" sizes="192x192">
+  <link rel="apple-touch-icon-precomposed" href="img/icon/cropped-ubirch-leaf-bk-1-180x180.png">
+  <meta name="msapplication-TileImage" content="img/icon/cropped-ubirch-leaf-bk-1-270x270.png">
+</head>
+<body>
+<div id="wrapper" class="wrapper">
+  <header>
+    {% if site.logo %}
+    <div class="logo"><a href="{{ '/' | absolute_url }}"><img src="{{site.logo | relative_url}}" alt="ubirch" /></a></div>
+    {% endif %}
+
+    <h1><a href="{{ '/' | absolute_url }}">{{ site.title | default: site.github.repository_name }}</a></h1>
+    <b>{{ site.subtitle }}</b>
+
+
+    <p>{{ site.description | default: site.github.project_tagline }}</p>
+
+    <p class="view"><a href="https://github.com/ubirch/">ubirch on GitHub</a></p>
+
+    <hr>
+    {% for n in site.data.nav %}
+      {% assign p = site.pages | where: "path", n | first %}
+      {% if p.title %}
+        {% if p.url == page.url %}
+          <h3><a class="active" href="{{ p.url | prepend: site.baseurl }}">{{ p.title }}</a></h3>
+          {% include toc.html html=content h_min=2 h_max=2 %}
+        {% else %}
+          <h3><a class="inactive" href="{{ p.url | prepend: site.baseurl }}">{{ p.title }}</a></h3>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </header>
+  <section>
+
+    {{ content }}
+
+  </section>
+  <!-- footer>
+    <hr/>
+    &copy; 2019 ubirch GmbH <br/>
+    <a href="https://ubirch.com">ubirch.com</a> | <a href="http://ubirch.de/impressum/">Imprint</a>
+  </footer -->
+</div>
+<script src="{{ '/assets/js/scale.fix.js' | relative_url }}"></script>
+</body>
+</html>
