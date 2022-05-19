@@ -2,9 +2,29 @@ Welcome in the documentation of the [ubirch-protocol](https://github.com/ubirch/
 
 # Getting Started 
 
-Take a look at the [Quickstart](documentation/Quickstart.md) or at the more detailed [Step by Step guide](@ref stepByStep).
+Take a look at the [Quickstart](Quickstart.md) or at the more detailed [Step by Step guide](StepByStep.md).
 
-Afterwards consider the Article about a [UPP's Lifecycle](@ref uppLifecycle)
+Afterwards consider the Article about a [UPP's Lifecycle](uppLifecycle.md)
+
+---
+
+# Components
+
+The ubirch library consists of three parts which can be used individually:
+
+**[API](../ubirch/ubirch_api.py)** - `ubirch.ubirch_api.API` 
+
+- A python layer covering the ubirch backend REST API
+
+**[Protocol](../ubirch/ubirch_protocol.py)** - `ubirch.ubirch_protocol.Protocol`
+
+- The protocol compiler which packages messages and handles signing and verification
+
+**[KeyStore](../ubirch/ubirch_ks.py)** - `ubirch.ubirch_ks.KeyStore`
+
+- A simple key store based on [pyjks](https://pypi.org/project/pyjks/) to store keys and certificates
+
+> The [ubirch](https://ubirch.com) protocol uses the [Ed25519](https://ed25519.cr.yp.to/) signature scheme by default. But [ECDSA](https://www.encryptionconsulting.com/education-center/what-is-ecdsa/) is implemented as well.
 
 ## Installation
 Optionally create environment to install to:
@@ -33,7 +53,7 @@ Before anything, you will need to do/get a couple of things:
 
 ### Now you should have the following at hand:
 
-Our [Ubirch API](@ref ubirch.ubirch_api.API) authentication with an uuid and a password:
+Our [Ubirch API](ubirch/ubirch_api.py) authentication with an uuid and a password:
 ```python
 from uuid import UUID
 
@@ -41,7 +61,7 @@ uuid = UUID(hex = "f5ded8a3-d462-41c4-a8dc-af3fd072a217")
 auth            = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
 
-And credentials for a [KeyStore](@ref ubirch.ubirch_ks.KeyStore) to store your public and private key:
+And credentials for a [KeyStore](ubirch/ubirch_ks.py) to store your public and private key:
 ```python
 keystore_name     = "devices.jks"
 keystore_password = "XXXXXXXXXXX"
@@ -102,9 +122,9 @@ To anchor a hash of the data to the Ubirch blockchain run these few lines:
 8. Make sure it is the same as the UPP signature sent
 9. Persist signature: Save last signatures to a `.sig` file
 
-*This example uses the [UbirchClient](@ref UbirchClient) from `UbirchWrapper` that helps to implement general repetitive tasks.*
+*This example uses the [`UbirchClient`](examples/UbirchWrapper.py) that helps to implement general repetitive tasks.*
 
-**Next: Take a look at the [step by step example](@ref stepByStep).**
+**Next: Take a look at the [step by step example](docs/StepByStep.md).**
 
 
 ### For example implementations refer to [the examples](examples/EXAMPLES.md)
