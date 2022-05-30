@@ -1,4 +1,8 @@
-Welcome in the documentation of the [ubirch-protocol](https://github.com/ubirch/ubirch-protocol) in Python!
+[**Documentation and examples**](https://developer.ubirch.com/ubirch-protocol-python/)
+
+[**Function Documentation**](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
+
+---
 
 # Getting Started 
 
