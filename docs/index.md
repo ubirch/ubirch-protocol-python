@@ -1,3 +1,11 @@
+[**Documentation and examples**](https://developer.ubirch.com/ubirch-protocol-python/)
+
+[**Function Documentation**](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
+
+[**Github repository**](https://github.com/ubirch/ubirch-protocol-python/tree/ecdsa-betterReadMe)
+
+---
+
 Welcome in the documentation of the [ubirch-protocol](https://github.com/ubirch/ubirch-protocol) in Python!
 
 [testlink](doxygen/index.html)
