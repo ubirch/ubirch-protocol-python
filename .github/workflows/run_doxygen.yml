@@ -1,0 +1,24 @@
+name: Generate Doc
+on: [push]
+jobs:
+  deploys:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ''
+          
+      - name: Generate doc with Doxygen
+        uses: mattnotmitt/doxygen-action@1.9.1
+        with:
+          working-directory: 'docs/doxygen'
+          doxyfile-path: './Doxyfile'
+      
+      - name: Deploy to func-doc repo
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+         publish_dir: docs/doxygen/html
+         external_repository: ubirch/function_documentation
+         personal_token: ${{ secrets.PERSONAL_TOKEN }}
+         publish_branch: master
+         destination_dir: ${{ github.event.repository.name }}
