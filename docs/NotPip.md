@@ -1,3 +1,6 @@
+
+# Install from other source than pip 
+
 If you don't want to install from pip you can clone the git repository and install from there. 
 If you want to install a specific branch of the repository, refer below.
 

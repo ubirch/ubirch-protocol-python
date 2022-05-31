@@ -1,3 +1,6 @@
+
+# Step by step instructions
+
 *The code can be found in one place in `StepByStepExample.py` as well.*
 
 Make sure to follow the setup steps in [Quickstart](Quickstart.md) first.

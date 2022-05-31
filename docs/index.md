@@ -1,13 +1,13 @@
-[**Function Documentation**](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
+### [Function Documentation](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
 
-[**Github repository**](https://github.com/ubirch/ubirch-protocol-python/tree/ecdsa-betterReadMe)
+### [Github repository](https://github.com/ubirch/ubirch-protocol-python/tree/ecdsa-betterReadMe)
 
 ---
 
-Welcome in the documentation of the [ubirch-protocol](https://github.com/ubirch/ubirch-protocol) in Python!
+# Documentation and examples
+Welcome in the documentation of the [ubirch-protocol](https://github.com/ubirch/ubirch-protocol#readme) in Python!
 
-# Getting Started 
-
+# Getting Started
 Take a look at the [Quickstart](Quickstart.md) or at the more detailed [Step by Step guide](StepByStep.md).
 
 Afterwards consider the Article about a [UPP's Lifecycle](uppLifecycle.md)

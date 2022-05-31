@@ -1,5 +1,5 @@
 
-<!-- These markdown files are supposed to be read by doxygen, 
+<!-- This markdown file is supposed to be read by doxygen, 
 a software for generating documentation. So don't wonder about the @note statement. 
 Please refer as well to the official documentation at 
 developer.ubirch.com -->
