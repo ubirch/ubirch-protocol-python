@@ -1,11 +1,3 @@
-@page tools Tools
-@tableofcontents
-
-<!-- These markdown files are supposed to be read by doxygen, 
-a software for generating documentation. So don't wonder about the @page, 
-@ref - or similar statements. Please refer as well to the 
-official documentation at developer.ubirch.com -->
-
 This file documents how to use the tools provided alongside the [uBirch-Protocol-Python](https://github.com/ubirch/ubirch-protocol-python), which can be found in `/tools/`. 
 
 The tools use the Ubirch library, which is implemented in the `/ubirch/` directory in this repository. 
@@ -15,7 +7,7 @@ Those tools aim to be useful when getting started and to provide an insight of h
 **Feel free to peek inside the sourcecode!**
 
 ### Setup - API Credentials
-Make sure to follow the steps in [Quickstart](@ref quickstart) first.
+Make sure to follow the steps in [Quickstart](Quickstart.md) first.
 
 You should have the following information at hand:
 - The stage you want to work on (later referred to as `env`)

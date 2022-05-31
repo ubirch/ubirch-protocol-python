@@ -1,10 +1,3 @@
-@page notPip Install from other source than pip 
-
-<!-- These markdown files are supposed to be read by doxygen, 
-a software for generating documentation. So don't wonder about the @page, 
-@ref - or similar statements. Please refer as well to the 
-official documentation at developer.ubirch.com -->
-
 If you don't want to install from pip you can clone the git repository and install from there. 
 If you want to install a specific branch of the repository, refer below.
 

@@ -1,11 +1,3 @@
-@page examples Example Implementations
-@tableofcontents
-
-<!-- These markdown files are supposed to be read by doxygen, 
-a software for generating documentation. So don't wonder about the @page, 
-@ref - or similar statements. Please refer as well to the 
-official documentation at developer.ubirch.com -->
-
 Examples which can be found in `/examples/`.
 
 They are commandline examples, implementing uBirch components, that can be experimented around without the need to write Python code.
@@ -14,9 +6,9 @@ Those tools aim to be useful when getting started and to provide an insight of h
 
 
 ### Example uBirch client
-This is the same example as used in the [step by step guide](@ref StepByStep).
+This is the same example as used in the [Step-by-step-example](StepByStep.md).
 
-[`example-client.py`](example-client.py) implements a full example uBirch client. It generates a keypair if needed, registers it at the uBirch backend if it doesn't know it yet, creates and sends a UPP and handles/verfies the response from the uBirch backend. The used message format looks like this:
+`example-client.py` implements a full example uBirch client. It generates a keypair if needed, registers it at the uBirch backend if it doesn't know it yet, creates and sends a UPP and handles/verfies the response from the uBirch backend. The used message format looks like this:
 ```
 {
   "id": "UUID",

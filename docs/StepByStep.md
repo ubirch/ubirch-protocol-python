@@ -1,14 +1,6 @@
-@page stepByStep Step by step instructions
-@tableofcontents
-
-<!-- These markdown files are supposed to be read by doxygen, 
-a software for generating documentation. So don't wonder about the @page, 
-@ref - or similar statements. Please refer as well to the 
-official documentation at developer.ubirch.com -->
-
 *The code can be found in one place in `StepByStepExample.py` as well.*
 
-Make sure to follow the setup steps in [Quickstart](@ref quickstart) first.
+Make sure to follow the setup steps in [Quickstart](Quickstart.md) first.
 
 ## Additional setup steps
 

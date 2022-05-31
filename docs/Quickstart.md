@@ -1,12 +1,3 @@
-@page quickstart Quickstart
-@tableofcontents
-
-<!-- These markdown files are supposed to be read by doxygen, 
-a software for generating documentation. So don't wonder about the @page, 
-@ref - or similar statements. Please refer as well to the 
-official documentation at developer.ubirch.com -->
-
-
 ## Installation
 Optionally create environment to install to:
 
@@ -20,7 +11,7 @@ Install the requirements and ubirch library using pip:
 
 `$ pip install ubirch-protocol`
 
-If want to install from another source than pip, follow along [here](@ref notPip). (documentation/NotPip.md) 
+If want to install from another source than pip, follow along [here](NotPip.md). 
 
 ## Setup
 Before anything, you will need to do/get a couple of things:
@@ -34,7 +25,7 @@ Before anything, you will need to do/get a couple of things:
 
 ### Now you should have the following at hand:
 
-Our [Ubirch API](@ref ubirch.ubirch_api.API) authentication with an uuid and a password:
+Our [Ubirch API](../ubirch/ubirch_api.py) authentication with an uuid and a password:
 ```python
 from uuid import UUID
 
@@ -42,7 +33,7 @@ uuid = UUID(hex = "f5ded8a3-d462-41c4-a8dc-af3fd072a217")
 auth            = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
 
-And credentials for a [KeyStore](@ref ubirch.ubirch_ks.KeyStore) to store your public and private key:
+And credentials for a [KeyStore](../ubirch/ubirch_ks.py) to store your public and private key:
 ```python
 keystore_name     = "devices.jks"
 keystore_password = "XXXXXXXXXXX"
@@ -103,8 +94,8 @@ To anchor a hash of the data to the Ubirch blockchain run these few lines:
 8. Make sure it is the same as the UPP signature sent
 9. Persist signature: Save last signatures to a `.sig` file
 
-*This example uses the [UbirchClient](@ref UbirchClient) from `UbirchWrapper` that helps to implement general repetitive tasks.*
+*This example uses the [UbirchClient](../examples/UbirchWrapper.py) that helps to implement general repetitive tasks.*
 
-**Next: Take a look at the [step by step example](@ref stepByStep).**
+**Next: Take a look at the [Step-by-step-example](StepByStep.md).**
 
 
