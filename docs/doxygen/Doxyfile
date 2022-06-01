@@ -15,7 +15,7 @@
 
 #===========================================================================
 #= CHANGE ON A PER PROJECT BASIS:
-PROJECT_NAME           = "Ubirch Protocol Python: function-documentation"
+PROJECT_NAME           = "Ubirch Protocol Python"
 INPUT                  = MainPage.md ../../ubirch
 # CHANGE OPTIONALLY:
 EXTRACT_ALL            = NO # NO Only documents functions that have a docstring. No subpages for all files and packages
