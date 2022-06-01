@@ -61,6 +61,7 @@ else:  # version 2 (and all future versions to come)
         print(usage)
         sys.exit(1)
 
+# extract and print the different components of the UPP
 version = unpacked[0]
 print("-    Version: 0x{:02x}".format(version))
 
