@@ -46,14 +46,20 @@ if not (upp[0] == 0x95 or upp[0] == 0x96):
     sys.exit(1)
 
 # unpack msgpack formatted UPP
-if upp[1] >> 4 == 2:  # version 2
-    unpacked = msgpack.unpackb(upp)
-elif upp[1] >> 4 == 1:  # version 1 (legacy)
+if upp[1] >> 4 == 1:  # version 1 (legacy)
     unpacked = msgpack.unpackb(upp, raw=True)
-else:
-    print("invalid UPP version")
-    print(usage)
-    sys.exit(1)
+else:  # version 2 (and all future versions to come)
+    try:
+        unpacked = msgpack.unpackb(upp)
+        if unpacked[0] >> 4 != 2:
+            print("invalid UPP version, currently only supported version 1 and 2")
+            print(usage)
+            sys.exit(1)
+            
+    except Exception:
+        print("invalid msgpack")
+        print(usage)
+        sys.exit(1)
 
 version = unpacked[0]
 print("-    Version: 0x{:02x}".format(version))
