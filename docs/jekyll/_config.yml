@@ -1,0 +1,17 @@
+source: ../
+exclude: ["doxygen", "jekyll"]
+
+theme: jekyll-theme-minimal
+logo: ubirch-logo.png
+title: Ubirch Protocol Python
+subtitle: Documentation and Examples
+description: Official Documentation
+
+plugins:
+  - jekyll-optional-front-matter
+
+plugins_dir         : jekyll/_plugins
+layouts_dir         : jekyll/_layouts
+includes_dir        : jekyll/_includes
+sass:
+  sass_dir: jekyll/_sass

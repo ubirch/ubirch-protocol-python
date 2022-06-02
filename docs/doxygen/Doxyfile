@@ -25,7 +25,7 @@ OPTIMIZE_OUTPUT_JAVA   = YES
 
 # To understand what the flags mean, refer here
 # https://www.woolseyworkshop.com/2020/06/25/documenting-python-programs-with-doxygen/
-PROJECT_LOGO           = static/ubirch-logo.png
+PROJECT_LOGO           = ../ubirch-logo.png
 HIDE_SCOPE_NAMES       = YES
 SORT_BRIEF_DOCS        = YES
 GENERATE_LATEX         = NO

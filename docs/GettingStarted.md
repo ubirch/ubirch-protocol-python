@@ -1,5 +1,9 @@
 
-# Quickstart
+# Getting Started
+
+- [Installation](#installation)
+- [Setup](#setup)
+- [A minimal application](#a-minimal-application)
 
 ## Installation
 Optionally create environment to install to:
