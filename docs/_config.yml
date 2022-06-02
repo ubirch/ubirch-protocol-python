@@ -1,4 +1,3 @@
-source: ../
 exclude: ["doxygen", "jekyll"]
 
 theme: jekyll-theme-minimal
@@ -15,3 +14,15 @@ layouts_dir         : jekyll/_layouts
 includes_dir        : jekyll/_includes
 sass:
   sass_dir: jekyll/_sass
+
+# Some configuration settings cannot be changed for GitHub Pages sites:
+lsi: false
+safe: true
+source: .
+incremental: false
+highlighter: rouge
+gist:
+  noscript: false
+kramdown:
+  math_engine: mathjax
+  syntax_highlighter: rouge
