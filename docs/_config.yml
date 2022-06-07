@@ -1,8 +1,9 @@
+title: Ubirch Protocol Python
+
 exclude: ["doxygen", "jekyll"]
 
 theme: jekyll-theme-minimal
 logo: ubirch-logo.png
-title: Ubirch Protocol Python
 subtitle: Documentation and Examples
 description: Official Documentation
 

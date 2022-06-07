@@ -13,7 +13,7 @@ Take a look at the [GettingStarted](GettingStarted.md) or at the more detailed [
 Afterwards consider the Article about a [UPP's Lifecycle](uppLifecycle.md)
 
 
-> **NOTE:**  The Explanations down below are still Work-in-Progress
+> **NOTE:**  The Explanations are still Work-in-Progress
 
 ## Example Implementations
 Take a look at the other [Examples](Examples.md).

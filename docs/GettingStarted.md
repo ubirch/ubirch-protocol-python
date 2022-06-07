@@ -3,7 +3,7 @@
 
 - [Installation](#installation)
 - [Setup](#setup)
-- [A minimal application](#a-minimal-application)
+  - [A minimal application](#a-minimal-application)
 
 ## Installation
 Optionally create environment to install to:
@@ -48,7 +48,8 @@ keystore_password = "XXXXXXXXXXX"
 
 ## A minimal application
 The smallest uBirch application looks something like this. 
-*The code can be found in one place in `QuickstartExample.py` as well.*
+
+*The code can be found in one place in `examples/GettingStarted.py` as well.*
 
 
 Lets say we have got some weather-sensor data like:

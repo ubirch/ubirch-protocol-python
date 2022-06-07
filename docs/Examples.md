@@ -1,5 +1,6 @@
 
 # Example Implementations
+This file documents how to use the examples provided alongside the [uBirch-Protocol-Python](https://github.com/ubirch/ubirch-protocol-python). Those examples aim to provide an insight of how to use the [ubirch-protocol](https://pypi.org/project/ubirch-protocol/) python library, which is implemented in the `/ubirch/` directory in this repository.
 
 Examples which can be found in `/examples/`.
 

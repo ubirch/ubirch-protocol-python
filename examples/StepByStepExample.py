@@ -1,3 +1,7 @@
+##
+# @file StepByStepExample.py
+# Code accompanying the step by step guide
+
 import time, hashlib, binascii
 from uuid import UUID
 
@@ -54,7 +58,7 @@ if not client.api.is_identity_registered(uuid):
 
 
 #=========== Create and send a Ubirch protocol packet ==========#
-serialized = client.serializeMessage(data)
+serialized = client.serializeMessage(data)    # todo = could be expanded
 # Create a compact rendering of the message to ensure determinism when creating the hash
 # Serializes a JSON object to bytes like this '{"T": 11.2, "H": 35.8, "S": "OK", "ts":"1652452008"}'
 
@@ -72,11 +76,11 @@ logger.info("Created UPP: %s" % str(currentUPP.hex()))
 response = client.api.send(uuid, currentUPP)
 # send the message to the Ubirch authentication service
 
-client.handleMessageResponse(response)
+client.handleMessageResponse(response) # todo = could be expanded
 # Catch any errors that could have come up
 
 #== Optional verification steps ==#
-client.verifyResponseSender(response)
+client.verifyResponseSender(response) # todo = could be expanded
 # Verify that the response came from the backend
 
 signatureOfCurrentUPP = client.extractCurrentSignature(currentUPP) # todo = explain how UPP is constructed
@@ -87,7 +91,7 @@ signature_index = client.protocol.get_unpacked_index(unpacked[0], UNPACKED_UPP_F
 previousSignatureInUPP = unpacked[signature_index] # todo = explain how UPP is constructed
 # unpack the received upp to get its previous signature
 
-client.assertSignatureCorrect(previousSignatureInUPP, signatureOfCurrentUPP)
+client.assertSignatureCorrect(previousSignatureInUPP, signatureOfCurrentUPP) # todo = could be expanded
 # compare response signature with the sent UPP's signature
 
 print("Successfully sent the UPP and verified the response!")
