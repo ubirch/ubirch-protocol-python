@@ -1,3 +1,6 @@
+# @file gettingStarted Getting Started Example
+# Refer to the instructions at https://developer.ubirch.com/ubirch-protocol-python/GettingStarted.html
+
 import time
 from uuid import UUID
 

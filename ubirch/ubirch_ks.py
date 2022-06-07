@@ -1,8 +1,10 @@
+##
+# @file ubirch_ks.py
 # ubirch key store
 #
 # @author Matthias L. Jugel
 #
-# Copyright (c) 2018 ubirch GmbH.
+# @copyright Copyright (c) 2018 ubirch GmbH.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,6 +41,12 @@ class ED25519Certificate(TrustedCertEntry):
     """
 
     def __init__(self, alias: str, verifying_key: ed25519.VerifyingKey, **kwargs):
+        """!
+        Initialize a ED 25519 Certificate
+        @param alias A name for this Certificate, mostly in form of a UUID
+        @param verifying_key A ed25519.VerifyingKey that has been generated with ed25519.create_keypair()
+        @param kwargs Give more Arguments to pass them on to the super class 'TrustedCertEntry'
+        """
         super().__init__(**kwargs)
         self.alias = alias
         self.cert = verifying_key.to_bytes()
@@ -50,6 +58,12 @@ class ECDSACertificate(TrustedCertEntry):
     """
 
     def __init__(self, alias: str, verifying_key: ecdsa.VerifyingKey, **kwargs):
+        """!
+        Initialize a ECDSA Certificate with an alias and a verifying key
+        @param alias A name for this Certificate, mostly in form of a UUID
+        @param verifying_key A ed25519.VerifyingKey that has been generated with ed25519.create_keypair()
+        @param kwargs Give more Arguments to pass them on to the super class 'TrustedCertEntry'
+        """
         super().__init__(**kwargs)
         self.alias = alias
         self.cert = verifying_key.to_string()
@@ -57,18 +71,25 @@ class ECDSACertificate(TrustedCertEntry):
 
 class KeyStore(object):
     """!
-    Assists at handling keys relevant for the ubirch protocol easier
+    Assists at handling keys relevant for the ubirch protocol
     """
 
     def __init__(self, keystore_file: str, password: str) -> None:
-        """! Initialize the ubirch-protocol for the device with the given UUID."""
+        """!
+        Initialize the KeyStore
+        @param keystore_file The name of the keystore file
+        @param password The password of the keystore file. Please use a strong password like generated here: https://passwords-generator.org/
+
+        """
         super().__init__()
         self._ks_file = keystore_file
         self._ks_password = password
         self._load_keys()
 
     def _load_keys(self) -> None:
-        """! Load or create new crypto-keys. The keys are stored in a local key store."""
+        """!
+        Load or create new crypto-keys. The keys are stored in a local key store.
+        """
         try:
             self._ks = jks.KeyStore.load(self._ks_file, self._ks_password)
         except FileNotFoundError:
@@ -76,7 +97,11 @@ class KeyStore(object):
             self._ks = jks.KeyStore.new("jks", [])
 
     def insert_ed25519_signing_key(self, uuid: UUID, sk: ed25519.SigningKey):
-        """! Store an existing ED25519 signing key in the key store."""
+        """!
+        Store an existing ED25519 signing key in the key store.
+        @param uuid The UUID of the device
+        @param sk A ed25519.SigningKey like generated from ed25519.create_keypair()
+        """
         # encode the ED25519 private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
         private_key_info.setComponentByName('version', 'v1')
@@ -89,12 +114,22 @@ class KeyStore(object):
         self._ks.entries['pke_' + uuid.hex] = pke
 
     def insert_ed25519_verifying_key(self, uuid: UUID, vk: ed25519.VerifyingKey):
-        """! Store an existing ED25519 verifying key in the key store."""
+        """!
+        Store an existing ED25519 verifying key in the key store.
+        @param uuid The UUID of the device
+        @param vk A ed25519.VerifyingKey like generated from ed25519.create_keypair()
+        """
         self._ks.entries[uuid.hex] = ED25519Certificate(uuid.hex, vk)
 
     def insert_ed25519_keypair(self, uuid: UUID, vk: ed25519.VerifyingKey, sk: ed25519.SigningKey) -> (
     ed25519.VerifyingKey, ed25519.SigningKey):
-        """! Store an existing ED25519 key pair in the key store."""
+        """!
+        Store an existing ED25519 key pair in the key store.
+        @param uuid The UUID of the device
+        @param vk A ed25519.VerifyingKey like generated from ed25519.create_keypair()
+        @param sk A ed25519.SigningKey like generated from ed25519.create_keypair()
+        @return The verifying key and the signing key
+        """
         if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
@@ -105,12 +140,20 @@ class KeyStore(object):
         return vk, sk
 
     def create_ed25519_keypair(self, uuid: UUID) -> (ed25519.VerifyingKey, ed25519.SigningKey):
-        """! Create a new ED25519 key pair and store in key store."""
+        """!
+        Create a new ED25519 key pair and store it in key store.
+        @param uuid The UUID of the device
+        @return The verifying key and the signing key
+        """
         sk, vk = ed25519.create_keypair(entropy=urandom)
         return self.insert_ed25519_keypair(uuid, vk, sk)
 
     def insert_ecdsa_signing_key(self, uuid, sk: ecdsa.SigningKey):
-        """! Insert an existing ECDSA signing key."""
+        """!
+        Insert an existing ECDSA signing key.
+        @param uuid The UUID of the device
+        @param sk A ed25519.SigningKey like generated from ed25519.create_keypair()
+        """
         # encode the ECDSA private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
         private_key_info.setComponentByName('version', 'v1')

@@ -1,6 +1,10 @@
+##
+# @file ubirch_protocol.py
 # ubirch protocol
 #
-# Copyright (c) 2018 ubirch GmbH.
+# @author Matthias L. Jugel
+#
+# @copyright Copyright (c) 2018 ubirch GmbH.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -87,7 +91,7 @@ class Protocol(object):
     def __init__(self, signatures: dict = None) -> None:
         """!
         Initialize the protocol.
-        @param signatures previously known signatures
+        @param signatures Previously known signatures
         """
         if signatures is None:
             signatures = {}
@@ -96,21 +100,21 @@ class Protocol(object):
     def set_saved_signatures(self, signatures: dict) -> None:
         """!
         Set known signatures from devices we have talked to.
-        @param signatures the saved signatures as a dictionary (uuid -> bytes)
+        @param signatures The saved signatures as a dictionary (uuid -> bytes)
         """
         self._signatures = signatures
 
     def get_saved_signatures(self) -> dict:
         """!
         Get the saved signatures to store them persistently.
-        @return a dictionary of signatures (uuid -> bytes)
+        @return A dictionary of signatures (uuid -> bytes)
         """
         return self._signatures
 
     def reset_signature(self, uuid: UUID) -> None:
         """!
         Reset the last saved signature for this UUID.
-        @param uuid the UUID to reset
+        @param uuid The UUID to reset
         """
         if uuid in self._signatures:
             del self._signatures[uuid]
@@ -119,8 +123,8 @@ class Protocol(object):
         """!
         Hash the message before signing. Override this method if
         a different hash algorithm is used. Default is SHA512.
-        @param message the message bytes
-        @return the digest in bytes
+        @param message The message bytes
+        @return The digest in bytes
         """
         return hashlib.sha512(message).digest()
 
@@ -128,9 +132,11 @@ class Protocol(object):
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         """!
         Sign the request when finished.
-        !IMPORTANT! This function also takes care of the hashing, before signing, depending on the key type.
-        @param uuid the uuid of the sender to identify the correct key pair
-        @param message the bytes to sign
+        IMPORTANT: This function needs to be implemented with the Keystore of choice and its .find_signing_key() and .sign() functions
+
+        This function also takes care of the hashing, before signing, depending on the key type.
+        @param uuid The uuid of the sender to identify the correct key pair
+        @param message The bytes to sign
         @return NotImplementedError
         """
         raise NotImplementedError("signing not implemented")
@@ -138,29 +144,32 @@ class Protocol(object):
     @abstractmethod
     def _verify(self, uuid: UUID, message: bytes, signature: bytes):
         """!
-        Verify the message. Throws exception if not verifiable.        
-        !IMPORTANT! This function also takes care of the hashing, before verifying, depending on the key type.
-        @param uuid the uuid of the sender to identify the correct key pair
-        @param message the message bytes to verify
-        @param signature the signature to use for verification
+        Verify the message.
+        IMPORTANT: This function needs to be implemented with the Keystore of choice and its .find_verifying_key() and .verify() functions
+
+        Throws exception if not verifiable.
+        This function also takes care of the hashing, before verifying, depending on the key type.
+        @param uuid The uuid of the sender to identify the correct key pair
+        @param message The message bytes to verify
+        @param signature The signature to use for verification
         @return NotImplementedError
         """
         raise NotImplementedError("verification not implemented")
 
     def _serialize(self, msg: any) -> bytearray:
-        """!
+        """! @internal
         Serialize to Bytearray
-        @param msg the message to serialize
-        @return bytearray
+        @param msg The message to serialize
+        @return Message packed as msgpack bytearray
         """
         return bytearray(msgpack.packb(msg, use_bin_type=True))
 
     def _prepare_and_sign(self, uuid: UUID, msg: any) -> (bytes, bytes):
-        """!
+        """! @internal
         Sign the request when finished. The message is first prepared by serializing and hashing it.
-        @param uuid the uuid of the sender to identify the correct key pair
-        @param msg the bytes to sign
-        @return the signature
+        @param uuid The uuid of the sender to identify the correct key pair
+        @param msg The bytes to sign
+        @return The signature
         """
         # sign the message and store the signature
         serialized = self._serialize(msg)[0:-1]
@@ -172,11 +181,11 @@ class Protocol(object):
     def message_signed(self, uuid: UUID, type: int, payload: any, save_signature: bool = False) -> bytes:
         """!
         Create a new signed ubirch-protocol message.
-        @param uuid the uuid of the device that sends the message, part of the envelope
-        @param type a hint of the type of message sent (0-255)
-        @param payload the actual message payload
-        @param save_signature save the signature of the created message so the next chained message contains it
-        @return the encoded and signed message
+        @param uuid The uuid of the device that sends the message, part of the envelope
+        @param type A hint of the type of message sent (0-255)
+        @param payload The actual message payload
+        @param save_signature Save the signature of the created message so the next chained message contains it
+        @return The encoded and signed message
         """
         # we need to ensure we get a 16bit integer serialized (0xFF | version)
         # the 0xFF is replaced by 0x00 in the serialized code
@@ -199,10 +208,10 @@ class Protocol(object):
         """!
         Create a new chained ubirch-protocol message.
         Stores the context, the last signature, to be included in the next message.
-        @param uuid the uuid of the device that sends the message, part of the envelope
-        @param type a hint of the type of message sent (0-255)
-        @param payload the actual message payload
-        @return the encoded and signed message
+        @param uuid The uuid of the device that sends the message, part of the envelope
+        @param type A hint of the type of message sent (0-255)
+        @param payload The actual message payload
+        @return The encoded and signed message
         """
 
         # retrieve last known signature or null bytes
@@ -229,9 +238,9 @@ class Protocol(object):
         """!
         Unpack a UPP (msgpack)
         Throws an exception if the UPP can't be unpacked
-        Returns the unpacked upp as a list
-        @param msgpackUPP the msgpack encoded message
-        @return the unpacked message
+        Returns The unpacked upp as a list
+        @param msgpackUPP The msgpack encoded message
+        @return The unpacked message
         """
         # check for the UPP version
         if msgpackUPP[1] >> 4 == 2:  # version 2
@@ -248,9 +257,9 @@ class Protocol(object):
         """!
         Get the index of a given target field for a UPP with the given version byte
         Throws a ValueError if the version byte (lower four bits) is invalid
-        @param versionByte the first byte of an unpacked upp (first element of the list)
-        @param targetField one off "UNPACKED_UPP_*"
-        @return the index of the field on success
+        @param versionByte The first byte of an unpacked upp (first element of the list)
+        @param targetField One off "UNPACKED_UPP_*"
+        @return The index of the field on success
         """
         # check the lower four bits of the version byte
         lowerFour = versionByte & 0x0f
@@ -268,8 +277,8 @@ class Protocol(object):
     def upp_msgpack_split_signature(self, msgpackUPP) -> (bytes, bytes):
         """!
         Separate the signature from the msgpack
-        @param msgpackUPP the msgpack encoded upp
-        @return a tuple consisting of the message without the signature and the signature
+        @param msgpackUPP The msgpack encoded upp
+        @return A tuple consisting of the message without the signature and the signature
         """
         try:
             if msgpackUPP[1] >> 4 == 2:
@@ -287,9 +296,9 @@ class Protocol(object):
         """!
         Verify the integrity of the message and decode the contents
         Raises an value error when the message is too short
-        @param uuid the uuid of the sender of the message
-        @param msgpackUPP the msgpack encoded message
-        @return the decoded message
+        @param uuid The uuid of the sender of the message
+        @param msgpackUPP The msgpack encoded message
+        @return The decoded message
         """
         # separate the message from the signature
         msg, sig = self.upp_msgpack_split_signature(msgpackUPP)

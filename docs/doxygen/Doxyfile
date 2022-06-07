@@ -14,13 +14,18 @@
 # Values that contain spaces should be placed between quotes (\" \").
 
 #===========================================================================
-#= CHANGE ON A PER PROJECT BASIS:
+# CHANGE ON A PER PROJECT BASIS:
 PROJECT_NAME           = "Ubirch Protocol Python"
-INPUT                  = MainPage.md ../../ubirch
-# CHANGE OPTIONALLY:
-EXTRACT_ALL            = NO # NO Only documents functions that have a docstring. No subpages for all files and packages
-JAVADOC_AUTOBRIEF      = YES # Optimizing for Java optimizes for Python as well ¯\_(ツ)_/¯
-OPTIMIZE_OUTPUT_JAVA   = YES
+INPUT                  = MainPage.md ../../ubirch ../../examples/GettingStarted.py ../../examples/StepByStepExample.py
+
+### CHANGE OPTIONALLY:
+OPTIMIZE_OUTPUT_JAVA   = YES # Optimizing for Java optimizes for Python as well ¯\_(ツ)_/¯
+
+### WHAT SHOULD BE DOCUMENTED?
+EXTRACT_PRIVATE = YES       # Private functions, except those with an '@internal' tag
+HIDE_UNDOC_MEMBERS = YES    # Functions without Docstring wont be documented
+BRIEF_MEMBER_DESC = NO      # Only show the full description
+EXTRACT_ALL = NO            # NO Only documents functions that have a docstring. No subpages for all files and packages
 #=========================
 
 # To understand what the flags mean, refer here
@@ -50,7 +55,9 @@ HTML_EXTRA_FILES       = static/doxygen-awesome-darkmode-toggle.js
 HAVE_DOT = NO
 DOT_IMAGE_FORMAT = svg
 DOT_TRANSPARENT = YES
-#===========================================================================
+#===========================================================================#
+#          Note: What is configured above is commented out below.           #
+#===========================================================================#
 
 #---------------------------------------------------------------------------
 # Project related configuration options
@@ -137,7 +144,7 @@ OUTPUT_LANGUAGE        = English
 # documentation (similar to Javadoc). Set to NO to disable this.
 # The default value is: YES.
 
-BRIEF_MEMBER_DESC      = YES
+#BRIEF_MEMBER_DESC      = YES
 
 # If the REPEAT_BRIEF tag is set to YES, doxygen will prepend the brief
 # description of a member or function before the detailed description
@@ -226,7 +233,7 @@ SHORT_NAMES            = NO
 # description.)
 # The default value is: NO.
 
-#JAVADOC_AUTOBRIEF      = NO
+JAVADOC_AUTOBRIEF      = NO
 
 # If the JAVADOC_BANNER tag is set to YES then doxygen will interpret a line
 # such as
@@ -522,7 +529,7 @@ NUM_PROC_THREADS       = 1
 # be included in the documentation.
 # The default value is: NO.
 
-EXTRACT_PRIVATE        = NO
+#EXTRACT_PRIVATE        = NO
 
 # If the EXTRACT_PRIV_VIRTUAL tag is set to YES, documented private virtual
 # methods of a class will be included in the documentation.
@@ -580,7 +587,7 @@ RESOLVE_UNNAMED_PARAMS = YES
 # section is generated. This option has no effect if EXTRACT_ALL is enabled.
 # The default value is: NO.
 
-HIDE_UNDOC_MEMBERS     = NO
+#HIDE_UNDOC_MEMBERS     = NO
 
 # If the HIDE_UNDOC_CLASSES tag is set to YES, doxygen will hide all
 # undocumented classes that are normally visible in the class hierarchy. If set
