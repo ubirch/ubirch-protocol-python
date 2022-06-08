@@ -7,13 +7,17 @@
 # Documentation and examples
 Welcome in the documentation of the [ubirch-protocol](https://github.com/ubirch/ubirch-protocol#readme) in Python!
 
-# Getting Started
-Take a look at the [GettingStarted](GettingStarted.md) or at the more detailed [Step by Step guide](StepByStep.md).
+## Getting Started
+If you have already cloned the [Git-Repository](https://github.com/ubirch/ubirch-protocol-python/tree/ecdsa-betterReadMe), 
+take a look at the [Getting Started](GettingStarted.md)! 
 
-Afterwards consider the Article about a [UPP's Lifecycle](uppLifecycle.md)
 
+## Step by Step
+Afterwards consider the more detailed [Step by Step guide](StepByStep.md).
 
-> **NOTE:**  The Explanations are still Work-in-Progress
+## About Ubirch-Tech
+> The [ubirch](https://ubirch.com) protocol uses the [Ed25519](https://ed25519.cr.yp.to/) signature scheme by default. But [ECDSA](https://www.encryptionconsulting.com/education-center/what-is-ecdsa/) is implemented as well.
+
 
 ## Example Implementations
 Take a look at the other [Examples](Examples.md).

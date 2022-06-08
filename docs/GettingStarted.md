@@ -3,7 +3,7 @@
 
 - [Installation](#installation)
 - [Setup](#setup)
-  - [A minimal application](#a-minimal-application)
+- [A minimal application](#a-minimal-application)
 
 ## Installation
 Optionally create environment to install to:
@@ -32,7 +32,8 @@ Before anything, you will need to do/get a couple of things:
 
 ### Now you should have the following at hand:
 
-Our [Ubirch API](../ubirch/ubirch_api.py) authentication with an uuid and a password:
+Our [Ubirch API](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/) 
+authentication with an uuid and a password:
 ```python
 from uuid import UUID
 
@@ -40,7 +41,8 @@ uuid = UUID(hex = "f5ded8a3-d462-41c4-a8dc-af3fd072a217")
 auth            = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
 
-And credentials for a [KeyStore](../ubirch/ubirch_ks.py) to store your public and private key:
+And credentials for a [KeyStore](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/) 
+to store your public and private key:
 ```python
 keystore_name     = "devices.jks"
 keystore_password = "XXXXXXXXXXX"
@@ -69,10 +71,6 @@ To anchor a hash of the data to the Ubirch blockchain run these few lines:
 ```python
   import ubirch
   from UbirchWrapper import UbirchClient
-  
-  import ubirch.ubirch_api.API.deregister_identity
-  
-  deregister_identity()
   
   client = UbirchClient(uuid, auth, keystore_name=keystore_name, keystore_password=keystore_password)
   client.checkRegisterPubkey()

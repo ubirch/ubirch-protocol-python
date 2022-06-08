@@ -1,13 +1,27 @@
-
 # Example Implementations
-This file documents how to use the examples provided alongside the [uBirch-Protocol-Python](https://github.com/ubirch/ubirch-protocol-python). Those examples aim to provide an insight of how to use the [ubirch-protocol](https://pypi.org/project/ubirch-protocol/) python library, which is implemented in the `/ubirch/` directory in this repository.
+This file documents how to use the examples that can be found in `examples/`.
 
-Examples which can be found in `/examples/`.
+Intented users are people who want to deep-dive into ubirch technologies or developers at ubirch itself.
 
-They are commandline examples, implementing uBirch components, that can be experimented around without the need to write Python code.
+Each on is a commandline tool, implementing uBirch components, that can be experimented around without the need to write Python code.
 
-Those tools aim to be useful when getting started and to provide an insight of how to use the components. All of them are commandline tools who have to be given API Credentials.
+**Peek inside the sourcecode!**
 
+## Setup - API Credentials
+Make sure to follow the steps in [GettingStarted](GettingStarted.md) first.
+
+You should have the following information at hand:
+- The stage you want to work on (later referred to as `env`)
+- The UUID of your device or "fake" device in this instance
+- The authentication token (`auth token`) for the named UUID
+
+The values used below are `f5ded8a3-d462-41c4-a8dc-af3fd072a217` for the UUID, `demo` for the env and
+`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` for the auth token.
+
+## Examples
+- [Example uBirch client](#example-ubirch-client)
+- [Test the complete protocol](#test-the-complete-protocol)
+- [Test identity of the device](#test-identity-of-the-device)
 
 ### Example uBirch client
 This is the same example as used in the [Step-by-step-example](StepByStep.md).
