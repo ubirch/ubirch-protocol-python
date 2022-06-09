@@ -1,4 +1,4 @@
-### [Function Documentation](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
+### [Function Documentation](https://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
 
 ### [Github repository](https://github.com/ubirch/ubirch-protocol-python/tree/ecdsa-betterReadMe)
 

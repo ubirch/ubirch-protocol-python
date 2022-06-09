@@ -1,6 +1,6 @@
 [**Documentation and examples**](https://developer.ubirch.com/ubirch-protocol-python/)
 
-[**Function Documentation**](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
+[**Function Documentation**](https://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
 
 ---
 
