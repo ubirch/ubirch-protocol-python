@@ -100,7 +100,7 @@ To anchor a hash of the data to the Ubirch blockchain run these few lines:
 8. Make sure it is the same as the UPP signature sent
 9. Persist signature: Save last signatures to a `.sig` file
 
-*This example uses the [UbirchClient](../examples/UbirchWrapper.py) that helps to implement general repetitive tasks.*
+*This example uses the [UbirchWrapper](../examples/UbirchWrapper.py) that helps to implement general repetitive tasks.*
 
 **Next: Take a look at the [Step-by-step-example](StepByStep.md).**
 

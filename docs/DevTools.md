@@ -19,7 +19,7 @@ You should have the following information at hand:
 The values used below are `f5ded8a3-d462-41c4-a8dc-af3fd072a217` for the UUID, `demo` for the env and
 `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` for the auth token.
 
-## Tools
+### Tools
 - [A UPP's Lifecycle](#a-upps-lifecycle)
     - [Generating and managing a keypair](#generating-and-managing-a-keypair)
     - [Registering a public key](#registering-a-public-key)
@@ -40,6 +40,11 @@ The values used below are `f5ded8a3-d462-41c4-a8dc-af3fd072a217` for the UUID, `
     - [Managing keys inside the uBirch Identity Service](#managing-keys-inside-the-ubirch-identity-service)
     - [Registering ECDSA Keys](#registering-ecdsa-keys)
 
+### Commandline Examples
+- [Example uBirch client](#example-ubirch-client)
+- [Test the complete protocol](#test-the-complete-protocol)
+- [Test identity of the device](#test-identity-of-the-device)
+
 # A UPP's Lifecycle
 *- From measurement to blockchain-anchored UPP*
 
@@ -55,7 +60,7 @@ In a real use case a device might store it in a TPM ([Trusted platform module](h
 
 To read generated keys from the KeyStore, see [below](#managing-the-local-keystore).
 
-@note Loosing access to the signing key, especially if it is already registered at the uBirch backend, will take away the ability to create and send any new UPPs from that device/UUID, since there is no way of creating a valid signature that would be accepted by the backend.
+**Note:** Loosing access to the signing key, especially if it is already registered at the uBirch backend, will take away the ability to create and send any new UPPs from that device/UUID, since there is no way of creating a valid signature that would be accepted by the backend.
 
 ### Registering a public key
 To enable the uBirch backend to verify a UPP, it needs to know the corresponding verifying key. Therefore, the device needs to send this key to the backend, before starting to send UPPs, which are supposed to be verified and anchored. Registering a verifying key is done by sending a special kind of UPP containing this key. This can be done by using two scripts:
@@ -445,3 +450,54 @@ b'{"algorithm":"ecdsa-p256v1","created":"2022-04-08T15:11:37.383Z","hwDeviceId":
 ```
 
 If the certificate was already registered beforehand, generating a new one can be disabled by passing `-r true`. This will cause the script to read a certificate from the output file which can be specified with `-o [FILE]`, otherwise the default will be used. Sending the certificate to the backend can also be disabled by passing `-n true`.
+
+## Commandline Examples
+
+### Simple Data Service
+The [`data-sender.py`](data-sender.py) example-script allows sending of data to the simple data service. This should only be used for demo purposes. Ubirch will not guarantee, to keep all data, which is sent to this endpoint.
+```
+$ python3 data-sender.py --help
+usage: data-sender.py [-h] [--env ENV] UUID AUTH INPUT
+
+Send some data to the uBirch Simple Data Service
+
+positional arguments:
+  UUID               UUID to work with; e.g.: 56bd9b85-6c6e-4a24-bf71-f2ac2de10183
+  AUTH               uBirch device authentication token
+  INPUT              data to be sent to the simple data service
+
+optional arguments:
+  -h, --help         show this help message and exit
+  --env ENV, -e ENV  environment to operate in; dev, demo or prod (default: dev)
+
+Note that the input data should follow this pattern: {"timestamp": TIMESTAMP, "uuid": "UUID", "msg_type": 0, "data": DATA, "hash": "UPP_HASH"}. For more information take a look at the EXAMPLES.md file.
+```
+
+### Test the complete protocol
+The [`test-protocol.py`](test-protocol.py) script sends a couple of UPPs to uBirch Niomon and verifies the backend response. 
+It reads all information it needs interactively from the terminal. Once entered, all device information (UUID, ENV, AUTH TOKEN) 
+are stored in a file called `demo-device.ini`. If
+you need to change anything edit that file.
+
+Devices keys are stored in `demo-device.jks` and the keystore-password can be read from the [script](tools/test-protocol.py) itself. If no keys for the given UUID are found, 
+the script will generated a keypair and stores it in the keystore file.
+
+At the first launch the script generates a random UUID for your device and you will be asked
+about the authentication token and the device group. You can safely ignore the device group, just press Enter.
+
+The script goes through a number of steps:
+
+1. checks the existence of the device and deletes the device if it exists
+2. registers the device with the backend
+3. generates a new identity for that device and stores it in the key store
+4. registers the new identity with the backend
+5. sends two consecutive chained messages to the backend
+
+### Test identity of the device
+The [`test-identity.py`](test-identity.py) script tests registering and de-registering a public key of a device at the uBirch backend. To function it needs the following variables to be set using the environment:
+```sh
+export UBIRCH_UUID=<UUID>
+export UBIRCH_AUTH=<ubirch-authorization-token>
+export UBIRCH_ENV=[dev|demo|prod]
+```
+It uses `test-identity.jks` as a place to store/look for keypairs. The keystore-password can be read from the [script](test-identity.py) itself.

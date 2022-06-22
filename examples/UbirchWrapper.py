@@ -142,7 +142,7 @@ class Proto(ubirch.Protocol):
         return verifying_key.verify(signature, final_message)
 
 
-class UbirchClient:
+class UbirchWrapper:
     """!
     An example implementation for the ubirch-client in Python.
     Actually another wrapper. Around 'Proto' defined above.

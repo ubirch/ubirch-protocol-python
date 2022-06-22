@@ -25,18 +25,19 @@ keystore_name     = "devices.jks"
 keystore_password = "XXXXXXXXXXX"
 
 key_type    = "ed25519"
-environment         = "demo"
+environment = "demo"
 ```
 - `keytype` defines the encryption algorithm, set to one of
   - `ed25519` (default) [About Ed25519](https://ed25519.cr.yp.to/) 
   - `ecdsa` (improved efficiency) [About ECDSA](https://www.encryptionconsulting.com/education-center/what-is-ecdsa/)
-
+  
 
 - `environment` is the UBIRCH backend environment (stage), set to one of
   - `prod` - production (default and recommended) 
   - `demo` - demonstration stage (for testing only)
   - `dev` - ubirch internal development stage (not reliable)
 > **Note:** Set `env` to the environment where you registered the UUID
+
 
 Instead of using a pre-made wrapper around protocol, api and keystore we implement it ourself!
 

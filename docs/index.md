@@ -9,24 +9,24 @@ Welcome to the documentation of the [ubirch-protocol](https://github.com/ubirch/
 
 ## Getting Started
 If you have already cloned the [Git-Repository](https://github.com/ubirch/ubirch-protocol-python/tree/ecdsa-betterReadMe), 
-take a look at the [Getting Started](GettingStarted.md)! 
+take a look at the [**Getting Started guide**](GettingStarted.md)! 
 
 
 ## Step by Step
-To walk through all functionalities consider the more detailed [Step by Step guide](StepByStep.md).
+To walk through all functionalities consider the more detailed [**Step by Step guide**](StepByStep.md).
 
 
 ## Developer Tools
 If you would like to gain a very profound understanding and experiment around with UPP's 
 (Ubirch Protocol Packets) consider the [Developer Tools](DevTools.md).
 
-<br/>
-<br/>
-<br/>
+<!--
+    <br/>
+    <br/>
+    <br/>
+    
+    ### (Work in progress)
+    
+    About Ubirch-Tech: [Further Reading](FurtherReading.md)
+-->
 
-### (Work in progress)
-
- About Ubirch-Tech: [Further Reading](FurtherReading.md)
-
- Example Implementations
-Take a look at the other [Examples](Examples.md).

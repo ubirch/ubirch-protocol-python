@@ -6,7 +6,7 @@ import time
 from uuid import UUID
 
 import ubirch
-from UbirchWrapper import UbirchClient
+from UbirchWrapper import UbirchWrapper
 
 #== 'Receive' data ==#
 data = {

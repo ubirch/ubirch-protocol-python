@@ -14,7 +14,7 @@ keystore_name = "devices.jks"
 keystore_password = "keystore"  # 'XXXXXXXXXXX'
 
 key_type = "ed25519"  # keytype can be 'ed25519' or 'ecdsa'
-env = "prod"  # env can be 'prod', 'demo' or 'dev'
+env = "demo"  # env can be 'prod', 'demo' or 'dev'
 
 # Instead of using a pre-made wrapper around protocol, api and keystore we implement it ourself!
 class Proto(ubirch.Protocol):
