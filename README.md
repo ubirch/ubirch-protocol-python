@@ -37,6 +37,8 @@ Before anything, you will need to do/get a couple of things:
   - You will be using the shown UUID (ID) and the generated Auth-Token (password) from now on
 - Come up or [generate](https://www.lastpass.com/de/features/password-generator) a password for the KeyStore, which is where public and private Keys will be stored
 
+> Open up the [Getting started](https://developer.ubirch.com/ubirch-protocol-python/GettingStarted.html) on the [Documentation and Examples](https://developer.ubirch.com/ubirch-protocol-python/) pages or continue below.
+
 ### Now you should have the following at hand:
 
 Our [Ubirch API](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/) 

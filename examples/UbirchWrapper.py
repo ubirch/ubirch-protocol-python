@@ -244,6 +244,7 @@ class UbirchClient:
         #   XYZ: ERR; log the error and exit
 
         if response.status_code != codes.ok:
+            logger.error("Sending UPP failed! response: ({}) {}".format(response.status_code, response.content))
             logger.error("Sending UPP failed! response: ({}) {}".format(response.status_code,
                                                                         binascii.hexlify(response.content).decode()))
             raise (Exception("Exiting due to failure sending the UPP to the backend or authentication errors!"))

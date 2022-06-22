@@ -1,4 +1,3 @@
- 
 
 # Step By Step Example
 
@@ -26,14 +25,14 @@ keystore_name     = "devices.jks"
 keystore_password = "XXXXXXXXXXX"
 
 key_type    = "ed25519"
-env         = "demo"
+environment         = "demo"
 ```
 - `keytype` defines the encryption algorithm, set to one of
-  - `ed25519` default) [About Ed25519](https://ed25519.cr.yp.to/) 
+  - `ed25519` (default) [About Ed25519](https://ed25519.cr.yp.to/) 
   - `ecdsa` (improved efficiency) [About ECDSA](https://www.encryptionconsulting.com/education-center/what-is-ecdsa/)
 
 
-- `env` is the UBIRCH backend environment (stage), set to one of
+- `environment` is the UBIRCH backend environment (stage), set to one of
   - `prod` - production (default and recommended) 
   - `demo` - demonstration stage (for testing only)
   - `dev` - ubirch internal development stage (not reliable)
@@ -104,26 +103,48 @@ Otherwise you will be prompted with the Error `Signing Key is neither ed25519, n
 That's intended with this minimal implementation. The following will fix that
 
 ### Key checks and key generation
+Add a check to the `__init__()` function depending on the key type.
+It creates a keypair in case no keys are found and removes invalid key entries.
 
-Add a check to the `__init__()` function that creates a keypair in case no keys are found.
+
 ```python
 class Proto(ubirch.Protocol):
-    def __init__(self, keystore, key_type):
+    def __init__(self, keystore: ubirch.KeyStore, key_type: str):
         super().__init__()
         self.__ks = keystore
-        
-        if not self.__ks.exists_signing_key(uuid):
-            if key_type == "ed25519":
-                print("generating new keypair with ed25519 algorithm")
+        self.load_saved_signatures(uuid)
 
+        if key_type == "ed25519":
+
+            # check if the device already has keys or generate a new pair
+            if not self.__ks.exists_signing_key(uuid):
+                print("Generating new keypair with ed25519 algorithm")
                 self.__ks.create_ed25519_keypair(uuid)
-            elif key_type == "ecdsa":
-                print("generating new keypair with ecdsa algorithm")
 
+            if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex + '_ecd', None) != None:
+                # suffix-less pubkey found, delete it
+                self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex + '_ecd')
+
+            self.__ks.insert_ed25519_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_ED[env])
+
+        elif key_type == "ecdsa":
+
+            # check if the device already has keys or generate a new pair
+            if not self.__ks.exists_signing_key(uuid):
+                print("Generating new keypair with ecdsa algorithm")
                 self.__ks.create_ecdsa_keypair(uuid)
-            else:
-                raise ValueError("unknown key type")
+
+            if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex, None) != None:
+                # suffix-less pubkey found, delete it
+                self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex)
+
+            self.__ks.insert_ecdsa_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_EC[env])
 ```
+
+> **Remember:** 
+> The implementation here is weaving the ubirch Keystore together with the ubirch Protocol but instead using your own Keystore is easy as well. 
+
+
 Add a key registration directly after the `api.set_authentication()` line.
 ```python
 if not api.is_identity_registered(uuid):
@@ -139,6 +160,8 @@ if not api.is_identity_registered(uuid):
 3. Create the registration message
 4. `UBIRCH_PROTOCOL_TYPE_REG` is another constant in the [structure of UPP's](https://github.com/ubirch/ubirch-protocol/#basic-message-format). This type resolves to `0x01`.
 5. Send the registration message with `api.register_identity()`
+
+Now running the script will add a public key to the thing in the uibirch console.
 
 ### Using real data
 
@@ -219,7 +242,7 @@ UBIRCH_UUIDS = {
     "prod": UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
 }
 
-if protocol.verify_signature(UBIRCH_UUIDS[self.env], response.content) == True:
+if protocol.verfiy_signature(UBIRCH_UUIDS[self.env], response.content) == True:
     print("Backend response signature successfully verified!")
 else:
     raise Exception("Backend response signature verification FAILED!")
@@ -259,20 +282,20 @@ Now implement signature loading and persisting (saving) by modifying `__init__()
 
 ```python
 class Proto(ubirch.Protocol):
-    def __init__(self, keystore, key_type):
-        
+    def __init__(self, keystore: ubirch.KeyStore, key_type: str):
+        super().__init__()
+        self.__ks = keystore
+        self.load_saved_signatures(uuid)
         ...
-
-        self.load(uuid)
-        
+    
     ...
 
-    def persist(self, uuid: UUID):
+    def persist_signatures(self, uuid: UUID):
         signatures = self.get_saved_signatures()
         with open(uuid.hex + ".sig", "wb") as f:
             pickle.dump(signatures, f)
         
-    def load(self, uuid: UUID):
+    def load_saved_signatures(self, uuid: UUID):
         try:
             with open(uuid.hex + ".sig", "rb") as f:
                 signatures = pickle.load(f)
@@ -283,14 +306,14 @@ class Proto(ubirch.Protocol):
             pass
 
 ```
-`persist()` needs to be called after sending an UPP. It will save the last signatures to a file similar to `80a80c6e4a7b46d4977b08efad0d1be2.sig`
+`load_saved_signatures()` is called at the end of `__init__(...)`
 
-`load()` is called at the end of `__init__(...)`
+`persist_sigatures()` needs to be called after sending an UPP. It will save the last signatures to a file similar to `80a80c6e4a7b46d4977b08efad0d1be2.sig`
 
 So append this somewhere after the call to `protocol.message_signed(...)`.
 
 ```python
-protocol.persist(uuid)
+protocol.persist_signatures(uuid)
 ```
 
 ### Message Types
