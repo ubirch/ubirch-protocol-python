@@ -11,6 +11,6 @@
 build
 dist
 /venv*
-docs/Gemfile.lock
+Gemfile.lock
 docs/_site/
 docs/doxygen/html/
