@@ -16,7 +16,7 @@ developer.ubirch.com -->
 - [File List](files.html)
 
 ## Components
-The ubirch library consists of three parts which can be used individually:
+The Ubirch library consists of three parts which can be used individually:
 
 **[API](@ref ubirch.ubirch_api.API)**: 
 A python layer covering the ubirch backend REST API

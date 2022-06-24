@@ -99,7 +99,6 @@ class Proto(ubirch.Protocol):
         logger.info("ubirch-protocol: device id: {}".format(uuid))
 
     def persist(self, uuid: UUID):
-
         signatures = self.get_saved_signatures()
         with open(uuid.hex + ".sig", "wb") as f:
             pickle.dump(signatures, f)
@@ -182,7 +181,6 @@ class UbirchWrapper:
         Calls handleRegistrationResponse()
         """
         if not self.api.is_identity_registered(self.uuid):
-
             certificate = self.keystore.get_certificate(self.uuid)
             key_registration = self.protocol.message_signed(self.uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
             # get the certificate and create the registration message

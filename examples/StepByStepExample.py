@@ -1,11 +1,12 @@
-import time, json, pickle, hashlib, binascii, ecdsa, ed25519
-from uuid import UUID
-from requests import codes, Response
-
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN, UNPACKED_UPP_FIELD_PREV_SIG
 
 from ubirch_keys_and_uuids import UBIRCH_UUIDS, UBIRCH_PUBKEYS_EC, UBIRCH_PUBKEYS_ED
+
+import time, json, pickle, hashlib, binascii, ecdsa, ed25519
+from uuid import UUID
+from requests import codes, Response
+
 
 uuid = UUID(hex="e7c3738e-8796-4f9e-88ca-55926135542c")  # f5ded8a3-d462-41c4-a8dc-af3fd072a217
 auth =          "c00e66b5-f345-4b33-97de-c223e58fcb11"   # xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
@@ -115,7 +116,7 @@ api.set_authentication(uuid, auth)
 # create an instance of the UBIRCH API and set the auth token
 
 if not api.is_identity_registered(uuid):
-    # check if the public key is registered at the ubirch key service and register it if necessary
+    # check if the public key is registered at the Ubirch key service and register it if necessary
 
     certificate = keystore.get_certificate(uuid)
     key_registration = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
@@ -124,7 +125,7 @@ if not api.is_identity_registered(uuid):
     response = api.register_identity(key_registration)
     # send the registration message and catch any errors that could have come up
 
-    print("Registration response: ({}) {}".format(response.status_code, protocol.unpack_upp(response.content)))
+    print("Registration response: ({}) {}".format(response.status_code, binascii.hexlify(response.content).decode()))
     if response.status_code != codes.ok:
         raise Exception("Registration failed!")
 
@@ -183,12 +184,12 @@ protocol.persist_signatures(uuid)
 #========================  Message Types ========================#
 # Two more types of messages. No verifying and persisting is done
 
-# 0x32 - ubirch standard sensor message (msgpack)
+# 0x32 - Ubirch standard sensor message (msgpack)
 message_0x32 = protocol.message_chained(uuid, 0x32, [time.time(), "Hello World!", 1337])
 response_0x32 = api.send(uuid, message_0x32)
-print("Response 0x32: ({})\n {}".format(response_0x32.status_code, protocol.unpack_upp(response.content)))
+print("Response 0x32: ({})\n {}".format(response_0x32.status_code, binascii.hexlify(response_0x32.content).decode()))
 
 # 0x53 - generic sensor message (json type key/value map)
 message_0x53 = protocol.message_chained(uuid, 0x53, {"timestamp": time.time(), "message": "Hello World!", "foo": 1337})
 response_0x53 = api.send(uuid, message_0x53)
-print("Response 0x53: ({})\n {}".format(response_0x53.status_code, protocol.unpack_upp(response.content)))
+print("Response 0x53: ({})\n {}".format(response_0x53.status_code, binascii.hexlify(response_0x53.content).decode()))

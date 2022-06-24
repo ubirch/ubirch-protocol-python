@@ -158,7 +158,7 @@ class Protocol(object):
 
     def _serialize(self, msg: any) -> bytearray:
         """! @internal
-        Serialize to Bytearray
+        Serialize to MsgPack
         @param msg The message to serialize
         @return Message packed as msgpack bytearray
         """

@@ -44,8 +44,8 @@ class ED25519Certificate(TrustedCertEntry):
         """!
         Initialize a ED 25519 Certificate
         @param alias A name for this Certificate, mostly in form of a UUID
-        @param verifying_key A ed25519.VerifyingKey that has been generated with ed25519.create_keypair()
-        @param kwargs Give more Arguments to pass them on to the super class 'TrustedCertEntry'
+        @param verifying_key A `ed25519.VerifyingKey` that has been generated with `ed25519.create_keypair()`
+        @param kwargs Give more Arguments to pass on to the super class `TrustedCertEntry`
         """
         super().__init__(**kwargs)
         self.alias = alias
@@ -61,8 +61,8 @@ class ECDSACertificate(TrustedCertEntry):
         """!
         Initialize a ECDSA Certificate with an alias and a verifying key
         @param alias A name for this Certificate, mostly in form of a UUID
-        @param verifying_key A ed25519.VerifyingKey that has been generated with ed25519.create_keypair()
-        @param kwargs Give more Arguments to pass them on to the super class 'TrustedCertEntry'
+        @param verifying_key A `ed25519.VerifyingKey` that has been generated with 'ed25519.create_keypair()'
+        @param kwargs Give more Arguments to pass them on to the super class `TrustedCertEntry`
         """
         super().__init__(**kwargs)
         self.alias = alias
@@ -71,14 +71,14 @@ class ECDSACertificate(TrustedCertEntry):
 
 class KeyStore(object):
     """!
-    Assists at handling keys relevant for the ubirch protocol
+    Handles your signing and verifying keys. Meaning it generates, stores, loads and finds your keys.
     """
 
     def __init__(self, keystore_file: str, password: str) -> None:
         """!
         Initialize the KeyStore
         @param keystore_file The name of the keystore file
-        @param password The password of the keystore file. Please use a strong password like generated here: https://passwords-generator.org/
+        @param password The password of the keystore file. A strong password should be used.
 
         """
         super().__init__()
@@ -100,7 +100,7 @@ class KeyStore(object):
         """!
         Store an existing ED25519 signing key in the key store.
         @param uuid The UUID of the device
-        @param sk A ed25519.SigningKey like generated from ed25519.create_keypair()
+        @param sk A `ed25519.SigningKey` like generated from `ed25519.create_keypair()`
         """
         # encode the ED25519 private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
@@ -117,7 +117,7 @@ class KeyStore(object):
         """!
         Store an existing ED25519 verifying key in the key store.
         @param uuid The UUID of the device
-        @param vk A ed25519.VerifyingKey like generated from ed25519.create_keypair()
+        @param vk A `ed25519.VerifyingKey` like generated from `ed25519.create_keypair()`
         """
         self._ks.entries[uuid.hex] = ED25519Certificate(uuid.hex, vk)
 
@@ -126,8 +126,8 @@ class KeyStore(object):
         """!
         Store an existing ED25519 key pair in the key store.
         @param uuid The UUID of the device
-        @param vk A ed25519.VerifyingKey like generated from ed25519.create_keypair()
-        @param sk A ed25519.SigningKey like generated from ed25519.create_keypair()
+        @param vk A `ed25519.VerifyingKey` like generated from `ed25519.create_keypair()`
+        @param sk A `ed25519.SigningKey` like generated from `ed25519.create_keypair()`
         @return The verifying key and the signing key
         """
         if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
@@ -152,7 +152,7 @@ class KeyStore(object):
         """!
         Insert an existing ECDSA signing key.
         @param uuid The UUID of the device
-        @param sk A ed25519.SigningKey like generated from ed25519.create_keypair()
+        @param sk A `ed25519.SigningKey` like generated from `ed25519.create_keypair()`
         """
         # encode the ECDSA private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()

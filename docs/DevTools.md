@@ -1,12 +1,11 @@
 # Developer Tools
 
-This file documents how to use the tools that can be found in `tools/`.
+This file documents how to use the tools that can be found in [`tools/`](../tools).
 
 Intented users are people who want to deep-dive into ubirch technologies or developers at ubirch itself.
 
-Each on is a commandline tool, implementing uBirch components, that can be experimented around without the need to write Python code.
+These are commandline tools that can be used to quickly accomplish certain tasks without  writing Python code. 
 
-**Peek inside the sourcecode!**
 
 ## Setup - API Credentials
 Make sure to follow the steps in [GettingStarted](GettingStarted.md) first.
@@ -40,13 +39,13 @@ The values used below are `f5ded8a3-d462-41c4-a8dc-af3fd072a217` for the UUID, `
     - [Managing keys inside the uBirch Identity Service](#managing-keys-inside-the-ubirch-identity-service)
     - [Registering ECDSA Keys](#registering-ecdsa-keys)
 
-### Commandline Examples
-- [Example uBirch client](#example-ubirch-client)
+### Example implementations
+- [Simple data service](#simple-data-service)
 - [Test the complete protocol](#test-the-complete-protocol)
 - [Test identity of the device](#test-identity-of-the-device)
 
 # A UPP's Lifecycle
-*- From measurement to blockchain-anchored UPP*
+*From measurement to blockchain-anchored UPP*
 
 The process needed to get a UPP to be anchored in the blockchain can be cut down into multiple steps. 
 For each of those steps there is an example in this directory, demonstrating how to handle them.

@@ -1,7 +1,7 @@
 
 # Step By Step Example
 
-*The code can be found in one place in `StepByStepExample.py` as well.*
+*The code can be found in [`StepByStepExample.py`](../examples/StepByStepExample.py) as well.*
 
 Make sure to follow the setup steps in the [GettingStarted](GettingStarted.md) first. 
 
@@ -9,12 +9,13 @@ Make sure to follow the setup steps in the [GettingStarted](GettingStarted.md) f
 2. [Key checks and key generation](#key-checks-and-key-generation)
 3. [Using real data](#using-real-data)
 4. [Verifying](#verifying)
-   1. [Verify that the response really came from the backend](#verify-that-the-response-really-came-from-the-backend)
-   2. [Verify that the UPP is correctly chained](#verify-that-the-upp-is-correctly-chained)
+   - [Verify that the response really came from the backend](#verify-that-the-response-really-came-from-the-backend)
+   - [Verify that the UPP is correctly chained](#verify-that-the-upp-is-correctly-chained)
 5. [UPP chaining](#upp-chaining)
 6. [Message Types](#message-types)
 
 ### Basic protocol
+Please follow the steps until the end to build a complete protocol.
 
 As before we have to set the API and keystore credentials. Additionally the key type and environment variable is set.
 ```python
@@ -28,30 +29,31 @@ key_type    = "ed25519"
 environment = "demo"
 ```
 - `keytype` defines the encryption algorithm, set to one of
-  - `ed25519` (default) [About Ed25519](https://ed25519.cr.yp.to/) 
-  - `ecdsa` (improved efficiency) [About ECDSA](https://www.encryptionconsulting.com/education-center/what-is-ecdsa/)
+  - `ed25519` (default) using the [Ed25519 curve](https://en.wikipedia.org/wiki/Curve25519) 
+  - `ecdsa` using the [ECDSA](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm) Algorithm
   
 
-- `environment` is the UBIRCH backend environment (stage), set to one of
+- `environment` is the Ubirch backend environment (stage), set to the environment where you registered the UUID
   - `prod` - production (default and recommended) 
   - `demo` - demonstration stage (for testing only)
-  - `dev` - ubirch internal development stage (not reliable)
-> **Note:** Set `env` to the environment where you registered the UUID
+  - `dev` - Ubirch internal development stage (not reliable)
 
+> Instead of using the example [`UbirchWrapper.py`](../examples/UbirchWrapper.py) as in [Getting Started](GettingStarted.md), this guide weaves `ubirch.KeyStore` together with the `ubirch.Protocol`.
+>> **But you can use your own key management tool instead!**
 
-Instead of using a pre-made wrapper around protocol, api and keystore we implement it ourself!
-
-This is best-practice to be accessible using the `ubirch.KeyStore`. You don't need to use this keystore and instead could plug in your own key management tool instead.
+The best-practice to do this is to extend the `ubirch.Protocol` with a `_sign()` function that uses the signing key found in the keystore.
 
 ```python
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN, UNPACKED_UPP_FIELD_PREV_SIG
 
-import time, hashlib, binascii, ecdsa, ed25519
+from ubirch_keys_and_uuids import UBIRCH_UUIDS, UBIRCH_PUBKEYS_EC, UBIRCH_PUBKEYS_ED
+
+import time, json, pickle, hashlib, binascii, ecdsa, ed25519
 from uuid import UUID
 from requests import codes, Response
 
-
+ 
 class Proto(ubirch.Protocol):
     def __init__(self, keystore, key_type):
         super().__init__()
@@ -70,10 +72,8 @@ class Proto(ubirch.Protocol):
 
         else:
             raise (ValueError("Signing Key is neither ed25519, nor ecdsa! It's: " + type(signing_key)))
-```
-`Proto` inherits the functions from `ubirch.protocol` and implements a `_sign()` function using the signing key found in the keystore.
 
-```python
+        
 keystore = ubirch.KeyStore(keystore_name, keystore_password)
 
 protocol = Proto(keystore, key_type)
@@ -96,12 +96,12 @@ print("Response: ({}) {}".format(response.status_code, binascii.hexlify(response
 1. Using SHA512 a serialized JSON object is hashed into 512 bits    
 2. `protocol.message_chained()` calls the `_sign()` function implemented earlier
 3. `UBIRCH_PROTOCOL_TYPE_BIN` is a constant which specifies the . This type resolves to `0x00`.
-4. Then the UPP is sent to the ubirch backend and a cleartext response is printed
+4. Then the UPP is sent to the Ubirch backend and a cleartext response is printed
 
 The 4 codeblocks above will be executed successfully if you have run the Getting Started instructions for this device before. 
 Otherwise you will be prompted with the Error `Signing Key is neither ed25519, nor ecdsa!`
 
-That's intended with this minimal implementation. The following will fix that
+That's because there still are missing functionalities in the basic protocol. The following will fix that.
 
 ### Key checks and key generation
 Add a check to the `__init__()` function depending on the key type.
@@ -142,10 +142,6 @@ class Proto(ubirch.Protocol):
             self.__ks.insert_ecdsa_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_EC[env])
 ```
 
-> **Remember:** 
-> The implementation here is weaving the ubirch Keystore together with the ubirch Protocol but instead using your own Keystore is easy as well. 
-
-
 Add a key registration directly after the `api.set_authentication()` line.
 ```python
 if not api.is_identity_registered(uuid):
@@ -156,7 +152,7 @@ if not api.is_identity_registered(uuid):
     response = api.register_identity(key_registration)
     print("Response: ({}) {}".format(response.status_code, response.content))
 ```
-1. `api.is_identity_registered(uuid)` returns true if the public key is registered at the ubirch key service 
+1. `api.is_identity_registered(uuid)` returns true if the public key is registered at the Ubirch key service 
 2. Get the certificate containing the keys from the Keystore
 3. Create the registration message
 4. `UBIRCH_PROTOCOL_TYPE_REG` is another constant in the [structure of UPP's](https://github.com/ubirch/ubirch-protocol/#basic-message-format). This type resolves to `0x01`.
@@ -171,7 +167,7 @@ Until now the data to be sent is hardcoded as
 hashed_data = hashlib.sha512(b'{"T": 11.2, "H": 35.8, "S": "OK", "ts":"1652452008"}"').digest()
 ```
 Instead of that we 'receive' some data in an object / JSON format. 
-The data should be sent to your own backend here as well, as ubirch only handles hashes of data.
+The data should be sent to your own backend here as well, as Ubirch only handles hashes of data.
 ```python
 data = {
   "timestamp": int(time.time()),
@@ -204,7 +200,7 @@ print("Response: ({}) {}".format(response.status_code, binascii.hexlify(response
 1. Hash the message using SHA512
 2. Create a new chained protocol message with the message hash
 3. `UBIRCH_PROTOCOL_TYPE_BIN` is the type-code of a normal binary message. Here is resolves to `x00`
-4. Send the created UPP to the ubirch backend
+4. Send the created UPP to the Ubirch backend
 
 ### Verifying
 
@@ -330,7 +326,7 @@ to see the different hex labels.
 
 Here are two more types of messages. No verifying and persisting is done.
 
-`0x32` - ubirch standard sensor message (msgpack):
+`0x32` - Ubirch standard sensor message (msgpack):
 
 ```python
 message_0x32 = protocol.message_chained(uuid, 0x32, [time.time(), "Hello World!", 1337])
