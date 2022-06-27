@@ -23,9 +23,9 @@ Install the requirements and ubirch library using pip:
 
 `$ pip install ubirch-protocol`
 
-> Currently the library in pip is not the same as the library in `ubirch/` in this repository 
+> Currently the version of the `ubirch-protocol` package installable with pip is not the same as the package provided in this repository
 
-If want to install from another source than pip, follow along [here](NotPip.md). 
+If you want to install from another source than pip, follow along [here](NotPip.md).
 
 ## Setup
 Before anything, you will need to do/get a couple of things:

@@ -4,7 +4,7 @@ This file documents how to use the tools that can be found in [`tools/`](../tool
 
 Intented users are people who want to deep-dive into ubirch technologies or developers at ubirch itself.
 
-These are commandline tools that can be used to quickly accomplish certain tasks without  writing Python code. 
+These are commandline tools that can be used to quickly accomplish certain tasks without writing code. 
 
 
 ## Setup - API Credentials

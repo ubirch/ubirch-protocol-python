@@ -8,8 +8,8 @@ from uuid import UUID
 from requests import codes, Response
 
 
-uuid = UUID(hex="e7c3738e-8796-4f9e-88ca-55926135542c")  # f5ded8a3-d462-41c4-a8dc-af3fd072a217
-auth =          "c00e66b5-f345-4b33-97de-c223e58fcb11"   # xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+uuid = UUID(hex="f5ded8a3-d462-41c4-a8dc-af3fd072a217")
+auth =          "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 keystore_name = "devices.jks"
 keystore_password = "keystore"  # 'XXXXXXXXXXX'
@@ -95,6 +95,32 @@ class Proto(ubirch.Protocol):
             print("no existing saved signatures")
             pass
 
+
+# ========== Setting up all parts of the Ubirch solution ==========#
+# create a keystore for the device
+# you could use your own key management tool instead
+keystore = ubirch.KeyStore(keystore_name, keystore_password)
+
+# create an instance of the protocol with signature saving
+protocol = Proto(keystore, key_type)
+
+# create an instance of the UBIRCH API and set the auth token
+api = ubirch.API(env=env)
+api.set_authentication(uuid, auth)
+
+# check if the public key is registered at the Ubirch key service and register it if necessary
+if not api.is_identity_registered(uuid):
+    # get the certificate and create the registration message
+    certificate = keystore.get_certificate(uuid)
+    key_registration = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
+
+    # send the registration message and catch any errors that could have come up
+    response = api.register_identity(key_registration)
+
+    print("Registration response: ({}) {}".format(response.status_code, binascii.hexlify(response.content).decode()))
+    if response.status_code != codes.ok:
+        raise Exception("Registration failed!")
+
 #======================== 'Receive' data ========================#
 data = {
     "timestamp": time.time(),
@@ -103,51 +129,21 @@ data = {
     "status": "OK"
 }
 
-# ========== Setting up all parts of the Ubirch solution ==========#
-keystore = ubirch.KeyStore(keystore_name, keystore_password)
-# create a keystore for the device
-# you could use your own key management tool instead
-
-protocol = Proto(keystore, key_type)
-# create an instance of the protocol with signature saving
-
-api = ubirch.API(env=env)
-api.set_authentication(uuid, auth)
-# create an instance of the UBIRCH API and set the auth token
-
-if not api.is_identity_registered(uuid):
-    # check if the public key is registered at the Ubirch key service and register it if necessary
-
-    certificate = keystore.get_certificate(uuid)
-    key_registration = protocol.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
-    # get the certificate and create the registration message
-
-    response = api.register_identity(key_registration)
-    # send the registration message and catch any errors that could have come up
-
-    print("Registration response: ({}) {}".format(response.status_code, binascii.hexlify(response.content).decode()))
-    if response.status_code != codes.ok:
-        raise Exception("Registration failed!")
-
-
 #=========== Create and send a Ubirch protocol packet ==========#
-# Hardcoded: For demonstration purpose only
-hashed_data_hardcoded = hashlib.sha512(b'{"T": 11.2, "H": 35.8, "S": "OK", "ts":"1652452008"}"').digest()
-
-serialized = json.dumps(data, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
 # Create a compact rendering of the message to ensure determinism when creating the hash
 # Serializes a JSON object to bytes like this '{"T": 11.2, "H": 35.8, "S": "OK", "ts":"1652452008"}'
+serialized = json.dumps(data, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
 
+# Hash the message using SHA512
 hashed_data = hashlib.sha512(serialized).digest()
 print("Message hash: {}".format(binascii.b2a_base64(hashed_data).decode().rstrip("\n")))
-# Hash the message using SHA512
 
-message_UPP = protocol.message_chained(uuid, ubirch.ubirch_protocol.UBIRCH_PROTOCOL_TYPE_BIN, hashed_data)
 # Create a new chained protocol message with the message hash
 # UBIRCH_PROTOCOL_TYPE_BIN is the type-code of a normal binary message: '0x00'
+message_UPP = protocol.message_chained(uuid, ubirch.ubirch_protocol.UBIRCH_PROTOCOL_TYPE_BIN, hashed_data)
 
-response = api.send(uuid, message_UPP)
 # send the message to the Ubirch authentication service and catch any errors that could have come up
+response = api.send(uuid, message_UPP)
 
 print("Response: ({})\n {}".format(response.status_code, protocol.unpack_upp(response.content)))
 if response.status_code != codes.ok:
@@ -162,12 +158,12 @@ else:
 
 #= Verify that the UPP is correctly chained. =#
 # The previous signature in the response UPP has to be the same as the sent UPPs Signature
-_, signature_message_UPP = protocol.upp_msgpack_split_signature(message_UPP)
 # _ is a throwaway variable for the rest of the UPP that is split
+_, signature_message_UPP = protocol.upp_msgpack_split_signature(message_UPP)
 
+# unpack the received upp to get its previous signature
 unpacked = protocol.unpack_upp(response.content)
 signature_index = protocol.get_unpacked_index(unpacked[0], UNPACKED_UPP_FIELD_PREV_SIG)
-# unpack the received upp to get its previous signature
 previous_signature_in_UPP = unpacked[signature_index]
 
 if signature_message_UPP == previous_signature_in_UPP:
@@ -175,11 +171,11 @@ if signature_message_UPP == previous_signature_in_UPP:
 else:
     raise Exception("The previous signature in the response UPP doesn't match the signature of our UPP!")
 
-print("[✓] Successfully sent the UPP and verified the response!")
 # the handle, verification and assert functions raise Errors on any kind of error - save to assume success
+print("[✓] Successfully sent the UPP and verified the response!")
 
-protocol.persist_signatures(uuid)
 # save last signatures to a .sig file
+protocol.persist_signatures(uuid)
 
 #========================  Message Types ========================#
 # Two more types of messages. No verifying and persisting is done

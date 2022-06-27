@@ -16,13 +16,12 @@
     <a href="#a-minimal-application">A minimal application</a>
 </p>
 
-The [ubirch-protocol](https://github.com/ubirch/ubirch-protocol) is a protocol to ensure the integrity (is unchanged) and identity (ownership) of data.
 
-Ubirch handles data verification, and blockchain transactions to lock data points in time for proofable logs.
+This repository contains a library providing an implementation of the [Ubirch-protocol](https://github.com/ubirch/ubirch-protocol) in **Python 3**.
 
-This is the implementation of the ubirch-protocol in **Python 3**.
+That, along with the helper classes `KeyStore` and `API`. These can be used to handle cryptografic keys und to communicate with the Ubirch backend.
 
-
+Additionally, the raw documentation files rendered to the [documentation pages](https://developer.ubirch.com/ubirch-protocol-python/).
 
 ## Installation
 Optionally create environment to install to:
@@ -37,9 +36,9 @@ Install the requirements and Ubirch library using pip:
 
 `$ pip install ubirch-protocol`
 
-> Currently the library in pip is not the same as the library in `ubirch/` in this repository 
+> Currently the version of the `ubirch-protocol` package installable with pip is not the same as the package provided in this repository
 
-If want to install from another source than pip, follow along [here](docs/NotPip.md). 
+If you want to install from another source than pip, follow along [here](docs/NotPip.md).
 
 ## Setup
 Before anything, you will need to do/get a couple of things:

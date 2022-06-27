@@ -160,20 +160,20 @@ class UbirchWrapper:
         self.auth = auth
         self.key_type = key_type
 
-        self.savedCurrentSig = None
         # a variable to store the current signature
+        self.savedCurrentSig = None
 
         if keystore_name is not None and keystore_password is not None:
 
-            self.keystore = ubirch.KeyStore(keystore_name, keystore_password)
             # create a keystore for the device
+            self.keystore = ubirch.KeyStore(keystore_name, keystore_password)
 
-            self.protocol = Proto(self.keystore, self.uuid, self.env, key_type=self.key_type)
             # create an instance of the protocol with signature saving
+            self.protocol = Proto(self.keystore, self.uuid, self.env, key_type=self.key_type)
 
+            # create an instance of the UBIRCH API and set the auth token
             self.api = ubirch.API(env=self.env)
             self.api.set_authentication(self.uuid, self.auth)
-            # create an instance of the UBIRCH API and set the auth token
 
     def checkRegisterPubkey(self):
         """
@@ -181,13 +181,13 @@ class UbirchWrapper:
         Calls handleRegistrationResponse()
         """
         if not self.api.is_identity_registered(self.uuid):
+            # get the certificate and create the registration message
             certificate = self.keystore.get_certificate(self.uuid)
             key_registration = self.protocol.message_signed(self.uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
-            # get the certificate and create the registration message
 
+            # send the registration message and catch any errors that could have come up
             response = self.api.register_identity(key_registration)
             self.handleResponseToRegistration(response)
-            # send the registration message and catch any errors that could have come up
 
     def handleRegistrationResponse(self, response: Response):
         """! Check for success """
@@ -200,9 +200,9 @@ class UbirchWrapper:
 
     def serializeMessage(self, message: dict)  -> bytes:
         """! Serialize a JSON object to bytes """
-        serialized = json.dumps(message, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
         # create a compact rendering of the message to ensure determinism when creating the hash
         # serializes JSON like this '{"T": 11.2, "H": 35.8, "S": "OK", "ts":"1652452008"}'
+        serialized = json.dumps(message, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
 
         return serialized
 
@@ -218,19 +218,19 @@ class UbirchWrapper:
         Create a UPP from a given message
         Calls serializeAndCreateHash() and extractCurrentSignature()
         """
-        serialized = self.serializeMessage(message)
         # Serializes a JSON object to bytes
+        serialized = self.serializeMessage(message)
 
+        # Hash the message using SHA512
         messageHash = hashlib.sha512(serialized).digest()
         logger.info("message hash: {}".format(binascii.b2a_base64(messageHash).decode().rstrip("\n")))
-        # Hash the message using SHA512
 
+        # create a new chained protocol message with the message hash
         currentUPP = self.protocol.message_chained(self.uuid, UBIRCH_PROTOCOL_TYPE_BIN, messageHash)
         logger.info("created UPP: {}".format(currentUPP.hex()))
-        # create a new chained protocol message with the message hash
 
-        self.savedCurrentSig = self.extractCurrentSignature(currentUPP)
         # extract the signature and save it for verification later
+        self.savedCurrentSig = self.extractCurrentSignature(currentUPP)
 
         return currentUPP
 
