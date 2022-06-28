@@ -1,7 +1,6 @@
 
 # Step By Step Example
 
-*The code can be found in [`StepByStepExample.py`](../examples/StepByStepExample.py) as well.*
 
 Make sure to follow the setup steps in the [GettingStarted](GettingStarted.md) first. 
 
@@ -14,11 +13,17 @@ Make sure to follow the setup steps in the [GettingStarted](GettingStarted.md) f
 5. [UPP chaining](#upp-chaining)
 6. [Message Types](#message-types)
 
+*The code can be found in [`StepByStepExample.py`](../examples/StepByStepExample.py) as well.*
+
+*Run it from your command prompt using `$ python examples/StepByStepExample.py` or copy-paste one codeblock after another to build the implementation **step by step**.*
+
 ### Basic protocol
 Please follow the steps until the end to build a complete protocol.
 
 As before we have to set the API and keystore credentials. Additionally the key type and environment variable is set.
 ```python
+from uuid import UUID
+
 uuid = UUID(hex = "f5ded8a3-d462-41c4-a8dc-af3fd072a217" )
 auth            = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
@@ -26,7 +31,7 @@ keystore_name     = "devices.jks"
 keystore_password = "XXXXXXXXXXX"
 
 key_type    = "ed25519"
-environment = "demo"
+env = "demo"
 ```
 - `keytype` defines the encryption algorithm, set to one of
   - `ed25519` (default) using the [Ed25519 curve](https://en.wikipedia.org/wiki/Curve25519) 
@@ -50,7 +55,6 @@ from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYP
 from ubirch_keys_and_uuids import UBIRCH_UUIDS, UBIRCH_PUBKEYS_EC, UBIRCH_PUBKEYS_ED
 
 import time, json, pickle, hashlib, binascii, ecdsa, ed25519
-from uuid import UUID
 from requests import codes, Response
 
  
@@ -71,7 +75,7 @@ class Proto(ubirch.Protocol):
             return signing_key.sign(hashed_message)
 
         else:
-            raise (ValueError("Signing Key is neither ed25519, nor ecdsa! It's: " + type(signing_key)))
+            raise (ValueError("Signing Key is neither ed25519, nor ecdsa! It's: " + str(type(signing_key))))
 
         
 keystore = ubirch.KeyStore(keystore_name, keystore_password)
@@ -85,21 +89,47 @@ api.set_authentication(uuid, auth)
 1. Initialize a KeyStore and pass it to a `Proto` instance.
 2. Initialize the API and make it remember your auth code
 
-And finally packing data into an UPP and sending it:
+Then lets say we 'receive' some data in an object / JSON format. 
+The data should be sent to your own backend here as well, as Ubirch only handles hashes of data.
+
 ```python
-hashed_data = hashlib.sha512(b'{"T": 11.2, "H": 35.8, "S": "OK", "ts":"1652452008"}"').digest()
+import time
+
+data = {
+"timestamp": int(time.time()),
+"temperature": 11.2,
+"humidity": 35.8,
+"status": "OK"
+}
+```
+
+A timestamp is included in the data to ensure a unique hash.
+
+Finally packing data into a UPP and sending it:
+```python
+serialized = json.dumps(data, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
+
+hashed_data = hashlib.sha512(serialized).digest()
+print("Message hash: {}".format(binascii.b2a_base64(hashed_data).decode().rstrip("\n")))
 
 message_UPP = protocol.message_chained(uuid, ubirch.ubirch_protocol.UBIRCH_PROTOCOL_TYPE_BIN, hashed_data)
 response = api.send(uuid, message_UPP)
 print("Response: ({}) {}".format(response.status_code, binascii.hexlify(response.content).decode()))
 ```
-1. Using SHA512 a serialized JSON object is hashed into 512 bits    
-2. `protocol.message_chained()` calls the `_sign()` function implemented earlier
-3. `UBIRCH_PROTOCOL_TYPE_BIN` is a constant which specifies the . This type resolves to `0x00`.
-4. Then the UPP is sent to the Ubirch backend and a cleartext response is printed
+1. Serialize the JSON data object to bytes
+   - Sorts the keys alphabetically and doesn't convert special characters to ascii
+   - This ensures determinism when creating the hash. For example:
+   - `b'{"humidity":35.8,"status":"OK","temperature":11.2,"timestamp":1655286793}'`
+2. Hash the message using SHA512 into 512 bits    
+3. Create a new chained protocol message with the message hash 
+   - `protocol.message_chained()` calls the `_sign()` function implemented earlier
+4. `UBIRCH_PROTOCOL_TYPE_BIN` is the type-code of a normal binary message. Here is resolves to `x00`
+5. Send the created UPP to the Ubirch backend
 
-The 4 codeblocks above will be executed successfully if you have run the Getting Started instructions for this device before. 
-Otherwise you will be prompted with the Error `Signing Key is neither ed25519, nor ecdsa!`
+The codeblocks above will be executed successfully if you have run the Getting Started instructions for this device before. 
+Otherwise you will be prompted with the Error 
+
+`ValueError: Signing Key is neither ed25519, nor ecdsa! It's: <class 'NoneType'>`
 
 That's because there still are missing functionalities in the basic protocol. The following will fix that.
 
@@ -113,10 +143,8 @@ class Proto(ubirch.Protocol):
     def __init__(self, keystore: ubirch.KeyStore, key_type: str):
         super().__init__()
         self.__ks = keystore
-        self.load_saved_signatures(uuid)
 
         if key_type == "ed25519":
-
             # check if the device already has keys or generate a new pair
             if not self.__ks.exists_signing_key(uuid):
                 print("Generating new keypair with ed25519 algorithm")
@@ -129,7 +157,6 @@ class Proto(ubirch.Protocol):
             self.__ks.insert_ed25519_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_ED[env])
 
         elif key_type == "ecdsa":
-
             # check if the device already has keys or generate a new pair
             if not self.__ks.exists_signing_key(uuid):
                 print("Generating new keypair with ecdsa algorithm")
@@ -158,49 +185,7 @@ if not api.is_identity_registered(uuid):
 4. `UBIRCH_PROTOCOL_TYPE_REG` is another constant in the [structure of UPP's](https://github.com/ubirch/ubirch-protocol/#basic-message-format). This type resolves to `0x01`.
 5. Send the registration message with `api.register_identity()`
 
-Now running the script will add a public key to the thing in the uibirch console.
-
-### Using real data
-
-Until now the data to be sent is hardcoded as 
-```python
-hashed_data = hashlib.sha512(b'{"T": 11.2, "H": 35.8, "S": "OK", "ts":"1652452008"}"').digest()
-```
-Instead of that we 'receive' some data in an object / JSON format. 
-The data should be sent to your own backend here as well, as Ubirch only handles hashes of data.
-```python
-data = {
-  "timestamp": int(time.time()),
-  "temperature": 11.2,
-  "humidity": 35.8,
-  "status": "OK" 
-}
-```
-
-A timestamp is included in the data to ensure a unique hash.
-
-```python
-serialized = json.dumps(data, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
-```
-Serializing a JSON object this way sorts the keys alphabetically and doesn't convert special characters to ascii.
-
-E.g. `b'{"humidity":35.8,"status":"OK","temperature":11.2,"timestamp":1655286793}'`
-
-This ensures determinism when creating the hash.
-
-```python
-hashed_data = hashlib.sha512(serialized).digest()
-print("Message hash: {}".format(binascii.b2a_base64(hashed_data).decode().rstrip("\n")))
-
-message_UPP = protocol.message_chained(uuid, ubirch.ubirch_protocol.UBIRCH_PROTOCOL_TYPE_BIN, hashed_data)
-response = api.send(uuid, message_UPP)
-print("Response: ({}) {}".format(response.status_code, binascii.hexlify(response.content).decode()))
-```
-
-1. Hash the message using SHA512
-2. Create a new chained protocol message with the message hash
-3. `UBIRCH_PROTOCOL_TYPE_BIN` is the type-code of a normal binary message. Here is resolves to `x00`
-4. Send the created UPP to the Ubirch backend
+Now running the script will add a public key to the thing in the Ubirch console.
 
 ### Verifying
 
@@ -233,13 +218,7 @@ class Proto(ubirch.Protocol):
 And append this to the script's end
 
 ```python
-UBIRCH_UUIDS = {
-    "dev": UUID(hex="9d3c78ff-22f3-4441-a5d1-85c636d486ff"),
-    "demo": UUID(hex="07104235-1892-4020-9042-00003c94b60b"),
-    "prod": UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
-}
-
-if protocol.verfiy_signature(UBIRCH_UUIDS[self.env], response.content) == True:
+if protocol.verfiy_signature(UBIRCH_UUIDS[env], response.content) == True:
     print("Backend response signature successfully verified!")
 else:
     raise Exception("Backend response signature verification FAILED!")
@@ -251,16 +230,17 @@ else:
 #### Verify that the UPP is correctly chained
 
 The field `SIGNATURE` ([structure of UPP's](https://github.com/ubirch/ubirch-protocol/#basic-message-format)) in the response-UPP from the server has to be the same as the sent UPPs signature.
+To assure that append this codeblock at the end: 
 
 ```python
 unpacked = protocol.unpack_upp(response.content)
 signature_index = protocol.get_unpacked_index(unpacked[0], UNPACKED_UPP_FIELD_PREV_SIG)
 
-previousSignatureInUPP = unpacked[signature_index]
+previous_signature_in_UPP = unpacked[signature_index]
 
-_, signatureOfCurrentUPP = protocol.upp_msgpack_split_signature(currentUPP)
+_, signature_message_UPP = protocol.upp_msgpack_split_signature(message_UPP)
 
-if signatureOfCurrentUPP == previousSignatureInUPP:
+if signature_message_UPP == previous_signature_in_UPP:
     print("Sent UPP is correctly chained! The previous signature in the response UPP is the same as the sent UPPs Signature")
 else:
     raise Exception("The previous signature in the response UPP doesn't match the signature of our UPP!")
@@ -307,7 +287,7 @@ class Proto(ubirch.Protocol):
 
 `persist_sigatures()` needs to be called after sending an UPP. It will save the last signatures to a file similar to `80a80c6e4a7b46d4977b08efad0d1be2.sig`
 
-So append this somewhere after the call to `protocol.message_signed(...)`.
+So append this somewhere after the call to `protocol.message_chained(...)`.
 
 ```python
 protocol.persist_signatures(uuid)
@@ -330,20 +310,24 @@ Here are two more types of messages. No verifying and persisting is done.
 
 ```python
 message_0x32 = protocol.message_chained(uuid, 0x32, [time.time(), "Hello World!", 1337])
-response_0x32 = api.send(message_0x32)
+response_0x32 = api.send(uuid, message_0x32)
 
-print("Response 0x32: ({}) {}".format(response_0x32.status_code, response_0x32.content))
+print("Response 0x32: ({})\n {}".format(response_0x32.status_code, binascii.hexlify(response_0x32.content).decode()))
 ```
 
 `0x53` - generic sensor message (json type key/value map):
 
 ```python
 message_0x53 = protocol.message_chained(uuid, 0x53, {"timestamp": time.time(), "message": "Hello World!", "foo": 1337})
-response_0x53 = api.send(message_0x53)
+response_0x53 = api.send(uuid, message_0x53)
 
-print("Response 0x53: ({}) {}".format(response_0x53.status_code, response_0x53.content))
-
+print("Response 0x53: ({})\n {}".format(response_0x53.status_code, binascii.hexlify(response_0x53.content).decode()))
 ```
+
+Note that if you hardcode the `timestamp` value to for example `10` instead of `time.time()` and send it twice you will get an `409` error. 
+ 
+That means that the Ubirch backend does not accept the UPP because it is not allowed to send the same hash twice.  
+
 
 
 

@@ -75,6 +75,8 @@ The smallest uBirch application looks something like this.
 
 *The code can be found in [`GettingStarted.py`](examples/GettingStarted.py) as well.*
 
+*Run it from your command prompt using `$ python examples/GettingStarted.py` or copy-paste the codeblocks.*
+
 Lets say we have got some weather-sensor data like:
 
 ```python
@@ -93,7 +95,7 @@ To send a hash of the data to the Ubirch backend run these few lines inside of `
 import ubirch
 from UbirchWrapper import UbirchWrapper
 
-client = UbirchClient(uuid, auth, keystore_name=keystore_name, keystore_password=keystore_password)
+client = UbirchWrapper(uuid, auth, keystore_name=keystore_name, keystore_password=keystore_password)
 client.checkRegisterPubkey()
 
 currentUPP = client.createUPP(data)

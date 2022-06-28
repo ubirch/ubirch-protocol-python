@@ -58,8 +58,9 @@ keystore_password = "XXXXXXXXXXX"
 ## A minimal application
 The smallest uBirch application looks something like this. 
 
-*The code can be found in [`GettingStarted.py`](../examples/GettingStarted.py) as well.*
+*The code can be found in [`examples/GettingStarted.py`](../examples/GettingStarted.py) as well.*
 
+*Run it from your command prompt using `$ python examples/GettingStarted.py` or copy-paste the codeblocks.*
 
 Lets say we have got some weather-sensor data like:
 
@@ -76,25 +77,25 @@ data = {
 
 To send a hash of the data to the Ubirch backend run these few lines inside of `examples/`:
 ```python
-  import ubirch
-  from UbirchWrapper import UbirchClient
-  
-  client = UbirchClient(uuid, auth, keystore_name=keystore_name, keystore_password=keystore_password)
-  client.checkRegisterPubkey()
-  
-  currentUPP = client.createUPP(data)
+import ubirch
+from UbirchWrapper import UbirchWrapper
 
-  response = client.api.send(uuid, currentUPP)
-  client.handleMessageResponse(response)
+client = UbirchWrapper(uuid, auth, keystore_name=keystore_name, keystore_password=keystore_password)
+client.checkRegisterPubkey()
 
-  client.verifyResponseSender(response)
-  
-  previousSignatureInUPP = client.extractPreviousSignature(response)
-  client.assertSignatureCorrect(previousSignatureInUPP)
-  
-  print("Successfully sent the UPP and verified the response!")
-  
-  client.protocol.persist(uuid)
+currentUPP = client.createUPP(data)
+
+response = client.api.send(uuid, currentUPP)
+client.handleMessageResponse(response)
+
+client.verifyResponseSender(response)
+
+previousSignatureInUPP = client.extractPreviousSignature(response)
+client.assertSignatureCorrect(previousSignatureInUPP)
+
+print("Successfully sent the UPP and verified the response!")
+
+client.protocol.persist(uuid)
 ```
 
 1. Initialize an UbirchClient instance and pass the credentials for a `KeyStore`

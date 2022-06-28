@@ -8,11 +8,11 @@ from uuid import UUID
 from requests import codes, Response
 
 
-uuid = UUID(hex="f5ded8a3-d462-41c4-a8dc-af3fd072a217")
-auth =          "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+uuid = UUID(hex="4BE37ADA-32C5-42EA-91FE-8CA3FA27567E")
+auth =          "6efbece6-c020-42b4-b2d7-f894ae7f4f06"
 
-keystore_name = "devices.jks"
-keystore_password = "keystore"  # 'XXXXXXXXXXX'
+keystore_name     = "devices.jks"
+keystore_password = "XXXXXXXXXXX"
 
 key_type = "ed25519"  # keytype can be 'ed25519' or 'ecdsa'
 env = "demo"  # env can be 'prod', 'demo' or 'dev'
@@ -25,7 +25,6 @@ class Proto(ubirch.Protocol):
         self.load_saved_signatures(uuid)
 
         if key_type == "ed25519":
-
             # check if the device already has keys or generate a new pair
             if not self.__ks.exists_signing_key(uuid):
                 print("Generating new keypair with ed25519 algorithm")
@@ -38,7 +37,6 @@ class Proto(ubirch.Protocol):
             self.__ks.insert_ed25519_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_ED[env])
 
         elif key_type == "ecdsa":
-
             # check if the device already has keys or generate a new pair
             if not self.__ks.exists_signing_key(uuid):
                 print("Generating new keypair with ecdsa algorithm")
@@ -149,6 +147,9 @@ print("Response: ({})\n {}".format(response.status_code, protocol.unpack_upp(res
 if response.status_code != codes.ok:
     raise Exception("Sending message failed!")
 
+# save last signatures to a .sig file
+protocol.persist_signatures(uuid)
+
 # ================== Response UPP verification ==================#
 #= Verify that the response came from the backend =#
 if protocol.verfiy_signature(UBIRCH_UUIDS[env], response.content) == True:
@@ -174,8 +175,6 @@ else:
 # the handle, verification and assert functions raise Errors on any kind of error - save to assume success
 print("[✓] Successfully sent the UPP and verified the response!")
 
-# save last signatures to a .sig file
-protocol.persist_signatures(uuid)
 
 #========================  Message Types ========================#
 # Two more types of messages. No verifying and persisting is done
