@@ -44,7 +44,8 @@ env = "demo"
   - `dev` - Ubirch internal development stage (not reliable)
 
 > Instead of using the example [`UbirchWrapper.py`](../examples/UbirchWrapper.py) as in [Getting Started](GettingStarted.md), this guide weaves `ubirch.KeyStore` together with the `ubirch.Protocol`.
->> **But you can use your own key management tool instead!**
+>
+> But you can also use your own key management tool instead!
 
 The best-practice to do this is to extend the `ubirch.Protocol` with a `_sign()` function that uses the signing key found in the keystore.
 
@@ -123,7 +124,7 @@ print("Response: ({}) {}".format(response.status_code, binascii.hexlify(response
 2. Hash the message using SHA512 into 512 bits    
 3. Create a new chained protocol message with the message hash 
    - `protocol.message_chained()` calls the `_sign()` function implemented earlier
-4. `UBIRCH_PROTOCOL_TYPE_BIN` is the type-code of a normal binary message. Here is resolves to `x00`
+4. `UBIRCH_PROTOCOL_TYPE_BIN` is the type-code of a standard binary message. Here is resolves to `x00`
 5. Send the created UPP to the Ubirch backend
 
 The codeblocks above will be executed successfully if you have run the Getting Started instructions for this device before. 
@@ -169,8 +170,12 @@ class Proto(ubirch.Protocol):
             self.__ks.insert_ecdsa_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_EC[env])
 ```
 
-Add a key registration directly after the `api.set_authentication()` line.
+Add a check for key registration directly after the `api.set_authentication()` line:
 ```python
+...
+
+api.set_authentication(uuid, auth)
+
 if not api.is_identity_registered(uuid):
 
     certificate = keystore.get_certificate(uuid)
@@ -324,15 +329,6 @@ response_0x53 = api.send(uuid, message_0x53)
 print("Response 0x53: ({})\n {}".format(response_0x53.status_code, binascii.hexlify(response_0x53.content).decode()))
 ```
 
-Note that if you hardcode the `timestamp` value to for example `10` instead of `time.time()` and send it twice you will get an `409` error. 
- 
-That means that the Ubirch backend does not accept the UPP because it is not allowed to send the same hash twice.  
-
-
-
-
-
-
- 
-
-
+>**Note:** If you hardcode the `timestamp` value to for example `10` instead of `time.time()` and send it twice you will get an `409` error. 
+>
+> That is because Ubirch backend did not accept the UPP due to the hash being the same as in a already anchored UPP.

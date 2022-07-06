@@ -85,7 +85,9 @@ UNPACKED_CHAINED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_SIG]      = 5
 
 
 class Protocol(object):
-    """! Ubirch Protocol: handle signatures and UPP's and create message objects """
+    """!
+    Ubirch Protocol: handle signatures and UPP's and create message objects
+    """
     _signatures = {}
 
     def __init__(self, signatures: dict = None) -> None:
@@ -132,7 +134,7 @@ class Protocol(object):
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         """!
         Sign the request when finished.
-        IMPORTANT: This function needs to be implemented with the Keystore of choice and its .find_signing_key() and .sign() functions
+        @note IMPORTANT: This function needs to be implemented with the Keystore of choice and its .find_signing_key() and .sign() functions
 
         This function also takes care of the hashing, before signing, depending on the key type.
         @param uuid The uuid of the sender to identify the correct key pair
@@ -145,7 +147,7 @@ class Protocol(object):
     def _verify(self, uuid: UUID, message: bytes, signature: bytes):
         """!
         Verify the message.
-        IMPORTANT: This function needs to be implemented with the Keystore of choice and its .find_verifying_key() and .verify() functions
+        @note IMPORTANT: This function needs to be implemented with the Keystore of choice and its .find_verifying_key() and .verify() functions
 
         Throws exception if not verifiable.
         This function also takes care of the hashing, before verifying, depending on the key type.
@@ -292,7 +294,7 @@ class Protocol(object):
         except IndexError:
             raise ValueError("The UPP-msgpack is too short: %d bytes" % len(msgpackUPP))
 
-    def verfiy_signature(self, uuid: UUID, msgpackUPP: bytes) -> bool:
+    def verify_signature(self, uuid: UUID, msgpackUPP: bytes) -> bool:
         """!
         Verify the integrity of the message and decode the contents
         Raises an value error when the message is too short
@@ -310,3 +312,15 @@ class Protocol(object):
             return False
 
         return True
+
+    def verfiy_signature(self, uuid: UUID, msgpackUPP: bytes) -> bool:
+        """!
+        `verify_signature()` with typo for backwards compatability
+
+        Verify the integrity of the message and decode the contents
+        Raises an value error when the message is too short
+        @param uuid The uuid of the sender of the message
+        @param msgpackUPP The msgpack encoded message
+        @return The decoded message
+        """
+        return self.verify_signature(uuid, msgpackUPP)

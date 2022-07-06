@@ -144,6 +144,7 @@ class API(object):
     def trust_identity_json(self, signed_trust: dict) -> Response:
         """!
         Trust a new identity
+        @param signed_trust Dictionary containing the identity details
         @return The response from the server
         """
         logger.debug("trust an identity [json]: {}".format(signed_trust))
@@ -154,6 +155,7 @@ class API(object):
     def get_trusted_identities_json(self, get_trusted: dict) -> Response:
         """!
         Get the trusted identities as a list in JSON format
+        @param get_trusted Dictionary containing the identity details
         @return The response from the server
         """
         logger.debug("get trusted identities [json]: {}".format(get_trusted))

@@ -8,8 +8,8 @@ from uuid import UUID
 from requests import codes, Response
 
 
-uuid = UUID(hex="4BE37ADA-32C5-42EA-91FE-8CA3FA27567E")
-auth =          "6efbece6-c020-42b4-b2d7-f894ae7f4f06"
+uuid = UUID(hex="f5ded8a3-d462-41c4-a8dc-af3fd072a217")
+auth =          "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 keystore_name     = "devices.jks"
 keystore_password = "XXXXXXXXXXX"
@@ -96,7 +96,7 @@ class Proto(ubirch.Protocol):
 
 # ========== Setting up all parts of the Ubirch solution ==========#
 # create a keystore for the device
-# you could use your own key management tool instead
+# you can use your own key management tool instead
 keystore = ubirch.KeyStore(keystore_name, keystore_password)
 
 # create an instance of the protocol with signature saving
@@ -137,7 +137,7 @@ hashed_data = hashlib.sha512(serialized).digest()
 print("Message hash: {}".format(binascii.b2a_base64(hashed_data).decode().rstrip("\n")))
 
 # Create a new chained protocol message with the message hash
-# UBIRCH_PROTOCOL_TYPE_BIN is the type-code of a normal binary message: '0x00'
+# UBIRCH_PROTOCOL_TYPE_BIN is the type-code of a standard binary message: '0x00'
 message_UPP = protocol.message_chained(uuid, ubirch.ubirch_protocol.UBIRCH_PROTOCOL_TYPE_BIN, hashed_data)
 
 # send the message to the Ubirch authentication service and catch any errors that could have come up
@@ -152,7 +152,7 @@ protocol.persist_signatures(uuid)
 
 # ================== Response UPP verification ==================#
 #= Verify that the response came from the backend =#
-if protocol.verfiy_signature(UBIRCH_UUIDS[env], response.content) == True:
+if protocol.verify_signature(UBIRCH_UUIDS[env], response.content) == True:
     print("Backend response signature successfully verified!")
 else:
     raise Exception("Backend response signature verification FAILED!")

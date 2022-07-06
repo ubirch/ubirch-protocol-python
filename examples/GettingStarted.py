@@ -8,10 +8,6 @@ from uuid import UUID
 import ubirch
 from UbirchWrapper import UbirchWrapper
 
-# Include a timestamp in the JSON data message to ensure a unique hash.
-# todo >> send data message to your backend, preferably encrypted, here <<
-
-
 #== Setup Variables ==#
 uuid = UUID(hex = "f5ded8a3-d462-41c4-a8dc-af3fd072a217" )
 auth            = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
@@ -22,15 +18,17 @@ keystore_password = "XXXXXXXXXXX"
 #== Set up all parts of the Ubirch solution ==#
 
 # Create a UbirchWrapper Object from the protocol wrapper with default demo environment
-# You could use your own Key management tool instead.
+# You can also use your own Key management tool instead.
 # When called with parameters 'keystore_name' and 'keystore_password' it directly creates the components
 #   Keystore, Protocol and API while initializing.
-client = UbirchWrapper(uuid, auth, keystore_name=keystore_name, keystore_password=keystore_password)
+client = UbirchWrapper(uuid, auth, keystore_name, keystore_password)
 
 # Check if the public key is registered at the Ubirch key service and register it if necessary
 client.checkRegisterPubkey()
 
 #== 'Receive' data ==#
+# Include a timestamp in the JSON data message to ensure a unique hash.
+# todo >> send data message to your backend, preferably encrypted, here <<
 data = {
     "timestamp": int(time.time()),
     "temp": 11.2,

@@ -61,7 +61,7 @@ class ECDSACertificate(TrustedCertEntry):
         """!
         Initialize a ECDSA Certificate with an alias and a verifying key
         @param alias A name for this Certificate, mostly in form of a UUID
-        @param verifying_key A `ed25519.VerifyingKey` that has been generated with 'ed25519.create_keypair()'
+        @param verifying_key A `ecdsa.VerifyingKey` that has been generated with 'ecdsa.create_keypair()'
         @param kwargs Give more Arguments to pass them on to the super class `TrustedCertEntry`
         """
         super().__init__(**kwargs)
@@ -79,7 +79,6 @@ class KeyStore(object):
         Initialize the KeyStore
         @param keystore_file The name of the keystore file
         @param password The password of the keystore file. A strong password should be used.
-
         """
         super().__init__()
         self._ks_file = keystore_file
@@ -143,7 +142,7 @@ class KeyStore(object):
         """!
         Create a new ED25519 key pair and store it in key store.
         @param uuid The UUID of the device
-        @return The verifying key and the signing key
+        @return The ed25519 verifying key and the ed25519 signing key
         """
         sk, vk = ed25519.create_keypair(entropy=urandom)
         return self.insert_ed25519_keypair(uuid, vk, sk)
@@ -152,7 +151,7 @@ class KeyStore(object):
         """!
         Insert an existing ECDSA signing key.
         @param uuid The UUID of the device
-        @param sk A `ed25519.SigningKey` like generated from `ed25519.create_keypair()`
+        @param sk A `ecdsa.SigningKey` like generated from `ecdsa.create_keypair()`
         """
         # encode the ECDSA private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
@@ -166,12 +165,23 @@ class KeyStore(object):
         self._ks.entries['pke_' + uuid.hex] = pke
 
     def insert_ecdsa_verifying_key(self, uuid, vk: ecdsa.VerifyingKey):
+        """!
+        Insert an existing ECDSA verifying key.
+        @param uuid The UUID of the device
+        @param vk A `ecdsa.VerifyingKey` like generated from `ecdsa.create_keypair()`
+        """
         # store verifying key in certificate store
         # ecdsa VKs are marked with a "_ecd" suffix
         self._ks.entries[uuid.hex + '_ecd'] = ECDSACertificate(uuid.hex, vk)
 
     def insert_ecdsa_keypair(self, uuid: UUID, vk: ecdsa.VerifyingKey, sk: ecdsa.SigningKey) -> (ecdsa.VerifyingKey, ecdsa.SigningKey):
-        """! Insert an existing ECDSA key pair into the key store."""
+        """!
+        Insert an existing ECDSA key pair into the key store.
+        @param uuid The UUID of the device
+        @param vk A `ecdsa.VerifyingKey` like generated from `ecdsa.create_keypair()`
+        @param sk A `ecdsa.SigningKey` like generated from `ecdsa.create_keypair()`
+        @return The verifying key and the signing key
+        """
         if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
@@ -182,22 +192,39 @@ class KeyStore(object):
         return (vk, sk)
 
     def create_ecdsa_keypair(self, uuid: UUID, curve: ecdsa.curves.Curve = ecdsa.NIST256p, hashfunc=hashlib.sha256) -> (ecdsa.VerifyingKey, ecdsa.SigningKey):
-        """! Create new ECDSA key pair and store in key store"""
-
+        """!
+        Create new ECDSA key pair and store in key store
+        @param uuid The UUID of the device
+        @param curve The used curve as well as the used hash function have to be explicitly set here to ensure determinism when creating the key
+        @param hashfunc
+        @return The ecdsa verifying key and the ecdsa signing key
+        """
         sk = ecdsa.SigningKey.generate(curve=curve, entropy=urandom, hashfunc=hashfunc)
         vk = sk.get_verifying_key()
         return self.insert_ecdsa_keypair(uuid, vk, sk)
 
     def exists_signing_key(self, uuid: UUID):
-        """! Check whether this UUID has a signing key in the key store."""
+        """!
+        Check whether this UUID has a signing key in the key store.
+        @param uuid The UUID of the device
+        @return True if this UUID has a signing key in the key store.
+        """
         return 'pke_' + uuid.hex in self._ks.private_keys
 
     def exists_verifying_key(self, uuid: UUID):
-        """! Check whether this UUID has a verifying key in the key store."""
+        """!
+        Check whether this UUID has a verifying key in the key store.
+        @param uuid The UUID of the device
+        @return True if this UUID has a verifying key in the key store.
+        """
         return uuid.hex in self._ks.certs or (uuid.hex + '_ecd') in self._ks.certs
 
     def find_signing_key(self, uuid: UUID) -> ed25519.SigningKey or ecdsa.SigningKey:
-        """! Find the signing key for this UUID."""
+        """!
+        Find the signing key from the keystore for this UUID.
+        @param uuid The UUID of the device
+        @return The ed25519 / ecdsa signing key if found. Else returns `None`
+        """
         # try to find a matching sk for the uuid
         try:
             sk : PrivateKeyEntry = self._ks.private_keys['pke_' + uuid.hex]
@@ -223,7 +250,11 @@ class KeyStore(object):
             raise Exception("stored key with unknown algorithm OID: '{}'".format(sk._algorithm_oid))
 
     def _find_cert(self, uuid: UUID) -> ECDSACertificate or ED25519Certificate:
-        """! Find the stored cert for uuid """
+        """!
+        Find the stored cert for uuid
+        @param uuid The UUID of the device
+        @return The stored ECDSACertificate or ED25519Certificate if found. Else returns `None`
+        """
         cert = None
 
         if self.exists_verifying_key(uuid) == True:
@@ -255,7 +286,11 @@ class KeyStore(object):
         return cert
 
     def find_verifying_key(self, uuid: UUID) -> ed25519.VerifyingKey or ecdsa.VerifyingKey:
-        """! Find the verifying key for this UUID."""
+        """!
+        Find the verifying key for this UUID.
+        @param uuid The UUID of the device
+        @return The ed25519 / ecdsa verifying key if found. Else returns `None`
+        """
         cert = self._find_cert(uuid)
 
         if type(cert) == ED25519Certificate:
@@ -266,7 +301,13 @@ class KeyStore(object):
         return None
 
     def get_certificate(self, uuid: UUID, validityInDays : int = 3650) -> dict or None:
-        """! Get the public key info for key registration"""
+        """!
+        Get the public key info for key registration. Contained information:
+            created, hwDeviceId, pubKey, pubKeyId, validNotAfter, validNotBefore
+        @param uuid The UUID of the device
+        @param validityInDays The validity in days for the certificate
+        @return The public key info if found. Else returns `None`
+        """
         # try to find the cert
         cert = self._find_cert(uuid)
 

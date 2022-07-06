@@ -119,10 +119,9 @@ class UbirchWrapper:
     Keystore and API to be added directly after init.
     """
 
-    def __init__(self, uuid: UUID, auth: str, key_type:str="ed25519", env:str="demo", keystore_name:str = None, keystore_password:str = None):
+    def __init__(self, uuid: UUID, auth: str, keystore_name:str, keystore_password:str, key_type:str="ed25519", env:str="demo"):
         """!
-        Depending on the arguments passed all uBirch modules will be initialized:
-          If keystore credentials are given create Keystore, Proto and API
+        Initialize the Ubirch-Keystore, Proto and API
         """
 
         # Initialize a UbirchClient where default setting is ed25519 key type and demo environment
@@ -134,17 +133,15 @@ class UbirchWrapper:
         # a variable to store the current signature
         self.savedCurrentSig = None
 
-        if keystore_name is not None and keystore_password is not None:
+        # create a keystore for the device
+        self.keystore = ubirch.KeyStore(keystore_name, keystore_password)
 
-            # create a keystore for the device
-            self.keystore = ubirch.KeyStore(keystore_name, keystore_password)
+        # create an instance of the protocol with signature saving
+        self.protocol = Proto(self.keystore, self.uuid, self.env, key_type=self.key_type)
 
-            # create an instance of the protocol with signature saving
-            self.protocol = Proto(self.keystore, self.uuid, self.env, key_type=self.key_type)
-
-            # create an instance of the UBIRCH API and set the auth token
-            self.api = ubirch.API(env=self.env)
-            self.api.set_authentication(self.uuid, self.auth)
+        # create an instance of the UBIRCH API and set the auth token
+        self.api = ubirch.API(env=self.env)
+        self.api.set_authentication(self.uuid, self.auth)
 
     def checkRegisterPubkey(self):
         """
@@ -222,7 +219,7 @@ class UbirchWrapper:
 
     def verifyResponseSender(self, response: Response):
         """! Verify that the response came from the backend """
-        if self.protocol.verfiy_signature(UBIRCH_UUIDS[self.env], response.content) == True:
+        if self.protocol.verify_signature(UBIRCH_UUIDS[self.env], response.content) == True:
             logger.info("Backend response signature successfully verified!")
         else:
             logger.error("Backend response signature verification FAILED!")

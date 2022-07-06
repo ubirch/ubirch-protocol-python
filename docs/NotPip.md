@@ -6,7 +6,7 @@ If you want to install a specific branch of the repository, refer below.
 
 ## Install ubirch library locally from folder
 
-Inside of the `ubirch/` repository folder run:
+Inside of the repository folder run:
 `$ pip install .`
 
 ## Install another branch than master
