@@ -198,11 +198,6 @@ class Main:
 
         # go trough the list of verifiying keys and print information for each entry
         for vk_uuid_mod in verifying_keys.keys():
-            # check if a filtering uuid is set; if it is, filter
-            if self.uuid != None:
-                if self.uuid.hex != vk_uuid:
-                    continue
-
             # check the key type
             if vk_uuid_mod.find("_ecd") != -1:
                 vk_uuid = vk_uuid_mod[:-4]
@@ -212,6 +207,11 @@ class Main:
                 vk_uuid = vk_uuid_mod
 
                 ktype = "ED25519"
+
+            # check if a filtering uuid is set; if it is, filter
+            if self.uuid != None:
+                if self.uuid.hex != vk_uuid:
+                    continue
 
             # get/show the private if the flag is set
             if self.show_sign == True:
