@@ -73,7 +73,8 @@ class Protocol(ubirch.Protocol):
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         if isinstance(self.sk, ecdsa.SigningKey):
             # no hashing required here
-            final_message = message
+            # final_message = message
+            final_message = hashlib.sha256(message).digest()
         elif isinstance(self.sk, ed25519.SigningKey):
             final_message = hashlib.sha512(message).digest() 
         else: 
@@ -84,8 +85,8 @@ class Protocol(ubirch.Protocol):
     def _verify(self, uuid: UUID, message: bytes, signature: bytes):
         if isinstance(self.vk, ecdsa.VerifyingKey):
             # no hashing required here
-            final_message = message
-            #final_message = hashlib.sha256(message).digest()
+            # final_message = message
+            final_message = hashlib.sha256(message).digest()
         elif isinstance(self.vk, ed25519.VerifyingKey):
             final_message = hashlib.sha512(message).digest() 
         else: 
@@ -149,23 +150,23 @@ class TestUbirchProtocolECDSA(unittest.TestCase):
     def test_verify_signed_message(self):
         p = Protocol()
         unpacked = p.unpack_upp(EXPECTED_SIGNED)
-        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytearray(EXPECTED_SIGNED)), True)
         self.assertEqual(SIGNED, unpacked[0])
         self.assertEqual(TEST_UUID.bytes, unpacked[1])
         self.assertEqual(0xEF, unpacked[2])
         self.assertEqual(1, unpacked[3])
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytearray(EXPECTED_SIGNED)), True)
 
     def test_verify_chained_messages(self):
         p = Protocol()
         last_signature = b'\0' * 64
         for i in range(0, 3):
             unpacked = p.unpack_upp(EXPECTED_CHAINED[i])
-            self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytearray(EXPECTED_CHAINED[i])), True)
             self.assertEqual(CHAINED, unpacked[0])
             self.assertEqual(TEST_UUID.bytes, unpacked[1])
             self.assertEqual(last_signature, unpacked[2])
             self.assertEqual(0xEE, unpacked[3])
             self.assertEqual(i + 1, unpacked[4])
+            self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytearray(EXPECTED_CHAINED[i])), True)
             # update the last signature we expect in the next message
             last_signature = unpacked[5]
 
