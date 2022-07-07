@@ -37,7 +37,7 @@ Install the requirements and Ubirch library using pip:
 
 `$ pip install ubirch-protocol`
 
-> The required version of the `ubirch-protocol` package to run the provided scripts is `2.2.0`.
+> The required version of the `ubirch-protocol` package to run the provided scripts is `3.1.0`.
 > Currently this version can only be installed through a [local install](docs/NotPip.md). 
 
 If you want to install from another source than pip, follow along [here](docs/NotPip.md).
