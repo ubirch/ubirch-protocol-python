@@ -30,7 +30,7 @@ class Proto(ubirch.Protocol):
 
 if len(sys.argv) < 4:
     print("usage:")
-    print("  python3 example-client.py [dev|demo|prod] <UUID> <ubirch-auth-token>")
+    print("  python3 key_update.py [dev|demo|prod] <UUID> <ubirch-auth-token>")
     sys.exit(0)
 
 env = sys.argv[1]
