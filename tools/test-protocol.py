@@ -165,8 +165,8 @@ for i in range(3):
     logger.info("message({}): {}".format(i, serialized.decode()))
 
     # hash the message
-    message_hash = hashlib.sha256(serialized).digest()
-    logger.info("message hash({}): {}".format(i, binascii.b2a_base64(message_hash).decode().rstrip("\n")))
+    message_hash = hashlib.sha512(serialized).digest()
+    logger.info("message hash({}): {}".format(i, binascii.b2a_base64(message_hash, newline=False).decode()))
 
     # create a new chained protocol message with the message hash
     upp = proto.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)

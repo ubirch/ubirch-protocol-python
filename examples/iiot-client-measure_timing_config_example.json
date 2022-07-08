@@ -1,0 +1,17 @@
+{    
+    "mqtt_send_address": "sensordatabroker.local",
+    "mqtt_send_qos": 1,
+    "mqtt_send_username": "myusr",
+    "mqtt_send_password": "mypwd",
+    "mqtt_send_port": 8883,
+    "mqtt_send_tls_enabled": true,
+    "mqtt_send_topic": "ubirch/test/temperature",
+
+    "mqtt_receive_address": "uppanddatabroker.backend.com",
+    "mqtt_receive_qos": 1,
+    "mqtt_receive_username": "myuser",
+    "mqtt_receive_password": "mypwd",
+    "mqtt_receive_port": 8883,
+    "mqtt_receive_tls_enabled": true,
+    "mqtt_receive_topic": "ubirch/test/upps"
+}

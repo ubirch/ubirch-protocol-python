@@ -8,7 +8,7 @@ signed = 0x22
 chained = 0x23
 
 usage = " usage:\n" \
-        " python3 ./unpack.py [ <binary-file-name> | <UPP(hex)> | <UPP(base64)> ]"
+        " python3 unpack.py [ <binary-file-name> | <UPP(hex)> | <UPP(base64)> ]"
 
 if len(sys.argv) < 2:
     print(usage)
@@ -55,7 +55,7 @@ else:  # version 2 (and all future versions to come)
             print("invalid UPP version, currently only supported version 1 and 2")
             print(usage)
             sys.exit(1)
-            
+
     except Exception:
         print("invalid msgpack")
         print(usage)

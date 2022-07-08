@@ -8,9 +8,13 @@
 *.sig
 *.jks
 *.egg-info
+.vscode
 build
 dist
 /venv*
 Gemfile.lock
 docs/_site/
 docs/doxygen/html/
+jwt_token.txt
+# ignore pickled statistics data:
+*.pckl
