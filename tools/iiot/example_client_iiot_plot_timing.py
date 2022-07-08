@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 # check for timing data written by actuator/client and display it
 print("checking for external statistic files...")
 statistics = {}
-for file in os.listdir("."):
+for file in os.listdir("../../examples"):
     if file.endswith(".pckl"):
         print(f"loading {file}")
         with open(file, 'rb') as handle:
