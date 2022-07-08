@@ -24,6 +24,7 @@ import unittest
 from uuid import UUID
 
 import ed25519
+import ecdsa
 
 import ubirch
 from ubirch.ubirch_protocol import SIGNED, CHAINED
@@ -93,10 +94,26 @@ class Protocol(ubirch.Protocol):
     vk = ed25519.VerifyingKey(TEST_PUBL)
 
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
-        return self.sk.sign(message)
+        if isinstance(self.sk, ecdsa.SigningKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(self.sk, ed25519.SigningKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Signing Key is neither ed25519, nor ecdsa!"))    
+        
+        return self.sk.sign(final_message)
 
     def _verify(self, uuid: UUID, message: bytes, signature: bytes):
-        return self.vk.verify(signature, message)
+        if isinstance(self.vk, ecdsa.VerifyingKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(self.vk, ed25519.VerifyingKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Verifying Key is neither ed25519, nor ecdsa!"))    
+         
+        return self.vk.verify(signature, final_message)
 
 
 class TestUbirchProtocol(unittest.TestCase):

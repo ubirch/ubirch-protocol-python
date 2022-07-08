@@ -1,8 +1,10 @@
+##
+# @file ubirch_api.py
 # ubirch API
 #
 # @author Matthias L. Jugel
 #
-# Copyright (c) 2018 ubirch GmbH.
+# @copyright Copyright (c) 2018 ubirch GmbH.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,9 +36,14 @@ DATA_SERVICE = "data"
 
 
 class API(object):
-    """ubirch API accessor methods."""
+    """! Ubirch API accessor methods"""
 
     def __init__(self, env="demo", debug=False) -> None:
+        """!
+        Initialize the API
+        @param env Can be one of [prod, demo, dev]
+        @param debug Print debug output?
+        """
         super().__init__()
         self._auth = {}
 
@@ -56,9 +63,17 @@ class API(object):
         }
 
     def get_url(self, service: str) -> str or None:
+        """!
+        @param service Can be one of [prod, demo, dev]
+        @return URL of this service
+        """
         return self._services.get(service, None)
 
     def set_authentication(self, uuid: UUID, auth: str or None):
+        """!
+        @param uuid The UUID of the authentication to add
+        @param auth The auth key / password of the ubirch 'thing'
+        """
         if auth is not None:
             self._auth[uuid] = auth
 
@@ -72,10 +87,10 @@ class API(object):
         return headers
 
     def is_identity_registered(self, uuid: UUID) -> bool:
-        """
+        """!
         Check if this identity is registered with the backend.
-        :param uuid: the UUID of the identity to check
-        :return: true if the identity exists
+        @param uuid The UUID of the identity to check
+        @return True If the identity exists
         """
         logger.debug("is identity registered?: {}".format(uuid))
         r = requests.get(self.get_url(KEY_SERVICE) + "/current/hardwareId/" + str(uuid))
@@ -83,10 +98,10 @@ class API(object):
         return r.status_code == requests.codes.ok and r.json()
 
     def register_identity(self, key_registration: bytes) -> Response:
-        """
+        """!
         Register an identity with the backend.
-        :param key_registration: the key registration data
-        :return: the response from the server
+        @param key_registration The key registration data
+        @return The response from the server
         """
         if key_registration.startswith(b'{'):
             return self._register_identity_json(json.loads(bytes.decode(key_registration)))
@@ -107,10 +122,10 @@ class API(object):
         return r
 
     def deregister_identity(self, key_deregistration: bytes) -> Response:
-        """
+        """!
         De-register an identity at the backend. Deletes the public key.
-        :param key_deregistration: the public key signed
-        :return: the response from the server
+        @param key_deregistration The public key signed
+        @return The response from the server
         """
         if key_deregistration.startswith(b'{'):
             return self._deregister_identity_json(json.loads(bytes.decode(key_deregistration)))
@@ -127,23 +142,33 @@ class API(object):
         raise NotImplementedError("msgpack identity deregistration not supported yet")
 
     def trust_identity_json(self, signed_trust: dict) -> Response:
+        """!
+        Trust a new identity
+        @param signed_trust Dictionary containing the identity details
+        @return The response from the server
+        """
         logger.debug("trust an identity [json]: {}".format(signed_trust))
         r = requests.post(self.get_url(KEY_SERVICE) + '/trust', json=signed_trust)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def get_trusted_identities_json(self, get_trusted: dict) -> Response:
+        """!
+        Get the trusted identities as a list in JSON format
+        @param get_trusted Dictionary containing the identity details
+        @return The response from the server
+        """
         logger.debug("get trusted identities [json]: {}".format(get_trusted))
         r = requests.get(self.get_url(KEY_SERVICE) + '/trusted', json=get_trusted)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
     def send(self, uuid: UUID, data: bytes) -> Response:
-        """
+        """!
         Send data to the ubirch authentication service (Niomon). Requires encoding before sending.
-        :param uuid: the sender's UUID
-        :param data: the msgpack or JSON encoded data to send
-        :return: the response from the server
+        @param uuid The sender's UUID
+        @param data The msgpack or JSON encoded data to send
+        @return The response from the server
         """
         if data.startswith(b'{'):
             return self._send_json(uuid, json.loads(bytes.decode(data)))
@@ -171,12 +196,12 @@ class API(object):
         return r
 
     def verify(self, data: bytes, quick=False) -> Response:
-        """
+        """!
         Verify a given hash with the ubirch backend. Returns all available verification
         data.
-        :param data: the hash of the message to verify
-        :param quick: only run quick check to verify that the hash has been stored in backend
-        :return: if the verification was successful and the data related to it
+        @param data The hash of the message to verify
+        @param quick Only run quick check to verify that the hash has been stored in backend
+        @return If the verification was successful and the data related to it
         """
         logger.debug("verifying hash: {}".format(base64.b64encode(data).decode()))
         url = self.get_url(VERIFICATION_SERVICE)
@@ -189,11 +214,11 @@ class API(object):
         return r
 
     def send_data(self, uuid: UUID, data: bytes) -> Response:
-        """
+        """!
         Send data to the ubirch data service. Requires encoding before sending.
-        :param uuid: the sender's UUID
-        :param data: the msgpack or JSON encoded data to send
-        :return: the response from the server
+        @param uuid The sender's UUID
+        @param data The msgpack or JSON encoded data to send
+        @return The response from the server
         """
         if data.startswith(b'{'):
             return self._send_data_json(uuid, data)

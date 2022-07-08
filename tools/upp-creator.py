@@ -387,10 +387,6 @@ class Main:
                 if self.nostdout == False:
                     logger.info("Generating a key registration UPP for UUID \"%s\"" % self.uuid_str)
 
-                # check whether ecdsa is used (currently not supported)
-                if self.ecdsa == True:
-                    raise(NotImplementedError("Generating KeyReg UPPs with ECDSA keys is currently not supported. Please use the X.509 registrator."))
-
                 self.upp = self.proto.message_signed(self.uuid, ubirch.ubirch_protocol.UBIRCH_PROTOCOL_TYPE_REG, self.keystore.get_certificate(self.uuid))
                 pass
             else:
