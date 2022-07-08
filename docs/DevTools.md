@@ -133,6 +133,7 @@ The script allows multiple modes of operation, which can be set through differen
 - `--isjson/-j` A binary flag that indicates that the input data is in JSON format. The script will serialize the JSON object before calculating the hash. This has the advantage one doesn't have to remember the order in which fields are listed in a JSON object to still be able to reconstruct the hash later on. Serializing the JSON is done like explained above in [Data Format](#data-format). This flag can have two values: `true` or `false`.
 - `--output/-o` Tells the script where to write the generated UPP to.
 - `--nostdout/-n` Binary flag to disable printing of any log messages to standard output. This can be used for piping a created UPP to another program. For this `--output /dev/stdout` would have to be set.
+- `--ecdsa/-c` Tells the script to generate an ECDSA keypair instead of an ED25519 keypair in case no keypair was found for the specified UUID. The used curve will be NIST256p and the hash algorithm will be SHA256.
 - `UUID` The UUID of the device as a hex-string, like `f5ded8a3-d462-41c4-a8dc-af3fd072a217`.
 - `DATA` The data that is going to be hashed. If `--isjson true` is provided, it has to be a string representing a valid JSON object. **Note** that even though this argument will be ignored when `--keyreg true` is set, it must still exist.
 
