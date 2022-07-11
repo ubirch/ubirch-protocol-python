@@ -31,7 +31,7 @@ from ubirch.ubirch_api import KEY_SERVICE, NIOMON_SERVICE, VERIFICATION_SERVICE
 logger = logging.getLogger(__name__)
 
 # test fixtures
-TEST_ENV_KEY_SERVICE = "https://key.{}.ubirch.com/api/keyService/v1/pubkey"
+TEST_ENV_KEY_SERVICE = "https://identity.{}.ubirch.com/api/keyService/v1/pubkey"
 TEST_ENV_NIOMON_SERVICE = "https://niomon.{}.ubirch.com/"
 TEST_ENV_VERIFIER_SERVICE = "https://verify.{}.ubirch.com/api/upp"
 
