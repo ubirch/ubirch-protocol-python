@@ -1,9 +1,7 @@
 import sys
-import time
 import argparse
 import logging
 import msgpack
-import uuid
 import base64
 import json
 import requests

@@ -1,10 +1,7 @@
 import binascii
-import hashlib
-import json
 import logging
 import pickle
 import sys
-import time
 import random
 import msgpack
 import argparse

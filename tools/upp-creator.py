@@ -1,10 +1,8 @@
 import binascii
-import hashlib
 import json
 import logging
 import pickle
 import sys
-import time
 import ed25519
 import ecdsa
 import hashlib

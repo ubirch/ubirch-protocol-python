@@ -8,7 +8,6 @@ import ecdsa
 import binascii
 import json
 import base64
-import msgpack
 import hashlib
 
 import ubirch

@@ -1,9 +1,6 @@
 import sys
 import logging
 import argparse
-import msgpack
-import requests
-import binascii
 import uuid
 
 import ubirch
