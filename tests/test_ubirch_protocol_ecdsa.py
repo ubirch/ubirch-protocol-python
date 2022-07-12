@@ -300,44 +300,47 @@ class TestUbirchProtocolECDSA(unittest.TestCase):
 
 
 class TestUbirchProtocolSIM(unittest.TestCase):
-    # def test_verify_registration_message_sim_v1(self):
-    #     loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    #     with open(os.path.join(loc, "v1.0-ecdsa-register.mpack"), "rb") as f:
-    #         message = f.read()
+    @unittest.expectedFailure
+    def test_verify_registration_message_sim_v1(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        with open(os.path.join(loc, "v1.0-ecdsa-register.mpack"), "rb") as f:
+            message = f.read()
 
-    #     vk = "06784eaaf180c1091a135bfe4804306f696fc56a4a75d12e269bfcafb67498d5a963fb72aaaca9fa3209bdf9b34d249c493bd5cd0a4d3763e425c8f461af50a5"
-    #     p = Protocol()
-    #     p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(vk), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+        vk = "06784eaaf180c1091a135bfe4804306f696fc56a4a75d12e269bfcafb67498d5a963fb72aaaca9fa3209bdf9b34d249c493bd5cd0a4d3763e425c8f461af50a5"
+        p = Protocol()
+        p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(vk), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
 
-    #     unpacked = p.unpack_upp(message)
+        unpacked = p.unpack_upp(message)
 
-    #     self.assertEqual(p.verfiy_signature(None, bytearray(message)), True)
-    #     self.assertEqual(vk, binascii.hexlify(unpacked[3][b'pubKey']).decode())
+        self.assertEqual(p.verfiy_signature(None, bytearray(message)), True)
+        self.assertEqual(vk, binascii.hexlify(unpacked[3][b'pubKey']).decode())
 
-    # def test_verify_signed_message_sim_v1(self):
-    #     loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    #     with open(os.path.join(loc, "v1.0-ecdsa-message.mpack"), "rb") as f:
-    #         message = f.read()
+    @unittest.expectedFailure
+    def test_verify_signed_message_sim_v1(self):
+        loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        with open(os.path.join(loc, "v1.0-ecdsa-message.mpack"), "rb") as f:
+            message = f.read()
 
-    #     vk = "06784eaaf180c1091a135bfe4804306f696fc56a4a75d12e269bfcafb67498d5a963fb72aaaca9fa3209bdf9b34d249c493bd5cd0a4d3763e425c8f461af50a5"
-    #     p = Protocol()
-    #     p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(vk), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+        vk = "06784eaaf180c1091a135bfe4804306f696fc56a4a75d12e269bfcafb67498d5a963fb72aaaca9fa3209bdf9b34d249c493bd5cd0a4d3763e425c8f461af50a5"
+        p = Protocol()
+        p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(vk), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
 
-    #     unpacked = p.unpack_upp(message)
-    #     logger.debug(repr(unpacked))
+        unpacked = p.unpack_upp(message)
+        logger.debug(repr(unpacked))
 
-    #     self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytearray(message)), True)
-    #     self.assertEqual(hashlib.sha256(b"UBIRCH").digest(), unpacked[3])
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytearray(message)), True)
+        self.assertEqual(hashlib.sha256(b"UBIRCH").digest(), unpacked[3])
 
-    # def test_verify_registration_message_sim_v2(self):
-    #     p = Protocol()
-    #     p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(self.vkhex), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+    @unittest.expectedFailure
+    def test_verify_registration_message_sim_v2(self):
+        p = Protocol()
+        p.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(self.vkhex), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
 
-    #     unpacked = p.unpack_upp(message)
-    #     logger.debug(repr(unpacked))
+        unpacked = p.unpack_upp(message)
+        logger.debug(repr(unpacked))
 
-    #     self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), message), True)
-    #     self.assertEqual(vk, binascii.hexlify(unpacked[3]['pubKey']).decode())
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), message), True)
+        self.assertEqual(vk, binascii.hexlify(unpacked[3]['pubKey']).decode())
 
     def test_verify_signed_message_sim_v2(self):
         p = Protocol()
@@ -356,7 +359,7 @@ class TestUbirchProtocolSIM(unittest.TestCase):
 
             # check the payload
             self.assertEqual(upp[1], unpacked[3])
-    
+
     def test_verify_chained_message_sim_v2(self):
         p = Protocol()
         p.vk = _vk_bytes_to_vk(SIM_CHAINED_UPPS_PUB)
