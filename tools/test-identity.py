@@ -21,6 +21,9 @@ import json
 import logging
 import os
 from uuid import UUID
+import ecdsa
+import ed25519
+import hashlib
 
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG
@@ -35,7 +38,17 @@ class Proto(ubirch.Protocol):
         self.__ks = key_store
 
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
-        return self.__ks.find_signing_key(uuid).sign(message)
+        signing_key = self.__ks.find_signing_key(uuid)
+        
+        if isinstance(signing_key, ecdsa.SigningKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(signing_key, ed25519.SigningKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Signing Key is neither ed25519, nor ecdsa!"))    
+        
+        return signing_key.sign(final_message)
 
 
 if None in (os.getenv("UBIRCH_UUID"), os.getenv("UBIRCH_AUTH"), os.getenv("UBIRCH_ENV")):

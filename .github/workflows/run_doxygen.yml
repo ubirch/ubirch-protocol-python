@@ -1,0 +1,43 @@
+name: Deploy documentation and run tests
+on: [push, pull_request]
+jobs:
+  gen_and_deploy_doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ''
+          
+      - name: Generate doc with Doxygen
+        uses: mattnotmitt/doxygen-action@1.9.1
+        with:
+          working-directory: 'docs/doxygen'
+          doxyfile-path: './Doxyfile'
+      
+      - name: Deploy to func-doc repo
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+         publish_dir: docs/doxygen/html
+         external_repository: ubirch/function_documentation
+         personal_token: ${{ secrets.PERSONAL_TOKEN }}
+         publish_branch: master
+         destination_dir: ${{ github.event.repository.name }}
+
+
+  run_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Python 3
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.6
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.test.txt -r requirements.txt .
+
+      - name: Run tests with pytest
+        run: pytest

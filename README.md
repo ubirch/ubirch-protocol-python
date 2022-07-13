@@ -1,183 +1,161 @@
-# ubirch-protocol for python
+[**Documentation and examples**](https://developer.ubirch.com/ubirch-protocol-python/)
 
-This is an implementation of the [ubirch-protocol](https://github.com/ubirch/ubirch-protocol)
-for [Python 3](https://www.python.org/). Please see [ubirch-protocol](https://github.com/ubirch/ubirch-protocol)
-for details.
+[**Function Documentation**](https://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
 
-The library consists of three parts which can be used individually:
+---
 
-* `ubirch.API` - a python layer covering the ubirch backend REST API
-* `ubirch.Protocol` - the protocol compiler which packages messages and handles signing and verification
-* `ubirch.KeyStore` - a simple key store based on [pyjks](https://pypi.org/project/pyjks/) to store keys and certificates
+<!-- WHEN EDITING THIS FILE:
+  The Getting Started and the README have the same content. 
+  But for GitHub to render it as the repo description and GitHub Pages (Jekyll) to be able to find it, there need to be two.
+  The links are different in some places, so please don't just copy and paste everything while doing changes.
+-->
 
-> the [ubirch](https://ubirch.com) protocol uses the [Ed25519](https://ed25519.cr.yp.to/) signature scheme by default.
- 
-## Usage
+<p align="center">
+    <a href="#installation">Installation</a> •
+    <a href="#setup">Setup</a> •
+    <a href="#a-minimal-application">A minimal application</a>
+</p>
 
-Install the library: `pip install ubirch-protocol`
-  
-### Creating keypair and messages
+---
 
-```python
-import ubirch
-from uuid import UUID
-import binascii
+This repository contains a library providing an implementation of
+the [Ubirch-protocol](https://github.com/ubirch/ubirch-protocol) in **Python 3**.
 
-# create a keystore for the device keypair
-keystore = ubirch.KeyStore("demo-device.jks", "keystore")
+That, along with the helper classes `KeyStore` and `API`. These can be used to handle cryptographic keys and to
+communicate with the Ubirch backend.
 
-# create a UUID that identifies the device and load or create a keypair
-uuid = UUID(hex="575A5601FD744F8EB6AEEF592CDEE12C")
-if not keystore.exists_signing_key(uuid):
-    keystore.create_ed25519_keypair(uuid)
+Additionally, you will find the raw documentation files rendered to
+the [documentation pages](https://developer.ubirch.com/ubirch-protocol-python/).
 
-# implement the _sign method of the ubirch.Protocol to use the just created keys to sign the message
-class ProtocolImpl(ubirch.Protocol):
-    def _sign(self, uuid: UUID, message: bytes) -> bytes:
-        return keystore.find_signing_key(uuid).sign(message)        
+## Installation
 
-# create an instance of the ubirch protocol
-proto = ProtocolImpl()
+Optionally create environment to install to:
 
-# create ubirch protocol messages
-print(binascii.hexlify(proto.message_chained(uuid, 0x00, [1, 2, 3])))
-print(binascii.hexlify(proto.message_chained(uuid, 0x00, [4, 5, 6])))
-```
- 
-### Sending messages using the ubirch API
+`$ python -m venv venv`
 
-Please see [test-protocol.py](examples/test-protocol.py) for a comprehensive example, how to create a device and
-send data. Below is a snipped that will send two chained messages, using a generic key/value payload.
+`$ . venv/bin/activate`
 
-You will need a password for the ubirch backend. Go to https://console.demo.ubirch.com to register your UUID 
-under `Things`. Then click on your device and copy the password from the `apiConfig`-field.
+Install the requirements and Ubirch library using pip:
 
-```python
-import ubirch
-from uuid import UUID
-import binascii
-from datetime import datetime
+`$ pip install -r requirements.txt`
 
-# create a keystore for the device key pair
-keystore = ubirch.KeyStore("demo-device.jks", "keystore")
+`$ pip install ubirch-protocol`
 
-# create a UUID that identifies the device and load or create a key pair
-uuid = UUID(hex="575A5601FD744F8EB6AEEF592CDEE12C")
-if not keystore.exists_signing_key(uuid):
-    keystore.create_ed25519_keypair(uuid)
+> The required version of the `ubirch-protocol` package to run the provided scripts is `3.1.0`.
+> Currently this version can only be installed through a [local install](docs/NotPip.md).
 
+If you want to install from another source than pip, follow along [here](docs/NotPip.md).
 
-# implement the _sign method of the ubirch.Protocol
-class ProtocolImpl(ubirch.Protocol):
-    def _sign(self, _uuid: UUID, message: bytes) -> bytes:
-        return keystore.find_signing_key(uuid).sign(message)
+## Setup
 
+Before anything, you will need to do/get a couple of things:
 
-# create an instance of the ubirch protocol
-proto = ProtocolImpl()
+- Open up the [Ubirch Console](https://console.demo.ubirch.com) (`'demo'` stage)
+  - For guidance, check out the [Ubirch console documentation](https://developer.ubirch.com/console.html)
+  - First register to get an account
+  - Then Create a "Thing":
+    - Using a UUID generated with a [UUID-Generator](https://www.uuidgenerator.net/)
+  - You will be using the shown UUID (ID) and the generated Auth-Token (password) from now on
+- Come up or [generate](https://www.random.org/passwords/) a password for the KeyStore, which is where public and
+  private Keys will be stored locally
 
-# create an instance of the ubirch API and set the password
-api = ubirch.API()
-api.set_authentication(uuid, "<< password for the ubirch backend >>")  # register your UUID at https://console.demo.ubirch.com and retrieve your password
+> Open up the [Getting started](https://developer.ubirch.com/ubirch-protocol-python/GettingStarted.html) on
+> the [Documentation and Examples](https://developer.ubirch.com/ubirch-protocol-python/) pages or continue below.
 
-# message 1
-msg = proto.message_chained(uuid, 0x53, {'ts': int(datetime.utcnow().timestamp()), 'v': 99})
-print(binascii.hexlify(msg))
-# send message to ubirch backend
-r = api.send(uuid, msg)
-print("{}: {}".format(r.status_code, r.content))
+### Now you should have the following at hand:
 
-# message 2 (chained to message 1)
-msg = proto.message_chained(uuid, 0x53, {"ts": int(datetime.utcnow().timestamp()), "v": 100})
-print(binascii.hexlify(msg))
-# send message to ubirch backend
-r = api.send(uuid, msg)
-print("{}: {}".format(r.status_code, r.content))
-```
-
-### Verification of received message
+Our [Ubirch API](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
+authentication with an uuid and a password:
 
 ```python
-import ubirch
-from ed25519 import VerifyingKey, BadSignatureError
 from uuid import UUID
 
-remote_uuid = UUID(hex="9d3c78ff22f34441a5d185c636d486ff")
-remote_vk = VerifyingKey("a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66", encoding='hex')
-
-# create a keystore and insert the verifying key
-keystore = ubirch.KeyStore("demo-device.jks", "keystore")
-keystore.insert_ed25519_verifying_key(remote_uuid, remote_vk)
-
-# implement the _verify method of the ubirch.Protocol
-class ProtocolImpl(ubirch.Protocol):
-    def _verify(self, uuid: UUID, message: bytes, signature: bytes) -> dict:
-        return keystore.find_verifying_key(uuid).verify(signature, message)
-
-# create an instance of the ubirch protocol
-proto = ProtocolImpl()
-
-message = bytes.fromhex(
-    "9623c4109d3c78ff22f34441a5d185c636d486ffc440a5b371acdfc8495790ee86802399585da50401b0d3c87f60946719338eb0283d36c0bac9b8a6a75a5385342e62932335da988b97c0ec211556db082e9f8478070081a76d657373616765bf796f7572207265717565737420686173206265656e207375626d6974746564c440c8529623a4c2335f7a8ae1eeea655768d2e9a0df141f481ced557c9dac7216e8f64ca9f6970fc6c1096ed49bcc6f7fa77d8f85d05bff5e1301588597edc9770e")
-
-# verify the message (throws an exception if the message could not be verified)
-try:
-    print(proto.message_verify(message))
-    print("verification successful!")
-except BadSignatureError as e:
-    print("ERROR: verification failed!")
+uuid = UUID(hex="f5ded8a3-d462-41c4-a8dc-af3fd072a217")
+auth = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
 
-### Existing keys
+And credentials for a [KeyStore](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
+to store your public and private key:
 
-In case you create a key pair from our demo website, use the following code to insert it into the key store:
+```python
+keystore_name = "devices.jks"
+keystore_password = "XXXXXXXXXXX"
+```
+
+## A minimal application
+
+The smallest Ubirch application looks something like this.
+
+*The code can be found in [`GettingStarted.py`](examples/GettingStarted.py) as well.*
+
+*Run it from your command prompt using `$ python examples/GettingStarted.py` or copy-paste the codeblocks.*
+
+Let's say we have got some environment-sensor data like:
+
+```python
+import time
+
+data = {
+    "timestamp": int(time.time()),
+    "temperature": 11.2,
+    "humidity": 35.8,
+    "status": "OK"
+}
+```
+
+To send a hash of the data to the Ubirch backend run these few lines inside of `examples/`:
 
 ```python
 import ubirch
-import ed25519
-import uuid
+from UbirchWrapper import UbirchWrapper
 
-hwDeviceId = uuid.uuid4()
-keystore = ubirch.KeyStore("demo-device.jks", "keystore")
-key_encoded = input("paste the encoded private key here:")
-sk = ed25519.SigningKey(key_encoded, encoding='hex')
-vk = sk.get_verifying_key() 
+# (1) Initialize an UbirchWrapper instance and pass the credentials for a `KeyStore`
+client = UbirchWrapper(uuid, auth, keystore_name, keystore_password)
 
-keystore.insert_ed25519_keypair(hwDeviceId, vk, sk)
+# (2) Check if the public key is registered at the Ubirch key service and register it if necessary
+client.checkRegisterPubkey()
+
+# (3) Create a chained Ubirch protocol packet (UPP) that contains a hash of the data 
+currentUPP = client.createUPP(data)
+
+# (4) Send the UPP to the Ubirch backend using the API and handle the response
+response = client.api.send(uuid, currentUPP)
+client.handleMessageResponse(response)
+
+# (5) Verify that the response came from the backend
+client.verifyResponseSender(response)
+
+# (6) Unpack the received UPP to get its previous signature 
+previousSignatureInUPP = client.extractPreviousSignature(response)
+
+# (7) Make sure it is the same as the UPP signature sent
+client.assertSignatureCorrect(previousSignatureInUPP)
+
+# (9) Persist signature: Save last signatures to a `.sig` file
+client.protocol.persist(uuid)
+
+print("Successfully sent the UPP and verified the response!")
 ```
 
-### Running the example
+*This example uses the example [UbirchWrapper](examples/UbirchWrapper.py) that helps to implement general repetitive
+tasks.*
 
-```bash
-python3 -m venv venv3
-. venv3/bin/activate
-pip install -r requirements.txt
-pip install ubirch-protocol
-PYTHONPATH=. python3 examples/test-protocol.py
-```
+> **Next:** Take a look at the Step-by-step-example on
+> the [Documentation Pages](https://developer.ubirch.com/ubirch-protocol-python/)
 
-At the first launch the script generates a random UUID for your device and you will be asked
-about the authentication token and the device group. You can safely ignore the device group, just press Enter.
-The script creates a file `demo-device.ini` which is loaded upon running the script again. If
-you need to change anything edit that file.
+## Testing
 
-The script goes through a number of steps:
-
-1. checks the existence of the device and deletes the device if it exists
-2. registers the device with the backend
-3. generates a new identity for that device and stores it in the key store
-4. registers the new identity with the backend
-5. sends two consecutive chained messages to the backend
-
-
-### Testing
-
-Unit tests are added to test the functionality of all objects provided in this library.
+Unit tests are added to test the functionality of objects provided in this library.
 
 ```bash
 pip install -r requirements.test.txt
-python3 -m pytest tests
-``` 
-# License 
+python -m pytest tests
+```
 
+## Ubirch Internal Documentation
 
+About the repository automation
+refer [here](https://ubirch.atlassian.net/wiki/spaces/UBD/pages/2342092819/Template+repository+for+better+documentation)
+.
+
+- If the deployment fails make sure the Personal access token is up-to-date

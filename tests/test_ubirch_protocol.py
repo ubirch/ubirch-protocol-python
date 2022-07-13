@@ -24,6 +24,7 @@ import unittest
 from uuid import UUID
 
 import ed25519
+import ecdsa
 
 import ubirch
 from ubirch.ubirch_protocol import SIGNED, CHAINED
@@ -48,6 +49,11 @@ EXPECTED_SIGNED_HASH = bytearray(bytes.fromhex(
     "577d12cb34b825988c9eb4a8d322dbd2ceb8b17c99ce3dd34295cf641ea312ee77"
     "c15a2c9b404a32d67abb414061b7639e1ea5a20ce90b"
 ))
+
+EXPECTED_SIGNED_UNPACKED = [
+    34, b'n\xacM\x0b\x16\xe6E\x08\x8cF"\xe7E\x1e\xa5\xa1', 239, 1, b'\xc8\xf1\xc1\x9f\xb6L\xa6\xec\xd6\x8a3k\xbf\xfb9\xe8\xf4\xe6\xeehm\xe7%\xce\x9e#\xf7iE\xfc-sKNw\xf9\xf0,\xb0\xbb-O\x8f\x8e6\x1e\xfc^\xa1\x003\xbd\xc7A\xa2L\xffM~\xb0\x8d\xb64\x0b'
+]
+
 
 # expected sequence of chained messages
 EXPECTED_CHAINED = [
@@ -88,14 +94,29 @@ class Protocol(ubirch.Protocol):
     vk = ed25519.VerifyingKey(TEST_PUBL)
 
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
-        return self.sk.sign(message)
+        if isinstance(self.sk, ecdsa.SigningKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(self.sk, ed25519.SigningKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Signing Key is neither ed25519, nor ecdsa!"))    
+        
+        return self.sk.sign(final_message)
 
     def _verify(self, uuid: UUID, message: bytes, signature: bytes):
-        return self.vk.verify(signature, message)
+        if isinstance(self.vk, ecdsa.VerifyingKey):
+            # no hashing required here
+            final_message = message
+        elif isinstance(self.vk, ed25519.VerifyingKey):
+            final_message = hashlib.sha512(message).digest() 
+        else: 
+            raise(ValueError("Verifying Key is neither ed25519, nor ecdsa!"))    
+         
+        return self.vk.verify(signature, final_message)
 
 
 class TestUbirchProtocol(unittest.TestCase):
-
     def test_sign_not_implemented(self):
         p = ubirch.Protocol()
         try:
@@ -106,9 +127,36 @@ class TestUbirchProtocol(unittest.TestCase):
     def test_verify_not_implemented(self):
         p = ubirch.Protocol()
         try:
-            p.message_verify(EXPECTED_SIGNED)
+            p.verfiy_signature(None, EXPECTED_SIGNED)
         except NotImplementedError as e:
             self.assertEqual(e.args[0], 'verification not implemented')
+
+    def test_get_unpacked_index(self):
+        p = Protocol()
+
+        # test indexes of signatures for unsigned messages
+        self.assertEqual(p.get_unpacked_index(0b0001, ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_SIG), -1)
+        self.assertEqual(p.get_unpacked_index(0b0001, ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_PREV_SIG), -1)
+        
+        # test indexes of signatures for signed messages
+        self.assertEqual(p.get_unpacked_index(0b0010, ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_SIG), 4)
+        self.assertEqual(p.get_unpacked_index(0b0010, ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_PREV_SIG), -1)
+
+        # test indexes of signatures for chained messages
+        self.assertEqual(p.get_unpacked_index(0b0011, ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_SIG), 5)
+        self.assertEqual(p.get_unpacked_index(0b0011, ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_PREV_SIG), 2)
+
+    def test_unpack_upp(self):
+        p = Protocol()
+
+        self.assertEqual(p.unpack_upp(EXPECTED_SIGNED), EXPECTED_SIGNED_UNPACKED)
+
+        BROKEN_EXPECTED_SIGNED = EXPECTED_SIGNED.copy()
+        BROKEN_EXPECTED_SIGNED[1] = 0
+
+        self.assertRaises(ValueError, p.unpack_upp, BROKEN_EXPECTED_SIGNED)
+
+        return
 
     def test_create_signed_message(self):
         p = Protocol()
@@ -137,7 +185,8 @@ class TestUbirchProtocol(unittest.TestCase):
 
     def test_verify_signed_message(self):
         p = Protocol()
-        unpacked = p.message_verify(EXPECTED_SIGNED)
+        unpacked = p.unpack_upp(EXPECTED_SIGNED)
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytes(EXPECTED_SIGNED)), True)
         self.assertEqual(SIGNED, unpacked[0])
         self.assertEqual(TEST_UUID.bytes, unpacked[1])
         self.assertEqual(0xEF, unpacked[2])
@@ -147,7 +196,8 @@ class TestUbirchProtocol(unittest.TestCase):
         p = Protocol()
         last_signature = b'\0' * 64
         for i in range(0, 3):
-            unpacked = p.message_verify(EXPECTED_CHAINED[i])
+            unpacked = p.unpack_upp(EXPECTED_CHAINED[i])
+            self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytes(EXPECTED_CHAINED[i])), True)
             self.assertEqual(CHAINED, unpacked[0])
             self.assertEqual(TEST_UUID.bytes, unpacked[1])
             self.assertEqual(last_signature, unpacked[2])
@@ -157,14 +207,6 @@ class TestUbirchProtocol(unittest.TestCase):
             last_signature = unpacked[5]
 
     # TODO add randomized message generation and verification
-
-    def test_verify_fails_missing_data(self):
-        p = Protocol()
-        message = EXPECTED_SIGNED[0:-67]
-        try:
-            p.message_verify(message)
-        except Exception as e:
-            self.assertEqual(e.args[0], "message format wrong (size < 70 bytes): {}".format(len(message)))
 
     def test_set_saved_signatures(self):
         p = Protocol()
@@ -200,6 +242,8 @@ class TestUbirchProtocol(unittest.TestCase):
         p.reset_signature(TEST_UUID)
         self.assertEqual({}, p.get_saved_signatures())
 
+    #disable the legacy trackle message test
+    """
     def test_unpack_legacy_trackle_message(self):
         loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
@@ -209,9 +253,12 @@ class TestUbirchProtocol(unittest.TestCase):
         class ProtocolNoVerify(ubirch.Protocol):
             def _verify(self, uuid: UUID, message: bytes, signature: bytes) -> bytes:
                 pass
-
+    
         p = ProtocolNoVerify()
-        unpacked = p.message_verify(message)
+   
+        unpacked = p.unpack_upp(message)
+   
+        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytes(EXPECTED_CHAINED[i])), True)
         self.assertEqual(CHAINED & 0x0f, unpacked[0] & 0x0f)
         self.assertEqual(UUID(bytes=bytes.fromhex("af931b05acca758bc2aaeb98d6f93329")), UUID(bytes=unpacked[1]))
         self.assertEqual(0x54, unpacked[3])
@@ -222,7 +269,7 @@ class TestUbirchProtocol(unittest.TestCase):
         self.assertEqual(3, payload[2])
         self.assertEqual(736, len(payload[3]))
         self.assertEqual(3519, payload[3].get(1533846771))
-        self.assertEqual(3914, payload[3].get(1537214378))
+        self.assertEqual(3914, payload[3].get(1537214378))"""
 
     def test_unpack_register_v1(self):
         loc = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -235,7 +282,9 @@ class TestUbirchProtocol(unittest.TestCase):
                 pass
 
         p = ProtocolNoVerify()
-        unpacked = p.message_verify(message)
+
+        unpacked = p.unpack_upp(message)
+
         self.assertEqual(SIGNED & 0x0f, unpacked[0] & 0x0f)
         self.assertEqual(1, unpacked[0] >> 4)
         self.assertEqual(UUID(bytes=bytes.fromhex("00000000000000000000000000000000")), UUID(bytes=unpacked[1]))
