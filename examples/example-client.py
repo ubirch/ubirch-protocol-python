@@ -1,3 +1,4 @@
+import base64
 import binascii
 import hashlib
 import json
@@ -49,6 +50,8 @@ class Proto(ubirch.Protocol):
         self.load(uuid)
 
         logger.info("ubirch-protocol: device id: {}".format(uuid))
+        logger.info("ubirch-protocol: public key: {}"
+                    .format((base64.b64encode(key_store.find_verifying_key(uuid).to_bytes()))))
 
     def persist(self, uuid: UUID):
         signatures = self.get_saved_signatures()
