@@ -99,6 +99,10 @@ if not api.is_identity_registered(uuid):
     r = api.register_identity(key_registration)
     if r.status_code == codes.ok:
         logger.info("{}: public key registered".format(uuid))
+        # wait briefly between key registration at the key service
+        # and sending the first UPP to the authentication service
+        # to make sure the public key is available for verification
+        time.sleep(1)
     else:
         logger.error("{}: registration failed".format(uuid))
         sys.exit(1)
