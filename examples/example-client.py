@@ -34,6 +34,7 @@ class Proto(ubirch.Protocol):
 
         # check if the device already has keys or generate a new pair
         if not keystore.exists_signing_key(uuid):
+            logger.info("creating new key pair for identity {}".format(uuid))
             keystore.create_ed25519_keypair(uuid)
 
         # check if the keystore already has the backend key for verification or insert verifying key
