@@ -18,9 +18,11 @@
 
 import logging
 import os
+from os import urandom
 import unittest
 import uuid
 from datetime import datetime
+import ecdsa, ed25519, hashlib
 
 import ubirch
 
@@ -28,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 # test fixtures
 TEST_KEYSTORE_FILE = "__test.jks"
+TEST_LOAD_KEYSTORE_FILE = "test_load_keystore.jks"
 TEST_PASSWORD = "abcdef12345"
 
 
@@ -41,6 +44,36 @@ class TestUbirchKeyStore(unittest.TestCase):
         ks.create_ed25519_keypair(uuid.uuid4())
         self.assertTrue(os.path.isfile(TEST_KEYSTORE_FILE), "KeyStore has not been saved")
         os.remove(TEST_KEYSTORE_FILE)
+
+    def test_load_keystore(self):
+        pass # test_load_keystore cannot be seperated with "unittest" module
+
+    def test_create_save_load_keystore(self):
+        ks = ubirch.KeyStore(TEST_LOAD_KEYSTORE_FILE, TEST_PASSWORD)
+        ks.create_ed25519_keypair(uuid.uuid4())
+        ks_load = ubirch.KeyStore(TEST_LOAD_KEYSTORE_FILE, TEST_PASSWORD)
+        self.assertIsInstance(ks_load, ubirch.KeyStore, "Keystore could not be loaded")
+        os.remove(TEST_KEYSTORE_FILE)
+
+    def test_insert_key_wrong_type_fails(self):
+        """
+        Give ed25519 keys to ecdsa functions and vice versa.
+        Assert that a TypeError is raised with a message complaining about the wrong type
+        """
+        ks = ubirch.KeyStore(TEST_LOAD_KEYSTORE_FILE, TEST_PASSWORD)
+        sk_ed25519, \
+        vk_ed25519 = ed25519.create_keypair(entropy=urandom)
+
+        sk_ecdsa = ecdsa.SigningKey.generate(curve=ecdsa.NIST256p, entropy=urandom, hashfunc=hashlib.sha256)
+        vk_ecdsa = sk_ecdsa.get_verifying_key()
+
+        with self.assertRaises(TypeError) as context:
+            ks.insert_ed25519_keypair(uuid.uuid4(), sk_ecdsa, vk_ecdsa)
+            self.assertIn(context.exception.args[0], "key provided is not a ")
+
+        with self.assertRaises(TypeError) as context:
+            ks.insert_ecdsa_keypair(uuid.uuid4(), sk_ed25519, vk_ed25519)
+            self.assertIn(context.exception.args[0], "key provided is not a ")
 
     def test_create_new_keypair(self):
         ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)

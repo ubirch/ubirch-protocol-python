@@ -183,7 +183,7 @@ class Protocol(object):
         return signature, self._serialize(msg)
 
     def keyreg_jsonstr_signed(self, uuid: UUID, keyinfo_dict: dict) -> str:
-        """
+        """!
         Takes a keyinfo-json-str and embeds into a signed json keyreg message.
         :param uuid: the uuid of the device the keyinfo belongs to
         :param keyinfo_dict: the public key info object

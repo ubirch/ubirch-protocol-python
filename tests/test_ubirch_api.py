@@ -48,6 +48,9 @@ class TestUbirchAPI(unittest.TestCase):
         self.assertEqual(TEST_ENV_NIOMON_SERVICE.format("test"), api.get_url(NIOMON_SERVICE))
         self.assertEqual(TEST_ENV_VERIFIER_SERVICE.format("test"), api.get_url(VERIFICATION_SERVICE))
 
+    def test_headers_set(self):
+        pass
+
     def test_create_api_with_debug(self):
         import http.client as http_client
 
@@ -72,11 +75,8 @@ class TestUbirchAPI(unittest.TestCase):
 
     @requests_mock.mock()
     def test_is_identity_registered_fails(self, mock):
-        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='')
-        try:
-            self.assertFalse(ubirch.API().is_identity_registered(uuid.uuid4()))
-        except JSONDecodeError as e:
-            pass
+        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{}')
+        self.assertFalse(ubirch.API().is_identity_registered(uuid.uuid4()))
 
     @requests_mock.mock()
     def test_register_identity_json(self, mock):
@@ -84,9 +84,19 @@ class TestUbirchAPI(unittest.TestCase):
         self.assertTrue(ubirch.API().register_identity(str.encode(json.dumps({}))))
 
     @requests_mock.mock()
+    def test_register_identity_json_fails(self, mock):
+        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{}', status_code='403')
+        self.assertEqual('403', ubirch.API().register_identity(str.encode(json.dumps({}))).status_code)
+
+    @requests_mock.mock()
     def test_register_identity_msgpack(self, mock):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
         self.assertTrue(ubirch.API().register_identity(msgpack.packb([1, 2, 3])))
+
+    @requests_mock.mock()
+    def test_register_identity_msgpack_fails(self, mock):
+        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{}', status_code='403')
+        self.assertEqual('403', ubirch.API().register_identity(msgpack.packb([1, 2, 3])).status_code)
 
     @requests_mock.mock()
     def test_deregister_identity_json(self, mock):
@@ -105,6 +115,14 @@ class TestUbirchAPI(unittest.TestCase):
         self.assertTrue(ubirch.API().send(TEST_UUID, str.encode(json.dumps({}))))
 
     @requests_mock.mock()
+    def test_send_json_fails(self, mock):
+        pass
+
+    @requests_mock.mock()
     def test_send_msgpack(self, mock):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
         self.assertTrue(ubirch.API().send(TEST_UUID, msgpack.packb([1,2,3])))
+
+    @requests_mock.mock()
+    def test_send_msgpack_fails(self, mock):
+        pass

@@ -101,6 +101,9 @@ class KeyStore(object):
         @param uuid The UUID of the device
         @param sk A `ed25519.SigningKey` like generated from `ed25519.create_keypair()`
         """
+        if (not isinstance(sk, ed25519.SigningKey)):
+            raise TypeError("key provided is not a ed25519.SigningKey")
+
         # encode the ED25519 private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
         private_key_info.setComponentByName('version', 'v1')
@@ -118,6 +121,9 @@ class KeyStore(object):
         @param uuid The UUID of the device
         @param vk A `ed25519.VerifyingKey` like generated from `ed25519.create_keypair()`
         """
+        if (not isinstance(vk, ed25519.VerifyingKey)):
+            raise TypeError("key provided is not a ed25519.VerifyingKey")
+
         self._ks.entries[uuid.hex] = ED25519Certificate(uuid.hex, vk)
 
     def insert_ed25519_keypair(self, uuid: UUID, vk: ed25519.VerifyingKey, sk: ed25519.SigningKey) -> (
@@ -129,6 +135,7 @@ class KeyStore(object):
         @param sk A `ed25519.SigningKey` like generated from `ed25519.create_keypair()`
         @return The verifying key and the signing key
         """
+
         if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
@@ -153,6 +160,9 @@ class KeyStore(object):
         @param uuid The UUID of the device
         @param sk A `ecdsa.SigningKey` like generated from `ecdsa.create_keypair()`
         """
+        if (not isinstance(sk, ecdsa.SigningKey)):
+            raise Exception("key provided is not a ecdsa.SigningKey")
+
         # encode the ECDSA private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
         private_key_info.setComponentByName('version', 'v1')
@@ -170,6 +180,9 @@ class KeyStore(object):
         @param uuid The UUID of the device
         @param vk A `ecdsa.VerifyingKey` like generated from `ecdsa.create_keypair()`
         """
+        if (not isinstance(vk, ecdsa.VerifyingKey)):
+            raise Exception("key provided is not a ecdsa.VerifyingKey")
+
         # store verifying key in certificate store
         # ecdsa VKs are marked with a "_ecd" suffix
         self._ks.entries[uuid.hex + '_ecd'] = ECDSACertificate(uuid.hex, vk)
