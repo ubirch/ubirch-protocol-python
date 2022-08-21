@@ -46,14 +46,19 @@ class TestUbirchKeyStore(unittest.TestCase):
         os.remove(TEST_KEYSTORE_FILE)
 
     def test_load_keystore(self):
-        pass # test_load_keystore cannot be seperated with "unittest" module
+        ks = ubirch.KeyStore(TEST_LOAD_KEYSTORE_FILE, TEST_PASSWORD)
+        self.assertIsInstance(ks_load, ubirch.KeyStore, "Keystore could not be loaded")
+        self.assertIsNotNone(ks_load.get_certificate(test_uuid), "Certificate could not be loaded")
 
     def test_create_save_load_keystore(self):
-        ks = ubirch.KeyStore(TEST_LOAD_KEYSTORE_FILE, TEST_PASSWORD)
-        ks.create_ed25519_keypair(uuid.uuid4())
-        ks_load = ubirch.KeyStore(TEST_LOAD_KEYSTORE_FILE, TEST_PASSWORD)
+        test_uuid = uuid.uuid4()
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        ks.create_ed25519_keypair(test_uuid)
+
+        ks_load = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
         self.assertIsInstance(ks_load, ubirch.KeyStore, "Keystore could not be loaded")
         os.remove(TEST_KEYSTORE_FILE)
+
 
     def test_insert_key_wrong_type_fails(self):
         """
