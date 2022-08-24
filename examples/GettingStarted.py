@@ -2,18 +2,20 @@
 # @file GettingStarted.py
 # Code accompanying the getting started guide at https://developer.ubirch.com/ubirch-protocol-python/GettingStarted.html
 
+import os
 import time
 from uuid import UUID
 
-import ubirch
 from UbirchWrapper import UbirchWrapper
 
-#== Setup Variables ==#
-uuid = UUID(hex = "f5ded8a3-d462-41c4-a8dc-af3fd072a217" )
-auth            = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+uuid = UUID(hex=os.getenv('UBIRCH_UUID'))
+auth = os.getenv("UBIRCH_AUTH")
 
-keystore_name     = "devices.jks"
+keystore_name = "devices.jks"
 keystore_password = "XXXXXXXXXXX"
+
+key_type = os.getenv("UBIRCH_ALGO", "ed25519")  # key_type can be 'ed25519' or 'ecdsa'
+env = os.getenv("UBIRCH_ENV", "demo")  # env can be 'prod', 'demo' or 'dev'
 
 #== Set up all parts of the Ubirch solution ==#
 
@@ -21,7 +23,7 @@ keystore_password = "XXXXXXXXXXX"
 # You can also use your own Key management tool instead.
 # When called with parameters 'keystore_name' and 'keystore_password' it directly creates the components
 #   Keystore, Protocol and API while initializing.
-client = UbirchWrapper(uuid, auth, keystore_name, keystore_password)
+client = UbirchWrapper(uuid, auth, keystore_name, keystore_password, key_type=key_type, env=env)
 
 # Check if the public key is registered at the Ubirch key service and register it if necessary
 client.checkRegisterPubkey()
