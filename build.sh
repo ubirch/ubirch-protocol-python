@@ -9,6 +9,7 @@ case $1 in
     PYTHONPATH=. python -m compileall ubirch tests examples
     ;;
   test)
+    pip --no-cache-dir install -r requirements.txt
     pip --no-cache-dir install -r requirements.test.txt
     python -m pytest --junit-xml test-report.xml tests
     python -c 'import xml.dom.minidom; print(xml.dom.minidom.parse("test-report.xml").toprettyxml())' > /tmp/report.xml
