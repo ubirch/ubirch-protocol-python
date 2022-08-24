@@ -50,6 +50,9 @@ if upp[1] >> 4 == 2:  # version 2
     unpacked = msgpack.unpackb(upp)
 elif upp[1] >> 4 == 1:  # version 1 (legacy)
     unpacked = msgpack.unpackb(upp, raw=True)
+elif upp[1] == 0xcd and upp[3] >> 4 == 1:  # version 1 trackle (legacy)
+    print("trackle message")
+    unpacked = msgpack.unpackb(upp, raw=True, strict_map_key=False)
 else:
     print("unsupported UPP version")
     print(usage)
@@ -76,6 +79,7 @@ payload = unpacked[-2]
 if type(payload) is bytes:
     print("-    Payload: {:s}".format(binascii.b2a_base64(payload, newline=False).decode()))
     print("       [hex]: {:s} ({:d} bytes)".format(binascii.hexlify(payload).decode(), len(payload)))
+    print("   requestID: {:s}".format(str(UUID(bytes=payload[:16]))))
 else:
     print("-    Payload: {:s}".format(repr(payload)))
 
