@@ -23,16 +23,40 @@ import unittest
 import uuid
 from datetime import datetime
 import ecdsa, ed25519, hashlib
+import random, math
+from scipy import special
 
 import ubirch
+from ubirch.ubirch_ks import ED25519Certificate, ECDSACertificate
 
 logger = logging.getLogger(__name__)
 
 # test fixtures
-TEST_KEYSTORE_FILE = "__test.jks"
+TEST_KEYSTORE_FILE = "test_keystore_direct_delete.jks"
 TEST_LOAD_KEYSTORE_FILE = "test_load_keystore.jks"
 TEST_PASSWORD = "abcdef12345"
 
+TEST_UUID_STRING = "4d9d5bfd-37c1-48ff-ad67-cb0385f3b7f5"
+TEST_UUID = uuid.UUID(TEST_UUID_STRING)
+#TEST_PRIV_ED25519 = bytes.fromhex("a6abdc5466e0ab864285ba925452d02866638a8acb5ebdc065d2506661301417")
+#TEST_PUBL_ED25519 = bytes.fromhex("b12a906051f102881bbb487ee8264aa05d8d0fcc51218f2a47f562ceb9b0d068")
+
+class TestED25519Certificate(unittest.TestCase):
+
+    def test_create_ed25519_cert(self):
+        sk, vk = ed25519.create_keypair(entropy=urandom)
+        self.assertIsInstance(ED25519Certificate(uuid.uuid4(), vk), ED25519Certificate)
+        # TODO generate keys from fixtures
+
+class TestECDSACertificate(unittest.TestCase):
+
+    def test_create_ecdsa_cert(self):
+        sk = ecdsa.SigningKey.generate(curve=ecdsa.NIST256p, entropy=urandom, hashfunc=hashlib.sha256)
+        vk = sk.get_verifying_key()
+        # TODO generate keys from fixtures
+        #  ecdsa.SigningKey.from_string(TEST_PRIV_ED25519, curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
+
+        self.assertIsInstance(ECDSACertificate(uuid.uuid4(), vk), ECDSACertificate)
 
 class TestUbirchKeyStore(unittest.TestCase):
 
@@ -47,8 +71,9 @@ class TestUbirchKeyStore(unittest.TestCase):
 
     def test_load_keystore(self):
         ks = ubirch.KeyStore(TEST_LOAD_KEYSTORE_FILE, TEST_PASSWORD)
-        self.assertIsInstance(ks_load, ubirch.KeyStore, "Keystore could not be loaded")
-        self.assertIsNotNone(ks_load.get_certificate(test_uuid), "Certificate could not be loaded")
+        self.assertIsInstance(ks, ubirch.KeyStore, "Keystore could not be loaded")
+        cert = ks.get_certificate(TEST_UUID)
+        self.assertIsNotNone(ks.get_certificate(TEST_UUID), "Certificate could not be loaded")  # Fails if tests are not run inside of tests/ folder
 
     def test_create_save_load_keystore(self):
         test_uuid = uuid.uuid4()
@@ -60,7 +85,7 @@ class TestUbirchKeyStore(unittest.TestCase):
         os.remove(TEST_KEYSTORE_FILE)
 
 
-    def test_insert_key_wrong_type_fails(self):
+    def test_insert_key_fails_wrong_type(self):
         """
         Give ed25519 keys to ecdsa functions and vice versa.
         Assert that a TypeError is raised with a message complaining about the wrong type
@@ -142,3 +167,45 @@ class TestUbirchKeyStore(unittest.TestCase):
         ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
         id = uuid.uuid4()
         self.assertIsNone(ks.get_certificate(id))
+
+class TestKeystoreSecurity(unittest.TestCase):
+    def test_random_bit_frequency(self):
+        p_val_limit = 0.01
+
+        def monobit(bin_data):
+            """
+            Note that this description is taken from the NIST documentation [1]
+            [1] http://csrc.nist.gov/publications/nistpubs/800-22-rev1a/SP800-22rev1a.pdf
+
+            The focus of this test is the proportion of zeros and ones for the entire sequence. The purpose of this test is
+            to determine whether the bit of ones and zeros in a sequence are approximately the same as would be expected
+            for a truly random sequence. This test assesses the closeness of the fraction of ones to 1/2, that is the bit
+            of ones and zeros ina  sequence should be about the same. All subsequent tests depend on this test.
+
+            :param bin_data: a binary string
+            :return: the p-value from the test
+            """
+            count = 0
+            # If the bit is 0 minus 1, else add 1
+            for bit in bin_data:
+                if bit == 0:
+                    count -= 1
+                elif bit == 1:
+                    count += 1
+                else:
+                    raise ValueError("Binary data must be 0 or 1")
+
+            # Calculate the p value
+            sobs = count / math.sqrt(len(bin_data))
+            p_val = special.erfc(math.fabs(sobs) / math.sqrt(2))
+            return p_val
+
+        random_bits = [random.randrange(2) for _ in range(1000)]
+        p_val_calc = monobit(random_bits)
+
+        self.assertGreater(p_val_calc, p_val_limit, "Random data did not pass Frequency (Monobit) test. (p_val_calc was smaller than p_val_limit)\n This means with 99% confidence that something is wrong, but in 1% of tests there is a false positive.\n Random data was :\n" + str(random_bits))
+
+        # if p_val_calc > p_val_limit:
+        #     print(">> Frequency Test: PASSED (P val > 0.01) -->", p_val_calc)
+        # else:
+        #     print(">> Frequency Test: NOT PASSED (P val < 0.01)  -->  ", p_val_calc)
