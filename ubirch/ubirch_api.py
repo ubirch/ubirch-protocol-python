@@ -95,7 +95,16 @@ class API(object):
         logger.debug("is identity registered?: {}".format(uuid))
         r = requests.get(self.get_url(KEY_SERVICE) + "/current/hardwareId/" + str(uuid))
         logger.debug("{}: {}".format(r.status_code, r.content))
-        return r.status_code == requests.codes.ok and r.json()
+        if json.loads(r.content) == []:
+            return False
+        else:
+            try:
+                r_uuid = json.loads(r.content)[0]['pubKeyInfo']['hwDeviceId']
+            except Exception as e:
+                logger.debug("identity is not registered: {} \n {}".format(uuid, e))
+                return False
+
+        return r.status_code == requests.codes.ok and UUID(r_uuid) == uuid
 
     def register_identity(self, key_registration: bytes) -> Response:
         """!
@@ -104,21 +113,21 @@ class API(object):
         @return The response from the server
         """
         if key_registration.startswith(b'{'):
-            return self._register_identity_json1((key_registration))
+            return self._register_identity_json((key_registration))
         else:
             return self._register_identity_mpack(key_registration)
 
-    def _register_identity_json1(self, key_registration: bytes) -> Response:
-        #logger.debug("register identity [json]: {}".format(key_registration))
+    def _register_identity_json(self, key_registration: bytes) -> Response:
+        logger.debug("register identity [json]: {}".format(key_registration))
         r = requests.post(self.get_url(KEY_SERVICE), data=key_registration)
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
-    def _register_identity_json(self, key_registration: dict) -> Response:
-        logger.debug("register identity [json]: {}".format(key_registration))
-        r = requests.post(self.get_url(KEY_SERVICE), json=key_registration)
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r
+    # def _register_identity_json(self, key_registration: dict) -> Response:
+    #     logger.debug("register identity [json]: {}".format(key_registration))
+    #     r = requests.post(self.get_url(KEY_SERVICE), json=key_registration)   # json instead of "data"
+    #     logger.debug("{}: {}".format(r.status_code, r.content))
+    #     return r
 
     def _register_identity_mpack(self, key_registration: bytes) -> Response:
         logger.debug("register identity [msgpack]: {}".format(binascii.hexlify(key_registration)))
@@ -127,6 +136,7 @@ class API(object):
         logger.debug("{}: {}".format(r.status_code, r.content))
         return r
 
+    #TODO check if is deprecated
     def deregister_identity(self, key_deregistration: bytes) -> Response:
         """!
         De-register an identity at the backend. Deletes the public key.

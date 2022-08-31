@@ -196,7 +196,7 @@ class Protocol(object):
             "signature": None # to be replaced with the signature over keyinfo_jsonstr
         }
 
-        print("HASHING: " + sorted_keyinfo)
+        logger.info("HASHING: " + sorted_keyinfo)
 
         keyreg_dict["signature"] = base64.b64encode(
             self._sign(
@@ -204,7 +204,7 @@ class Protocol(object):
             )
         ).decode("utf8")
 
-        print("HASHB64: " + base64.b64encode(keyreg_dict["signature"].encode("utf8")).decode("utf8"))
+        logger.info("HASHB64: " + base64.b64encode(keyreg_dict["signature"].encode("utf8")).decode("utf8"))
 
         return json.dumps(keyreg_dict, sort_keys=True, indent=None, separators=(",", ":"))
 
@@ -217,6 +217,12 @@ class Protocol(object):
         @param save_signature Save the signature of the created message so the next chained message contains it
         @return The encoded and signed message
         """
+        if not isinstance(uuid, UUID):
+            raise TypeError("uuid provided is not of type UUID")
+
+        if not str(payload).strip():
+            raise TypeError("message payload is empty")
+
         # we need to ensure we get a 16bit integer serialized (0xFF | version)
         # the 0xFF is replaced by 0x00 in the serialized code
         msg = [
@@ -243,6 +249,11 @@ class Protocol(object):
         @param payload The actual message payload
         @return The encoded and signed message
         """
+        if not isinstance(uuid, UUID):
+            raise TypeError("uuid provided is not of type UUID")
+
+        if not str(payload).strip():
+            raise TypeError("message payload is empty")
 
         # retrieve last known signature or null bytes
         last_signature = self._signatures.get(uuid, b'\0' * 64)
@@ -318,7 +329,7 @@ class Protocol(object):
                 # version 1 upp - 3 byte signature header
                 return (msgpackUPP[:-67], msgpackUPP[-64:])
             else:
-                raise ValueError("Invalid UPP version byte: %02x" % msgpack[1])
+                raise ValueError("Invalid UPP version byte: %02x" % msgpackUPP[1])
         except IndexError:
             raise ValueError("The UPP-msgpack is too short: %d bytes" % len(msgpackUPP))
 
@@ -342,13 +353,7 @@ class Protocol(object):
         return True
 
     def verfiy_signature(self, uuid: UUID, msgpackUPP: bytes) -> bool:
-        """!
+        """! @internal
         `verify_signature()` with typo for backwards compatability
-
-        Verify the integrity of the message and decode the contents
-        Raises an value error when the message is too short
-        @param uuid The uuid of the sender of the message
-        @param msgpackUPP The msgpack encoded message
-        @return The decoded message
         """
         return self.verify_signature(uuid, msgpackUPP)
