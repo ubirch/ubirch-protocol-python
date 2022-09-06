@@ -3,6 +3,23 @@
 python3 -m venv venv
 . ./venv/bin/activate
 
+function assertPrerequisites {
+    VERSION=v$(sed -n 's/^ *version.*=.*"\([^"]*\)".*/\1/p' pyproject.toml)
+    echo "package version set in pyproject.toml: $VERSION"
+
+    TAGGED=$(git describe --exact-match HEAD 2>&1)
+    BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    # check that we are on the master branch where we do releases
+    if [ "$BRANCH" != "master" ]; then
+      (>&2 echo "ERROR: not master branch ($BRANCH), aborted.")
+      exit -1
+    fi
+    if [ "$VERSION" != "$TAGGED" ]; then
+      (>&2 echo "ERROR: version does not match tag: '$VERSION' != '$TAGGED', aborted.")
+      exit -1
+    fi
+}
+
 case $1 in
   build)
     pip --no-cache-dir install -r requirements.txt
@@ -16,38 +33,13 @@ case $1 in
     mv /tmp/report.xml test-report.xml
     ;;
   package)
-    VERSION=v$(python setup.py --version 2>/dev/null)
-    TAGGED=$(git describe --exact-match HEAD 2>&1)
-    BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-    # check that we are on the master branch where we do releases
-    if [ "$BRANCH" != "master" ]; then
-      (>&2 echo "ERROR: not master branch ($BRANCH), aborted.")
-      exit -1
-    fi
-    if [ "$VERSION" == "$TAGGED" ]; then
-      pip --no-cache-dir install wheel
-      ./bin/create_package.sh
-    else
-      (>&2 echo "ERROR: version does not match tag: '$VERSION' != '$TAGGED', aborted.")
-      exit -1
-    fi
+    assertPrerequisites
+    ./bin/create_package.sh
     ;;
   push)
-    VERSION=v$(python setup.py --version 2>/dev/null)
-    TAGGED=$(git describe --exact-match HEAD 2>&1)
-    BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-    # check that we are on the master branch where we do releases
-    if [ "$BRANCH" != "master" ]; then
-      (>&2 echo "ERROR: not master branch ($BRANCH), aborted")
-      exit -1
-    fi
-    if [ "$VERSION" == "$TAGGED" ]; then
-      pip --no-cache-dir install twine
-      twine upload dist/*
-    else
-      (>&2 echo "ERROR: version does not match tag: '$VERSION' != '$TAGGED', aborted.")
-      exit -1
-    fi
+    assertPrerequisites
+    pip --no-cache-dir install twine
+    twine upload dist/*
     ;;
   *)
     echo "Usage: $0 { build | test | package | push }"
