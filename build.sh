@@ -3,6 +3,8 @@
 python3 -m venv venv
 . ./venv/bin/activate
 
+python3 -m pip install --upgrade pip
+
 function assertPrerequisites {
     VERSION=v$(sed -n 's/^ *version.*=.*"\([^"]*\)".*/\1/p' pyproject.toml)
     echo "package version set in pyproject.toml: $VERSION"
