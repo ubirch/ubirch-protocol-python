@@ -25,4 +25,4 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/ubirch/ubirch-protocol-python"
+"Source" = "https://github.com/ubirch/ubirch-protocol-python"
