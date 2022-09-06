@@ -38,12 +38,15 @@ case $1 in
     assertPrerequisites
     ./bin/create_package.sh
     ;;
-  push)
+  upload-testpypi)
     assertPrerequisites
-    pip --no-cache-dir install twine
-    twine upload dist/*
+    ./bin/upload_test_pypi.sh
+    ;;
+  upload-pypi)
+    assertPrerequisites
+    ./bin/upload_pypi.sh
     ;;
   *)
-    echo "Usage: $0 { build | test | package | push }"
+    echo "Usage: $0 { build | test | package | upload-testpypi | upload-pypi }"
     exit 1
 esac
