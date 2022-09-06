@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ubirch-protocol"
-version = "2.2.0"
+version = "3.0.1"
 authors = [
     { name = "Matthias L. Jugel", email = "matthias.jugel@ubirch.com" },
 ]
