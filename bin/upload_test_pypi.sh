@@ -1,3 +1,4 @@
 #! /bin/sh
-SCRIPT_DIR=`dirname $0`
-twine upload --repository-url https://test.pypi.org/legacy/ ${SCRIPT_DIR}/../dist/*
+SCRIPT_DIR=$(dirname "$0")
+python3 -m pip --no-cache-dir install --upgrade twine
+python3 -m twine upload --repository testpypi "${SCRIPT_DIR}"/../dist/*
