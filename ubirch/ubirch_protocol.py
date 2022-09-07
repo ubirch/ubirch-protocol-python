@@ -193,13 +193,14 @@ class Protocol(object):
             raise Exception("message format wrong (size < 70 bytes): {}".format(len(message)))
 
         if message[1] >> 4 == 2:  # version 2
-            legacy = False
+            unpacker = msgpack.Unpacker(raw=False)
         elif message[1] >> 4 == 1:  # version 1 (legacy)
-            legacy = True
+            unpacker = msgpack.Unpacker(raw=True)
+        elif message[1] == 0xcd and message[3] >> 4 == 1:  # version 1 trackle (legacy)
+            unpacker = msgpack.Unpacker(raw=True, strict_map_key=False)
         else:
             raise Exception("invalid input")
 
-        unpacker = msgpack.Unpacker(raw=legacy)
         unpacker.feed(message)
 
         unpacked = []

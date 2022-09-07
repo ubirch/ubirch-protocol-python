@@ -50,6 +50,9 @@ if upp[1] >> 4 == 2:  # version 2
     unpacked = msgpack.unpackb(upp)
 elif upp[1] >> 4 == 1:  # version 1 (legacy)
     unpacked = msgpack.unpackb(upp, raw=True)
+elif upp[1] == 0xcd and upp[3] >> 4 == 1:  # version 1 trackle (legacy)
+    print("trackle message")
+    unpacked = msgpack.unpackb(upp, raw=True, strict_map_key=False)
 else:
     print("unsupported UPP version")
     print(usage)
