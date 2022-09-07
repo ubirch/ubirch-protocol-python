@@ -10,7 +10,6 @@ authors = [
 ]
 description = "A ubirch-protocol implementation for python."
 readme = "README.md"
-license = { file = "LICENSE" }
 requires-python = ">=3.7"
 classifiers = [
     "Programming Language :: Python :: 3",
