@@ -3,6 +3,8 @@
 python3 -m venv venv
 . ./venv/bin/activate
 
+python3 -m pip install --upgrade pip
+
 function assertPrerequisites {
   VERSION=v$(python setup.py --version 2>/dev/null)
   TAGGED=$(git describe --exact-match HEAD 2>&1)
