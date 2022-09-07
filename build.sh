@@ -6,8 +6,8 @@ python3 -m venv venv
 python3 -m pip install --upgrade pip
 
 function assertPrerequisites {
-    VERSION=v$(sed -n 's/^ *version.*=.*"\([^"]*\)".*/\1/p' pyproject.toml)
-    echo "package version set in pyproject.toml: $VERSION"
+    VERSION=v$(python setup.py --version 2>/dev/null)
+    echo "package version: $VERSION"
 
     TAGGED=$(git describe --exact-match HEAD 2>&1)
     BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
