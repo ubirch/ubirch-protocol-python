@@ -10,3 +10,4 @@
 build
 dist
 /venv*
+test-report.xml
