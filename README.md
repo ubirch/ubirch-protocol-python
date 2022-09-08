@@ -180,4 +180,5 @@ python3 -m pytest tests
 ``` 
 # License 
 
+The protocol and its implementation are publicized under the [Apache License 2.0](LICENSE).
 
