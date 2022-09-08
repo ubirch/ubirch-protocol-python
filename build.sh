@@ -7,7 +7,7 @@ python3 -m pip install --upgrade pip
 
 function assertPrerequisites {
   VERSION=v$(python setup.py --version 2>/dev/null)
-  TAGGED=$(git describe --exact-match HEAD 2>&1)
+  TAGGED=$(git describe --tags --exact-match HEAD 2>&1)
   BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
   # check that we are on the master branch where we do releases
   if [ "$BRANCH" != "master" ]; then
