@@ -72,27 +72,20 @@ class TestUbirchKeyStore(unittest.TestCase):
         os.remove(TEST_KEYSTORE_FILE)
 
     def test_load_keystore(self):
-<<<<<<< HEAD
         """
         load a keystore saved in the tests folder.
         If called from outside of folder `tests/` try to find it inside `tests/`
         """
-        local_test_load_kestore_file = TEST_LOAD_KEYSTORE_FILE
+        local_test_load_keystore_file = TEST_LOAD_KEYSTORE_FILE
         # Has to be reinitialized to not change global fixtures
 
         if not os.path.exists(TEST_LOAD_KEYSTORE_FILE):
-            local_test_load_kestore_file = "tests/" + local_test_load_kestore_file
+            local_test_load_keystore_file = "tests/" + local_test_load_keystore_file
 
-        if os.path.exists(local_test_load_kestore_file):
-            ks_load = ubirch.KeyStore(local_test_load_kestore_file, TEST_PASSWORD)
+        if os.path.exists(local_test_load_keystore_file):
+            ks_load = ubirch.KeyStore(local_test_load_keystore_file, TEST_PASSWORD)
             self.assertIsInstance(ks_load, ubirch.KeyStore, "Keystore could not be loaded")
             self.assertIsNotNone(ks_load.get_certificate(TEST_LOAD_KEYSTORE_UUID), "Certificate could not be loaded. This can be caused by running the test from a wrong path.")
-=======
-        ks = ubirch.KeyStore(TEST_LOAD_KEYSTORE_FILE, TEST_PASSWORD)
-        self.assertIsInstance(ks, ubirch.KeyStore, "Keystore could not be loaded")
-        cert = ks.get_certificate(TEST_UUID)
-        self.assertIsNotNone(ks.get_certificate(TEST_UUID), "Certificate could not be loaded")  # Fails if tests are not run inside of tests/ folder
->>>>>>> 65a318462be416896432d2bdaae2f57e4e67e44e
 
     def test_create_save_load_keystore(self):
         test_uuid = uuid.uuid4()
