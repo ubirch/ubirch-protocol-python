@@ -23,12 +23,9 @@ import unittest
 import uuid
 from datetime import datetime
 import ecdsa, ed25519, hashlib
-<<<<<<< HEAD
 from uuid import UUID
-=======
 import random, math
 from scipy import special
->>>>>>> 65a318462be416896432d2bdaae2f57e4e67e44e
 
 import ubirch
 from ubirch.ubirch_ks import ED25519Certificate, ECDSACertificate
