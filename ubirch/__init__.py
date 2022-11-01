@@ -14,6 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .ubirch_ks import KeyStore
+from .ubirch_ks import KeyStore, ED25519Certificate, ECDSACertificate
 from .ubirch_protocol import Protocol
 from .ubirch_api import API

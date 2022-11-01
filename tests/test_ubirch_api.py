@@ -41,6 +41,7 @@ TEST_AUTH = "95DC841D-8E30-4DEC-B67F-563EEE7277D6"
 
 RESPONSE_IDENTITY_IS_REGISTERED = [{'pubKeyInfo': {'algorithm': 'ECC_ED25519', 'created': '2022-06-28T13:55:33.000Z', 'hwDeviceId': '4d9d5bfd-37c1-48ff-ad67-cb0385f3b7f5', 'pubKey': 'MtQF1vT4rjVAxxom/tdtqxDGEwTRDb/krZtDDW3E7nM=', 'pubKeyId': 'MtQF1vT4rjVAxxom/tdtqxDGEwTRDb/krZtDDW3E7nM=', 'validNotAfter': '2032-06-25T13:55:33.000Z', 'validNotBefore': '2022-06-28T13:55:33.000Z'}, 'signature': 'df78343c3d4e04e60aa99806ca3372cfd6bc90c6d695cb61b614ffd2f9790bfac59992ead6941cbc87a33bd9d86d4e346004ce8c9898bbe8c193fcc3edf69e0e'}]
 RESPONSE_IDENTITY_NOT_REGISTERED = []
+RESPONSE_IDENTITY_REGISTERED_WRONG_UUID = [{'pubKeyInfo': {'algorithm': 'ECC_ED25519', 'created': '2022-06-28T13:55:33.000Z', 'hwDeviceId': 'c7acea12-1ded-4c66-8672-fd4b1ceb0d8b', 'pubKey': 'MtQF1vT4rjVAxxom/tdtqxDGEwTRDb/krZtDDW3E7nM=', 'pubKeyId': 'MtQF1vT4rjVAxxom/tdtqxDGEwTRDb/krZtDDW3E7nM=', 'validNotAfter': '2032-06-25T13:55:33.000Z', 'validNotBefore': '2022-06-28T13:55:33.000Z'}, 'signature': 'df78343c3d4e04e60aa99806ca3372cfd6bc90c6d695cb61b614ffd2f9790bfac59992ead6941cbc87a33bd9d86d4e346004ce8c9898bbe8c193fcc3edf69e0e'}]
 
 # TODO this test class needs some more functional tests
 class TestUbirchAPI(unittest.TestCase):
@@ -74,20 +75,26 @@ class TestUbirchAPI(unittest.TestCase):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, json=RESPONSE_IDENTITY_IS_REGISTERED)
         is_registered_response = ubirch.API().is_identity_registered(TEST_UUID)
         self.assertTrue(is_registered_response)
-        self.assertEqual(TEST_UUID_STRING, is_registered_response[0]['pubKeyInfo']['hwDeviceId'])
 
     @requests_mock.mock()
-    def test_is_identity_registered_fails(self, mock):
+    def test_is_identity_registered_not_registered(self, mock):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, json=RESPONSE_IDENTITY_NOT_REGISTERED)
         self.assertFalse(ubirch.API().is_identity_registered(uuid.uuid4()))
 
     @requests_mock.mock()
+    def test_is_identity_registered_fails_wrong_uuid_in_response(self, mock):
+        mock.register_uri(requests_mock.ANY, requests_mock.ANY, json=RESPONSE_IDENTITY_REGISTERED_WRONG_UUID)
+        self.assertFalse(ubirch.API().is_identity_registered(TEST_UUID))
+
+    # TODO these tests arent that useful at all, they only test the requests_mock library
+    @requests_mock.mock()
     def test_register_identity_json(self, mock):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
         self.assertTrue(ubirch.API().register_identity(str.encode(json.dumps({}))))
+        #TODO check for response UPP
 
     @requests_mock.mock()
-    def test_register_identity_json_fails(self, mock):
+    def test_register_identity_json_fails(self, mock): # TODO other approach of failing tests
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{}', status_code='403')
         self.assertEqual('403', ubirch.API().register_identity(str.encode(json.dumps({}))).status_code)
 
@@ -106,11 +113,11 @@ class TestUbirchAPI(unittest.TestCase):
         mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
         self.assertTrue(ubirch.API().deregister_identity(str.encode(json.dumps({}))))
 
-    @unittest.expectedFailure
     @requests_mock.mock()
     def test_deregister_identity_msgpack(self, mock):
-        mock.register_uri(requests_mock.ANY, requests_mock.ANY, text='{"result":"OK"}')
-        self.assertTrue(ubirch.API().deregister_identity(msgpack.packb([1, 2, 3])))
+        with self.assertRaises(NotImplementedError) as context:
+            ubirch.API().deregister_identity(msgpack.packb([1, 2, 3]))
+            self.assertIn(context.exception.args[0], "msgpack identity deregistration not supported yet")
 
     @requests_mock.mock()
     def test_send_json(self, mock):
@@ -149,7 +156,6 @@ class TestUbirchAPI(unittest.TestCase):
     def test_headers_set_msgpack(self, mock):
         def check_headers_callback(request, context):
             headers = request.headers
-            self.assertEqual(headers['Content-Type'], 'application/json')
             self.assertEqual(headers['X-Ubirch-Hardware-Id'], TEST_UUID_STRING)
             self.assertEqual(headers['X-Ubirch-Credential'], base64.b64encode(TEST_AUTH.encode()).decode())
             self.assertEqual(headers['X-Ubirch-Auth-Type'], 'ubirch')
@@ -158,4 +164,4 @@ class TestUbirchAPI(unittest.TestCase):
 
         api = ubirch.API(env='demo')
         api.set_authentication(TEST_UUID, TEST_AUTH)
-        api.send(TEST_UUID, b'{"message": "test"}')
+        api.send(TEST_UUID, msgpack.packb([1,2,3]))
