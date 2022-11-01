@@ -158,4 +158,4 @@ About the repository automation
 refer [here](https://ubirch.atlassian.net/wiki/spaces/UBD/pages/2342092819/Template+repository+for+better+documentation)
 .
 
-- If the deployment fails make sure the Personal access token is up-to-date
+- If the deployment fails make sure the Personal [access token is up-to-date](https://ubirch.atlassian.net/wiki/spaces/UBD/pages/2342092819/Template+repository+for+better+documentation#Help!-The-deployment-was-unsuccessful)
