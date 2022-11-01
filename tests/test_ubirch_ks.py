@@ -23,6 +23,7 @@ import unittest
 import uuid
 from datetime import datetime
 import ecdsa, ed25519, hashlib
+from uuid import UUID
 
 import ubirch
 
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 # test fixtures
 TEST_KEYSTORE_FILE = "__test.jks"
 TEST_LOAD_KEYSTORE_FILE = "test_load_keystore.jks"
+TEST_LOAD_KEYSTORE_UUID = UUID(hex="02012531-60A5-412C-A36B-65720C1F4C10")
 TEST_PASSWORD = "abcdef12345"
 
 
@@ -46,9 +48,20 @@ class TestUbirchKeyStore(unittest.TestCase):
         os.remove(TEST_KEYSTORE_FILE)
 
     def test_load_keystore(self):
-        ks = ubirch.KeyStore(TEST_LOAD_KEYSTORE_FILE, TEST_PASSWORD)
-        self.assertIsInstance(ks_load, ubirch.KeyStore, "Keystore could not be loaded")
-        self.assertIsNotNone(ks_load.get_certificate(test_uuid), "Certificate could not be loaded")
+        """
+        load a keystore saved in the tests folder.
+        If called from outside of folder `tests/` try to find it inside `tests/`
+        """
+        local_test_load_kestore_file = TEST_LOAD_KEYSTORE_FILE
+        # Has to be reinitialized to not change global fixtures
+
+        if not os.path.exists(TEST_LOAD_KEYSTORE_FILE):
+            local_test_load_kestore_file = "tests/" + local_test_load_kestore_file
+
+        if os.path.exists(local_test_load_kestore_file):
+            ks_load = ubirch.KeyStore(local_test_load_kestore_file, TEST_PASSWORD)
+            self.assertIsInstance(ks_load, ubirch.KeyStore, "Keystore could not be loaded")
+            self.assertIsNotNone(ks_load.get_certificate(TEST_LOAD_KEYSTORE_UUID), "Certificate could not be loaded. This can be caused by running the test from a wrong path.")
 
     def test_create_save_load_keystore(self):
         test_uuid = uuid.uuid4()

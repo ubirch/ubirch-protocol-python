@@ -161,7 +161,7 @@ class KeyStore(object):
         @param sk A `ecdsa.SigningKey` like generated from `ecdsa.create_keypair()`
         """
         if (not isinstance(sk, ecdsa.SigningKey)):
-            raise Exception("key provided is not a ecdsa.SigningKey")
+            raise TypeError("key provided is not a ecdsa.SigningKey")
 
         # encode the ECDSA private key as PKCS#8
         private_key_info = rfc5208.PrivateKeyInfo()
@@ -181,7 +181,7 @@ class KeyStore(object):
         @param vk A `ecdsa.VerifyingKey` like generated from `ecdsa.create_keypair()`
         """
         if (not isinstance(vk, ecdsa.VerifyingKey)):
-            raise Exception("key provided is not a ecdsa.VerifyingKey")
+            raise TypeError("key provided is not a ecdsa.VerifyingKey")
 
         # store verifying key in certificate store
         # ecdsa VKs are marked with a "_ecd" suffix
