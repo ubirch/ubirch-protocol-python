@@ -196,7 +196,7 @@ class TestUbirchProtocolECDSA(unittest.TestCase):
     def test_verify_not_implemented(self):
         p = ubirch.Protocol()
         try:
-            p.verfiy_signature(NRM_SIGNED_UPPS_UUID, NRM_SIGNED_UPP[0])
+            p.verify_signature(NRM_SIGNED_UPPS_UUID, NRM_SIGNED_UPP[0])
         except NotImplementedError as e:
             self.assertEqual(e.args[0], 'verification not implemented')
 
@@ -280,7 +280,7 @@ class TestUbirchProtocolECDSA(unittest.TestCase):
         # first element of upp is the actual upp, second one is the payload
         for upp in NRM_CHAINED_UPPS:
             # verify the upp
-            self.assertEqual(p.verfiy_signature(NRM_CHAINED_UPPS_UUID, upp[0]), True)
+            self.assertEqual(p.verify_signature(NRM_CHAINED_UPPS_UUID, upp[0]), True)
 
             # unpack the upp
             unpacked = p.unpack_upp(upp[0])
@@ -312,7 +312,7 @@ class TestUbirchProtocolSIM(unittest.TestCase):
 
         unpacked = p.unpack_upp(message)
 
-        self.assertEqual(p.verfiy_signature(None, bytearray(message)), True)
+        self.assertEqual(p.verify_signature(None, bytearray(message)), True)
         self.assertEqual(vk, binascii.hexlify(unpacked[3][b'pubKey']).decode())
 
     @unittest.expectedFailure
@@ -328,7 +328,7 @@ class TestUbirchProtocolSIM(unittest.TestCase):
         unpacked = p.unpack_upp(message)
         logger.debug(repr(unpacked))
 
-        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), bytearray(message)), True)
+        self.assertEqual(p.verify_signature(UUID(bytes=unpacked[1]), bytearray(message)), True)
         self.assertEqual(hashlib.sha256(b"UBIRCH").digest(), unpacked[3])
 
     @unittest.expectedFailure
@@ -339,7 +339,7 @@ class TestUbirchProtocolSIM(unittest.TestCase):
         unpacked = p.unpack_upp(message)
         logger.debug(repr(unpacked))
 
-        self.assertEqual(p.verfiy_signature(UUID(bytes=unpacked[1]), message), True)
+        self.assertEqual(p.verify_signature(UUID(bytes=unpacked[1]), message), True)
         self.assertEqual(vk, binascii.hexlify(unpacked[3]['pubKey']).decode())
 
     def test_verify_signed_message_sim_v2(self):
@@ -349,7 +349,7 @@ class TestUbirchProtocolSIM(unittest.TestCase):
         # first element of upp is the actual upp, second one is the payload
         for upp in SIM_SIGNED_UPPS:
             # verify the upp
-            self.assertEqual(p.verfiy_signature(SIM_SIGNED_UPPS_UUID, upp[0]), True)
+            self.assertEqual(p.verify_signature(SIM_SIGNED_UPPS_UUID, upp[0]), True)
 
             # unpack the upp
             unpacked = p.unpack_upp(upp[0])
@@ -368,7 +368,7 @@ class TestUbirchProtocolSIM(unittest.TestCase):
         # first element of upp is the actual upp, second one is the payload
         for upp in SIM_CHAINED_UPPS:
             # verify the upp
-            self.assertEqual(p.verfiy_signature(SIM_CHAINED_UPPS_UUID, upp[0]), True)
+            self.assertEqual(p.verify_signature(SIM_CHAINED_UPPS_UUID, upp[0]), True)
 
             # unpack the upp
             unpacked = p.unpack_upp(upp[0])

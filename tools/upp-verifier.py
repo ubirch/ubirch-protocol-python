@@ -234,7 +234,7 @@ class Main:
 
     def verify_upp(self) -> bool:
         try:
-            if self.proto.verfiy_signature(self.upp_uuid, self.upp) == True:
+            if self.proto.verify_signature(self.upp_uuid, self.upp) == True:
                 logger.info("Signature verified - the UPP is valid!")
             else:
                 logger.info("The signature does not match - the UPP is invalid!")

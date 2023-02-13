@@ -223,7 +223,7 @@ class Proto(ubirch.Protocol):
 And append this to the script's end
 
 ```python
-if protocol.verfiy_signature(UBIRCH_UUIDS[env], response.content) == True:
+if protocol.verify_signature(UBIRCH_UUIDS[env], response.content) == True:
     print("Backend response signature successfully verified!")
 else:
     raise Exception("Backend response signature verification FAILED!")

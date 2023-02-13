@@ -235,7 +235,7 @@ class Main:
         try:
             for i in range(0, len(self.upps)):
                 # check the signature
-                if self.proto.verfiy_signature(self.vk_uuid, self.upps[i]) == False:
+                if self.proto.verify_signature(self.vk_uuid, self.upps[i]) == False:
                     raise Exception("The signature cannot be verified with the given VK - the UPP is invalid - Aborting at UPP %d" % (i + 1))
 
                     

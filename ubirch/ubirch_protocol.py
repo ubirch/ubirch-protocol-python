@@ -340,15 +340,3 @@ class Protocol(object):
             return False
 
         return True
-
-    def verfiy_signature(self, uuid: UUID, msgpackUPP: bytes) -> bool:
-        """!
-        `verify_signature()` with typo for backwards compatability
-
-        Verify the integrity of the message and decode the contents
-        Raises an value error when the message is too short
-        @param uuid The uuid of the sender of the message
-        @param msgpackUPP The msgpack encoded message
-        @return The decoded message
-        """
-        return self.verify_signature(uuid, msgpackUPP)
