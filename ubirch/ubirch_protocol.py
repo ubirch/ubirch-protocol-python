@@ -88,7 +88,8 @@ UNPACKED_CHAINED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_SIG]      = 5
 
 class Protocol(object):
     """!
-    Ubirch Protocol: handle signatures and UPP's and create message objects
+    Implementation of the UBIRCH protocol for the creation and verification of signed or chained UPPs 
+    (Ubirch Protocol Packages)
     """
     _signatures = {}
 
@@ -136,12 +137,16 @@ class Protocol(object):
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         """!
         Sign the request when finished.
-        @note IMPORTANT: This function needs to be implemented with the Keystore of choice and its .find_signing_key() and .sign() functions
-
-        This function also takes care of the hashing, before signing, depending on the key type.
+        
+        @note IMPORTANT: This function needs to be implemented by the user. 
+        It needs to be able to load a signing key, related to a specific `uuid`, i.e. `.find_signing_key()`
+        and to sign the `message` with returning the binary signature, i.e. `.sign()`  
+        The implementation of this method should take care of hashing the message before signing, 
+        if defined for the signing algorithm.
+        
         @param uuid The uuid of the sender to identify the correct key pair
         @param message The bytes to sign
-        @return NotImplementedError
+        @return the signature 
         """
         raise NotImplementedError("signing not implemented")
 
@@ -149,14 +154,19 @@ class Protocol(object):
     def _verify(self, uuid: UUID, message: bytes, signature: bytes):
         """!
         Verify the message.
-        @note IMPORTANT: This function needs to be implemented with the Keystore of choice and its .find_verifying_key() and .verify() functions
 
+        @note IMPORTANT: This function needs to be implemented by the user.
+        It needs to be able to load a verifying key, related to the `uuid`, i.e. `.find_verifying_key()`
+        and to verify the `signature` of the `message`, i.e. `.verify()`
+        The implementation of this method should take care of hashing the message before verifying, 
+        if defined for the verifying algorithm.
+        
         Throws exception if not verifiable.
-        This function also takes care of the hashing, before verifying, depending on the key type.
+        
         @param uuid The uuid of the sender to identify the correct key pair
         @param message The message bytes to verify
         @param signature The signature to use for verification
-        @return NotImplementedError
+        @return
         """
         raise NotImplementedError("verification not implemented")
 
@@ -184,19 +194,19 @@ class Protocol(object):
 
     def keyreg_jsonstr_signed(self, uuid: UUID, keyinfo_dict: dict) -> str:
         """
-        Takes a keyinfo-json-str and embeds into a signed json keyreg message.
-        :param uuid: the uuid of the device the keyinfo belongs to
-        :param keyinfo_dict: the public key info object
-        :return: the keyreg json as string
+        Create a signed key registration message, from a keyinfo dictionary.
+        @param uuid the uuid of the device the keyinfo belongs to
+        @param keyinfo_dict the public key info object
+        @return the keyreg json as string
         """
         sorted_keyinfo = json.dumps(keyinfo_dict, sort_keys=True, indent=None, separators=(",", ":"))
 
         keyreg_dict = {
             "pubKeyInfo": keyinfo_dict,
-            "signature": None # to be replaced with the signature over keyinfo_jsonstr
+            "signature": None # will be replaced with the signature over keyinfo_jsonstr
         }
 
-        print("HASHING: " + sorted_keyinfo)
+        logger.debug("Key registration message to be hashed: " + sorted_keyinfo)
 
         keyreg_dict["signature"] = base64.b64encode(
             self._sign(
@@ -204,7 +214,7 @@ class Protocol(object):
             )
         ).decode("utf8")
 
-        print("HASHB64: " + base64.b64encode(keyreg_dict["signature"].encode("utf8")).decode("utf8"))
+        logger.debug("Base64 encoded signature: " + base64.b64encode(keyreg_dict["signature"].encode("utf8")).decode("utf8"))
 
         return json.dumps(keyreg_dict, sort_keys=True, indent=None, separators=(",", ":"))
 
@@ -324,11 +334,11 @@ class Protocol(object):
 
     def verify_signature(self, uuid: UUID, msgpackUPP: bytes) -> bool:
         """!
-        Verify the integrity of the message and decode the contents
-        Raises an value error when the message is too short
-        @param uuid The uuid of the sender of the message
+        Verify a signed UPP message. 
+        Raises a value error, if the message is too short
+        @param uuid The uuid, related to the verifying key
         @param msgpackUPP The msgpack encoded message
-        @return The decoded message
+        @return verification success 
         """
         # separate the message from the signature
         msg, sig = self.upp_msgpack_split_signature(msgpackUPP)
@@ -336,7 +346,7 @@ class Protocol(object):
         # verify the message
         try:
             self._verify(uuid, msg, sig)
-        except (BadSignatureError, BadSignatureErrorEcdsa):
-            return False
+        except Exception:
+            raise
 
         return True
