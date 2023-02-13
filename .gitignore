@@ -1,20 +1,27 @@
-.DS_STORE
 *.keys
 *.cfg
-.idea
 *.iml
 *.pyc
 *.ini
 *.sig
 *.jks
 *.egg-info
+# ignore pickled statistics data:
+*.pckl
+*.bin
+*.cert
+
+.DS_STORE
+.idea
 .vscode
-build
-dist
+jwt_token.txt
+test-report.xml
+
+temp/
+documentation/
+build/
+dist/
 /venv*
 Gemfile.lock
 docs/_site/
 docs/doxygen/html/
-jwt_token.txt
-# ignore pickled statistics data:
-*.pckl
