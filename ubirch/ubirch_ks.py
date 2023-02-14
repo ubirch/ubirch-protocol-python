@@ -199,7 +199,8 @@ class KeyStore(object):
         @param hashfunc The default hash function that will be used for signing and verifying, needs to implement the same interface as hashlib.sha1
         @return The ecdsa verifying key and the ecdsa signing key
         """
-        # Check if the `curve` and `hashfunc` parameters are supported. This needs to be congruent with `find_signing_key()` supported method
+        # Check if the `curve` and `hashfunc` parameters are supported. 
+        # NOTE: This needs to be congruent with `find_signing_key()` and `find_verifying_key()` supported values
         if curve != ecdsa.NIST256p:
             raise ValueError("Curve not supported! Currently only supports [ecdsa.NIST256p]")
         elif hashfunc != hashlib.sha256:
@@ -261,35 +262,12 @@ class KeyStore(object):
         @param uuid The UUID of the device
         @return The stored ECDSACertificate or ED25519Certificate if found. Else returns `None`
         """
-        cert = None
-
-        if self.exists_verifying_key(uuid) == True:
-            # try to get the edd key first
-            try:
-                cert = ED25519Certificate(
-                    self._ks.certs[uuid.hex].alias,
-
-                    # the ED25519Certificate requires an ed25519.VerifyingKey
-                    ed25519.VerifyingKey(self._ks.certs[uuid.hex].cert)
-                )
-            except KeyError:
-                pass
-
-            # no edd key found, try to get ecd
-            try:
-                cert = ECDSACertificate(
-                    self._ks.certs[uuid.hex + '_ecd'].alias,
-
-                    # the ECDSACertifcate requires an ecdsa.VerifyingKey
-                    ecdsa.VerifyingKey.from_string(
-                        self._ks.certs[uuid.hex + '_ecd'].cert,
-                        hashfunc=hashlib.sha256, curve=ecdsa.NIST256p
-                    )
-                )
-            except KeyError:
-                pass
-
-        return cert
+        # try to get the edd key first
+        cert = self._ks.certs.get(uuid.hex)
+        if cert is not None:
+            return cert
+        # no edd key found, try to get ecd
+        return self._ks.certs.get(uuid.hex + '_ecd')
 
     def find_verifying_key(self, uuid: UUID) -> ed25519.VerifyingKey or ecdsa.VerifyingKey:
         """!
