@@ -14,10 +14,8 @@ logger = logging.getLogger()
 
 class Proto(ubirch.Protocol):
     """!
-    Implement the ubirch-protocol, including creating and saving signatures.
-    Actually a wrapper around 'ubirch.Protocol' to be accessible using the ubirch.KeyStore.
-    Most of the functions are called from inside ubirch.Protocol.
-    For that reason _sign() and _verify() are overloaded and implemented here.
+    Implement the ubirch-protocol as subclass of 'ubirch.Protocol' with concrete implementations of its abstract methods _sign() and _verify().
+    This implementation supports ED25519 as well as ECDSA signing algorithm, handles key creation, and storage of keys and previous signatures to the local file system. 
     """
 
     def __init__(self, key_store: ubirch.KeyStore, uuid: UUID, env: str, key_type: str) -> None:
