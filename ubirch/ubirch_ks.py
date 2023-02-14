@@ -298,13 +298,12 @@ class KeyStore(object):
         if cert == None:
             return None
 
-        # set the timestamps (validity = +10 years)
-        # TODO set propper validity timestamp
+        # NOTE: default validity = +10 years
         created = datetime.fromtimestamp(cert.timestamp)
         not_before = datetime.fromtimestamp(cert.timestamp)
         not_after = created + timedelta(days=validityInDays)
         
-        # set the alogrithm
+        # set the algorithm
         if type(cert) == ED25519Certificate:
             algo = 'ECC_ED25519'
         elif type(cert) == ECDSACertificate:
