@@ -28,67 +28,46 @@ Additionally, you will find the raw documentation files rendered to
 the [documentation pages](https://developer.ubirch.com/ubirch-protocol-python/).
 
 ## Installation
-
 Optionally create environment to install to:
 
 `$ python -m venv venv`
 
 `$ . venv/bin/activate`
 
-Install the requirements and Ubirch library using pip:
+Install the requirements and ubirch library using pip:
 
 `$ pip install -r requirements.txt`
 
 `$ pip install ubirch-protocol`
 
 > The required version of the `ubirch-protocol` package to run the provided scripts is `3.1.0`.
-> Currently this version can only be installed through a [local install](docs/NotPip.md).
+> Currently this version can only be installed through a [local install](NotPip.md). 
 
-If you want to install from another source than pip, follow along [here](docs/NotPip.md).
+
+If you want to install from another source than pip, follow along [here](NotPip.md).
 
 ## Setup
-
 Before anything, you will need to do/get a couple of things:
-
 - Open up the [Ubirch Console](https://console.demo.ubirch.com) (`'demo'` stage)
-  - For guidance, check out the [Ubirch console documentation](https://developer.ubirch.com/console.html)
-  - First register to get an account
+  - For guidance, check out the [uBirch console documentation](https://developer.ubirch.com/console.html)
+  - First register to get an account 
   - Then Create a "Thing":
     - Using a UUID generated with a [UUID-Generator](https://www.uuidgenerator.net/)
   - You will be using the shown UUID (ID) and the generated Auth-Token (password) from now on
-- Come up or [generate](https://www.random.org/passwords/) a password for the KeyStore, which is where public and
-  private Keys will be stored locally
-
-> Open up the [Getting started](https://developer.ubirch.com/ubirch-protocol-python/GettingStarted.html) on
-> the [Documentation and Examples](https://developer.ubirch.com/ubirch-protocol-python/) pages or continue below.
+- Come up or [generate](https://www.random.org/passwords/) a password (`KEYSTORE_PWD`) for the KeyStore (`KEYSTORE`), which is where public and private Keys will be stored locally
 
 ### Now you should have the following at hand:
 
-Our [Ubirch API](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
-authentication with an uuid and a password:
-
-```python
-from uuid import UUID
-
-uuid = UUID(hex="f5ded8a3-d462-41c4-a8dc-af3fd072a217")
-auth = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-```
-
-And credentials for a [KeyStore](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
-to store your public and private key:
-
-```python
-keystore_name = "devices.jks"
-keystore_password = "XXXXXXXXXXX"
-```
+Our [Ubirch API](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/) 
+authentication with a `UUID` and an `AUTH_TOKEN`. together with 
+credentials `KEYSTORE` and `KEYSTORE_PWD` for a [KeyStore](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
 
 ## A minimal application
+The smallest uBirch application looks something like this. 
 
-The smallest Ubirch application looks something like this.
+*The code can be found in [`examples/GettingStarted.py`](../examples/GettingStarted.py) as well.*
 
-*The code can be found in [`GettingStarted.py`](examples/GettingStarted.py) as well.*
-
-*Run it from your command prompt using `$ python examples/GettingStarted.py` or copy-paste the codeblocks.*
+*Run it from your command prompt using `$ python3 GettingStarted.py <UUID> <AUTH_TOKEN> <KEYSTORE> <KEYSTORE_PWD>` or copy-paste the codeblocks.*
 
 Let's say we have got some environment-sensor data like:
 
@@ -104,9 +83,7 @@ data = {
 ```
 
 To send a hash of the data to the Ubirch backend run these few lines inside of `examples/`:
-
 ```python
-import ubirch
 from UbirchWrapper import UbirchWrapper
 
 # (1) Initialize an UbirchWrapper instance and pass the credentials for a `KeyStore`
@@ -137,8 +114,7 @@ client.protocol.persist(uuid)
 print("Successfully sent the UPP and verified the response!")
 ```
 
-*This example uses the example [UbirchWrapper](examples/UbirchWrapper.py) that helps to implement general repetitive
-tasks.*
+*This example uses the example [UbirchWrapper](../examples/UbirchWrapper.py) that helps to implement general repetitive tasks.*
 
 > **Next:** Take a look at the Step-by-step-example on
 > the [Documentation Pages](https://developer.ubirch.com/ubirch-protocol-python/)

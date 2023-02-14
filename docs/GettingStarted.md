@@ -37,32 +37,20 @@ Before anything, you will need to do/get a couple of things:
   - Then Create a "Thing":
     - Using a UUID generated with a [UUID-Generator](https://www.uuidgenerator.net/)
   - You will be using the shown UUID (ID) and the generated Auth-Token (password) from now on
-- Come up or [generate](https://www.random.org/passwords/) a password for the KeyStore, which is where public and private Keys will be stored locally
+- Come up or [generate](https://www.random.org/passwords/) a password (`KEYSTORE_PWD`) for the KeyStore (`KEYSTORE`), which is where public and private Keys will be stored locally
 
 ### Now you should have the following at hand:
 
 Our [Ubirch API](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/) 
-authentication with an uuid and a password:
-```python
-from uuid import UUID
-
-uuid = UUID(hex = "f5ded8a3-d462-41c4-a8dc-af3fd072a217")
-auth            = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-```
-
-And credentials for a [KeyStore](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/) 
-to store your public and private key:
-```python
-keystore_name     = "devices.jks"
-keystore_password = "XXXXXXXXXXX"
-```
+authentication with a `UUID` and an `AUTH_TOKEN`. together with 
+credentials `KEYSTORE` and `KEYSTORE_PWD` for a [KeyStore](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
 
 ## A minimal application
 The smallest uBirch application looks something like this. 
 
 *The code can be found in [`examples/GettingStarted.py`](../examples/GettingStarted.py) as well.*
 
-*Run it from your command prompt using `$ python examples/GettingStarted.py` or copy-paste the codeblocks.*
+*Run it from your command prompt using `$ python3 GettingStarted.py <UUID> <AUTH_TOKEN> <KEYSTORE> <KEYSTORE_PWD>` or copy-paste the codeblocks.*
 
 Let's say we have got some environment-sensor data like:
 
@@ -79,7 +67,6 @@ data = {
 
 To send a hash of the data to the Ubirch backend run these few lines inside of `examples/`:
 ```python
-import ubirch
 from UbirchWrapper import UbirchWrapper
 
 # (1) Initialize an UbirchWrapper instance and pass the credentials for a `KeyStore`
