@@ -8,7 +8,6 @@ from ubirch.ubirch_protocol import UNPACKED_UPP_FIELD_PREV_SIG, UBIRCH_PROTOCOL_
 
 from ubirch_keys_and_uuids import UBIRCH_UUIDS, UBIRCH_PUBKEYS_EC, UBIRCH_PUBKEYS_ED
 
-# create a global logger
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 
