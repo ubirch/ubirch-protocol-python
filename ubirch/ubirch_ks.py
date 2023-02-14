@@ -262,12 +262,35 @@ class KeyStore(object):
         @param uuid The UUID of the device
         @return The stored ECDSACertificate or ED25519Certificate if found. Else returns `None`
         """
-        # try to get the edd key first
-        cert = self._ks.certs.get(uuid.hex)
-        if cert is not None:
-            return cert
-        # no edd key found, try to get ecd
-        return self._ks.certs.get(uuid.hex + '_ecd')
+        cert = None
+
+        if self.exists_verifying_key(uuid) == True:
+            # try to get the edd key first
+            try:
+                cert = ED25519Certificate(
+                    self._ks.certs[uuid.hex].alias,
+
+                    # the ED25519Certificate requires an ed25519.VerifyingKey
+                    ed25519.VerifyingKey(self._ks.certs[uuid.hex].cert)
+                )
+            except KeyError:
+                pass
+
+            # no edd key found, try to get ecd
+            try:
+                cert = ECDSACertificate(
+                    self._ks.certs[uuid.hex + '_ecd'].alias,
+
+                    # the ECDSACertifcate requires an ecdsa.VerifyingKey
+                    ecdsa.VerifyingKey.from_string(
+                        self._ks.certs[uuid.hex + '_ecd'].cert,
+                        hashfunc=hashlib.sha256, curve=ecdsa.NIST256p
+                    )
+                )
+            except KeyError:
+                pass
+
+        return cert
 
     def find_verifying_key(self, uuid: UUID) -> ed25519.VerifyingKey or ecdsa.VerifyingKey:
         """!
