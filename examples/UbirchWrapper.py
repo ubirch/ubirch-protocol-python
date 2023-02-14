@@ -39,12 +39,17 @@ class Proto(ubirch.Protocol):
             else:
                 raise ValueError("unknown key type")
 
-        # figure out, which key type is used, which is relevant for the backend response verification
-        temp_vk = self.__ks.find_verifying_key(uuid)
-        if isinstance(temp_vk, ed25519.VerifyingKey):
-            temp_key_type = "ed25519"
-        elif isinstance(temp_vk, ecdsa.VerifyingKey):
-            temp_key_type = "ecdsa"
+        else:
+            # if a key already exists, make sure the existing key has the expected type
+            if key_type == EDDSA_TYPE:
+                expected = ed25519.SigningKey
+            elif key_type == ECDSA_TYPE:
+                expected = ecdsa.SigningKey
+            else:
+                raise ValueError(f"unsupported key type {key_type}")
+
+            if not isinstance(self.__ks.find_signing_key(uuid), expected):
+                raise ValueError(f"existing key for {uuid} is not from expected type {key_type}")
 
         # check env
         if env not in UBIRCH_PUBKEYS_ED.keys():
