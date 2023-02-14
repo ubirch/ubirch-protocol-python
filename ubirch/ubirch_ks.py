@@ -23,7 +23,6 @@ from logging import getLogger
 from os import urandom
 from uuid import UUID
 
-import base64
 import ecdsa
 import ed25519
 from jks import jks, AlgorithmIdentifier, rfc5208, TrustedCertEntry
@@ -42,9 +41,9 @@ class ED25519Certificate(TrustedCertEntry):
 
     def __init__(self, alias: str, verifying_key: ed25519.VerifyingKey, **kwargs):
         """!
-        Initialize a ED 25519 Certificate
-        @param alias A name for this Certificate, mostly in form of a UUID
-        @param verifying_key A `ed25519.VerifyingKey` that has been generated with `ed25519.create_keypair()`
+        Initialize a ED25519 Certificate
+        @param alias A name for the certificate, usually in form of a UUID
+        @param verifying_key A `ed25519.VerifyingKey`, like generated from `ed25519.create_keypair()`
         @param kwargs Give more Arguments to pass on to the super class `TrustedCertEntry`
         """
         super().__init__(**kwargs)
@@ -60,8 +59,8 @@ class ECDSACertificate(TrustedCertEntry):
     def __init__(self, alias: str, verifying_key: ecdsa.VerifyingKey, **kwargs):
         """!
         Initialize a ECDSA Certificate with an alias and a verifying key
-        @param alias A name for this Certificate, mostly in form of a UUID
-        @param verifying_key A `ecdsa.VerifyingKey` that has been generated with 'ecdsa.create_keypair()'
+        @param alias A name for this Certificate, usually in form of a UUID
+        @param verifying_key A `ecdsa.VerifyingKey`, like generated from 'ecdsa.create_keypair()'
         @param kwargs Give more Arguments to pass them on to the super class `TrustedCertEntry`
         """
         super().__init__(**kwargs)
@@ -71,7 +70,8 @@ class ECDSACertificate(TrustedCertEntry):
 
 class KeyStore(object):
     """!
-    Handles your signing and verifying keys. Meaning it generates, stores, loads and finds your keys.
+    The ubirch key store handles the cryptographic keys, 
+    which are used for signing and verifying in the ubirch protocol.
     """
 
     def __init__(self, keystore_file: str, password: str) -> None:
@@ -196,7 +196,7 @@ class KeyStore(object):
         Create new ECDSA key pair and store in key store
         @param uuid The UUID of the device
         @param curve The used curve as well as the used hash function have to be explicitly set here to ensure determinism when creating the key
-        @param hashfunc
+        @param hashfunc The default hash function that will be used for signing and verifying, needs to implement the same interface as hashlib.sha1
         @return The ecdsa verifying key and the ecdsa signing key
         """
         sk = ecdsa.SigningKey.generate(curve=curve, entropy=urandom, hashfunc=hashfunc)
