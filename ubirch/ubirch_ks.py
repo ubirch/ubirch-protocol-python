@@ -199,6 +199,12 @@ class KeyStore(object):
         @param hashfunc The default hash function that will be used for signing and verifying, needs to implement the same interface as hashlib.sha1
         @return The ecdsa verifying key and the ecdsa signing key
         """
+        # Check if the `curve` and `hashfunc` parameters are supported. This needs to be congruent with `find_signing_key()` supported method
+        if curve != ecdsa.NIST256p:
+            raise ValueError("Curve not supported! Currently only supports [ecdsa.NIST256p]")
+        elif hashfunc != hashlib.sha256:
+            raise ValueError("Hashing algorithm not supported! Currently only supports [hashlib.sha256]")
+
         sk = ecdsa.SigningKey.generate(curve=curve, entropy=urandom, hashfunc=hashfunc)
         vk = sk.get_verifying_key()
         return self.insert_ecdsa_keypair(uuid, vk, sk)
