@@ -42,7 +42,7 @@ class API(object):
         """!
         Initialize the API
         @param env Can be one of [prod, demo, dev]
-        @param debug Print debug output?
+        @param debug Print debug output for HTTP connection
         """
         super().__init__()
         self._auth = {}
@@ -146,28 +146,6 @@ class API(object):
 
     def _deregister_identity_mpack(self, key_deregistration: bytes) -> Response:
         raise NotImplementedError("msgpack identity deregistration not supported yet")
-
-    def trust_identity_json(self, signed_trust: dict) -> Response:
-        """!
-        Trust a new identity
-        @param signed_trust Dictionary containing the identity details
-        @return The response from the server
-        """
-        logger.debug("trust an identity [json]: {}".format(signed_trust))
-        r = requests.post(self.get_url(KEY_SERVICE) + '/trust', json=signed_trust)
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r
-
-    def get_trusted_identities_json(self, get_trusted: dict) -> Response:
-        """!
-        Get the trusted identities as a list in JSON format
-        @param get_trusted Dictionary containing the identity details
-        @return The response from the server
-        """
-        logger.debug("get trusted identities [json]: {}".format(get_trusted))
-        r = requests.get(self.get_url(KEY_SERVICE) + '/trusted', json=get_trusted)
-        logger.debug("{}: {}".format(r.status_code, r.content))
-        return r
 
     def send(self, uuid: UUID, data: bytes) -> Response:
         """!
