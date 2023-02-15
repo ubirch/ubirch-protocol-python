@@ -56,13 +56,13 @@ class Proto(ubirch.Protocol):
             raise ValueError("Invalid ubirch env! Must be one of {}".format(list(UBIRCH_PUBKEYS_ED.keys())))
 
         # check if the keystore has the same key_type for the device UUID and the backend response
-        if temp_key_type == "ecdsa":
+        if key_type == ECDSA_TYPE:
             if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex, None) != None:
                 # suffix-less pubkey found, delete it
                 self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex)
 
             self.__ks.insert_ecdsa_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_EC[env])
-        elif temp_key_type == "ed25519":
+        elif key_type == EDDSA_TYPE:
             if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex + '_ecd', None) != None:
                 # suffix-less pubkey found, delete it
                 self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex + '_ecd')
@@ -79,7 +79,6 @@ class Proto(ubirch.Protocol):
         with open(uuid.hex + ".sig", "wb") as f:
             pickle.dump(signatures, f)
 
-    #===== The functions below are called from inside ubirch.Protocol ====#
     def load(self, uuid: UUID):
         try:
             with open(uuid.hex + ".sig", "rb") as f:
@@ -90,6 +89,7 @@ class Proto(ubirch.Protocol):
             logger.warning("no existing saved signatures")
             pass
 
+    #===== The functions below are called from inside ubirch.Protocol ====#    
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         signing_key = self.__ks.find_signing_key(uuid)
 
