@@ -119,9 +119,8 @@ class Proto(ubirch.Protocol):
 
 class UbirchWrapper:
     """!
-    An example implementation for the ubirch-client in Python.
-    Actually another wrapper. Around 'Proto' defined above.
-    Keystore and API to be added directly after init.
+    Wraps the components of the ubirch library: Protocol, KeyStore, and API.
+    Provides methods for device setup, creation of chained Ubirch Protocol Packages (UPPs) and backend communication.
     """
 
     def __init__(self, uuid: UUID, auth: str, keystore_name:str, keystore_password:str, key_type:str="ed25519", env:str="demo"):
