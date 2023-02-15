@@ -6,7 +6,8 @@ from requests import codes, Response
 import ubirch
 from ubirch.ubirch_protocol import UNPACKED_UPP_FIELD_PREV_SIG, UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN
 
-from ubirch_keys_and_uuids import UBIRCH_UUIDS, UBIRCH_PUBKEYS_EC, UBIRCH_PUBKEYS_ED
+# from ubirch_keys_and_uuids import UBIRCH_UUIDS, UBIRCH_PUBKEYS_EC, UBIRCH_PUBKEYS_ED
+# from ubirch.ubirch_backend_keys import *
 
 ECDSA_TYPE = "ecdsa"
 EDDSA_TYPE = "ed25519"
@@ -28,11 +29,11 @@ class Proto(ubirch.Protocol):
         # check if the device already has keys or generate a new pair
         if not self.__ks.exists_signing_key(uuid):
             # check the key type before creating new keys
-            if key_type == "ed25519":
+            if key_type == EDDSA_TYPE:
                 logger.info("generating new keypair with ed25519 algorithm")
 
                 self.__ks.create_ed25519_keypair(uuid)
-            elif key_type == "ecdsa":
+            elif key_type == ECDSA_TYPE:
                 logger.info("generating new keypair with ecdsa algorithm")
 
                 self.__ks.create_ecdsa_keypair(uuid)
@@ -52,22 +53,22 @@ class Proto(ubirch.Protocol):
                 raise ValueError(f"existing key for {uuid} is not from expected type {key_type}")
 
         # check env
-        if env not in UBIRCH_PUBKEYS_ED.keys():
-            raise ValueError("Invalid ubirch env! Must be one of {}".format(list(UBIRCH_PUBKEYS_ED.keys())))
+        if env not in ubirch.getBackendEnvironemts():
+            raise ValueError("Invalid ubirch env! Must be one of {}".format(list(ubirch.getBackendEnvironemts())))
 
         # check if the keystore has the same key_type for the device UUID and the backend response
-        if temp_key_type == "ecdsa":
-            if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex, None) != None:
+        if key_type == ECDSA_TYPE:
+            if self.__ks._ks.entries.get(ubirch.getBackendUuid(env).hex, None) != None:
                 # suffix-less pubkey found, delete it
-                self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex)
+                self.__ks._ks.entries.pop(ubirch.getBackendUuid(env).hex)
 
-            self.__ks.insert_ecdsa_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_EC[env])
-        elif temp_key_type == "ed25519":
-            if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex + '_ecd', None) != None:
+            self.__ks.insert_ecdsa_verifying_key(ubirch.getBackendUuid(env), ubirch.getBackendKeys(env,ECDSA_TYPE))
+        elif key_type == EDDSA_TYPE:
+            if self.__ks._ks.entries.get(ubirch.getBackendUuid(env).hex + '_ecd', None) != None:
                 # suffix-less pubkey found, delete it
-                self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex + '_ecd')
+                self.__ks._ks.entries.pop(ubirch.getBackendUuid(env).hex + '_ecd')
 
-            self.__ks.insert_ed25519_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_ED[env])
+            self.__ks.insert_ed25519_verifying_key(ubirch.getBackendUuid(env), ubirch.getBackendKeys(env,EDDSA_TYPE))
 
         # load last signature for device
         self.load(uuid)
@@ -224,7 +225,7 @@ class UbirchWrapper:
 
     def verifyResponseSender(self, response: Response):
         """! Verify that the response came from the backend """
-        if self.protocol.verify_signature(UBIRCH_UUIDS[self.env], response.content) == True:
+        if self.protocol.verify_signature(ubirch.getBackendUuid(self.env), response.content) == True:
             logger.info("Backend response signature successfully verified!")
         else:
             logger.error("Backend response signature verification FAILED!")
