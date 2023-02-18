@@ -56,7 +56,7 @@ class Proto(ubirch.Protocol):
         if env not in ubirch.get_backend_environments():
             raise ValueError("Invalid ubirch env! Must be one of {}".format(ubirch.get_backend_environments()))
 
-        # check if the keystore has the same key_type for the device UUID and the backend response
+        # insert key for backend response signature verification into keystore
         if key_type == ECDSA_TYPE:
             self.__ks.insert_ecdsa_verifying_key(ubirch.get_backend_uuid(env),
                                                  ubirch.get_backend_verifying_key(env, ECDSA_TYPE))
