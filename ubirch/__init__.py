@@ -17,4 +17,4 @@
 from .ubirch_ks import KeyStore
 from .ubirch_protocol import Protocol
 from .ubirch_api import API
-from .ubirch_backend_keys import getBackendKeys, getBackendUuid, getBackendEnvironemts
+from .ubirch_backend_keys import get_backend_verifying_key, get_backend_uuid, get_backend_environments
