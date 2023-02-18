@@ -29,7 +29,7 @@ KEYS = {
     "dev":{
         "uuid":"9d3c78ff-22f3-4441-a5d1-85c636d486ff",
         "vk":{
-            "ed25519":"39ff77632b034d0eba6d219c2ff192e9f24916c9a02672acb49fd05118aad251",
+            "ed25519":"a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66",
             "ecdsa":"2e753c064bc671940fcb98165542fe3c70340cff5d53ad47f0304ef2166f4f223b9572251b5fe8aee54c4fb812da79590caf501beba0911b7fcd3add2eb0180c"    
         }
     },
