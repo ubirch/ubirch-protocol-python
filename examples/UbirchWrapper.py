@@ -6,9 +6,6 @@ from requests import codes, Response
 import ubirch
 from ubirch.ubirch_protocol import UNPACKED_UPP_FIELD_PREV_SIG, UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN
 
-# from ubirch_keys_and_uuids import UBIRCH_UUIDS, UBIRCH_PUBKEYS_EC, UBIRCH_PUBKEYS_ED
-# from ubirch.ubirch_backend_keys import *
-
 ECDSA_TYPE = "ecdsa"
 EDDSA_TYPE = "ed25519"
 
