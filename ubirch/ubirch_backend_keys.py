@@ -1,6 +1,6 @@
 
 ##
-# @file ubirch_backen_keys.py
+# @file ubirch_backend_keys.py
 # ubirch backend keys getter functions
 #
 # @author Waldemar Gruenwald
