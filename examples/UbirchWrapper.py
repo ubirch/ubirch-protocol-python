@@ -54,7 +54,7 @@ class Proto(ubirch.Protocol):
 
         # check env
         if env not in ubirch.getBackendEnvironemts():
-            raise ValueError("Invalid ubirch env! Must be one of {}".format(list(ubirch.getBackendEnvironemts())))
+            raise ValueError("Invalid ubirch env! Must be one of {}".format(ubirch.getBackendEnvironemts()))
 
         # check if the keystore has the same key_type for the device UUID and the backend response
         if key_type == ECDSA_TYPE:

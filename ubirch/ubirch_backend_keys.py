@@ -54,7 +54,7 @@ def getBackendEnvironemts() -> list:
     Getter to list the available backend environments.
     @return available Environments
     """
-    return KEYS.keys()
+    return list(KEYS.keys())
 
 def getBackendUuid(env: str = "demo") -> UUID:
     """!
