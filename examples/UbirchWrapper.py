@@ -58,17 +58,11 @@ class Proto(ubirch.Protocol):
 
         # check if the keystore has the same key_type for the device UUID and the backend response
         if key_type == ECDSA_TYPE:
-            if self.__ks._ks.entries.get(ubirch.get_backend_uuid(env).hex, None) != None:
-                # suffix-less pubkey found, delete it
-                self.__ks._ks.entries.pop(ubirch.get_backend_uuid(env).hex)
-
-            self.__ks.insert_ecdsa_verifying_key(ubirch.get_backend_uuid(env), ubirch.get_backend_verifying_key(env, ECDSA_TYPE))
+            self.__ks.insert_ecdsa_verifying_key(ubirch.get_backend_uuid(env),
+                                                 ubirch.get_backend_verifying_key(env, ECDSA_TYPE))
         elif key_type == EDDSA_TYPE:
-            if self.__ks._ks.entries.get(ubirch.get_backend_uuid(env).hex + '_ecd', None) != None:
-                # suffix-less pubkey found, delete it
-                self.__ks._ks.entries.pop(ubirch.get_backend_uuid(env).hex + '_ecd')
-
-            self.__ks.insert_ed25519_verifying_key(ubirch.get_backend_uuid(env), ubirch.get_backend_verifying_key(env, EDDSA_TYPE))
+            self.__ks.insert_ed25519_verifying_key(ubirch.get_backend_uuid(env),
+                                                   ubirch.get_backend_verifying_key(env, EDDSA_TYPE))
 
         # load last signature for device
         self.load(uuid)
