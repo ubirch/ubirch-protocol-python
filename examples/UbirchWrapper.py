@@ -6,9 +6,6 @@ from requests import codes, Response
 import ubirch
 from ubirch.ubirch_protocol import UNPACKED_UPP_FIELD_PREV_SIG, UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN
 
-# from ubirch_keys_and_uuids import UBIRCH_UUIDS, UBIRCH_PUBKEYS_EC, UBIRCH_PUBKEYS_ED
-# from ubirch.ubirch_backend_keys import *
-
 ECDSA_TYPE = "ecdsa"
 EDDSA_TYPE = "ed25519"
 
@@ -53,22 +50,16 @@ class Proto(ubirch.Protocol):
                 raise ValueError(f"existing key for {uuid} is not from expected type {key_type}")
 
         # check env
-        if env not in ubirch.getBackendEnvironemts():
-            raise ValueError("Invalid ubirch env! Must be one of {}".format(list(ubirch.getBackendEnvironemts())))
+        if env not in ubirch.get_backend_environments():
+            raise ValueError("Invalid ubirch env! Must be one of {}".format(ubirch.get_backend_environments()))
 
-        # check if the keystore has the same key_type for the device UUID and the backend response
+        # insert key for backend response signature verification into keystore
         if key_type == ECDSA_TYPE:
-            if self.__ks._ks.entries.get(ubirch.getBackendUuid(env).hex, None) != None:
-                # suffix-less pubkey found, delete it
-                self.__ks._ks.entries.pop(ubirch.getBackendUuid(env).hex)
-
-            self.__ks.insert_ecdsa_verifying_key(ubirch.getBackendUuid(env), ubirch.getBackendKeys(env,ECDSA_TYPE))
+            self.__ks.insert_ecdsa_verifying_key(ubirch.get_backend_uuid(env),
+                                                 ubirch.get_backend_verifying_key(env, ECDSA_TYPE))
         elif key_type == EDDSA_TYPE:
-            if self.__ks._ks.entries.get(ubirch.getBackendUuid(env).hex + '_ecd', None) != None:
-                # suffix-less pubkey found, delete it
-                self.__ks._ks.entries.pop(ubirch.getBackendUuid(env).hex + '_ecd')
-
-            self.__ks.insert_ed25519_verifying_key(ubirch.getBackendUuid(env), ubirch.getBackendKeys(env,EDDSA_TYPE))
+            self.__ks.insert_ed25519_verifying_key(ubirch.get_backend_uuid(env),
+                                                   ubirch.get_backend_verifying_key(env, EDDSA_TYPE))
 
         # load last signature for device
         self.load(uuid)
@@ -80,7 +71,6 @@ class Proto(ubirch.Protocol):
         with open(uuid.hex + ".sig", "wb") as f:
             pickle.dump(signatures, f)
 
-    #===== The functions below are called from inside ubirch.Protocol ====#
     def load(self, uuid: UUID):
         try:
             with open(uuid.hex + ".sig", "rb") as f:
@@ -91,6 +81,7 @@ class Proto(ubirch.Protocol):
             logger.warning("no existing saved signatures")
             pass
 
+    #===== The functions below are called from inside ubirch.Protocol ====#
     def _sign(self, uuid: UUID, message: bytes) -> bytes:
         signing_key = self.__ks.find_signing_key(uuid)
 
@@ -225,7 +216,7 @@ class UbirchWrapper:
 
     def verifyResponseSender(self, response: Response):
         """! Verify that the response came from the backend """
-        if self.protocol.verify_signature(ubirch.getBackendUuid(self.env), response.content) == True:
+        if self.protocol.verify_signature(ubirch.get_backend_uuid(self.env), response.content):
             logger.info("Backend response signature successfully verified!")
         else:
             logger.error("Backend response signature verification FAILED!")

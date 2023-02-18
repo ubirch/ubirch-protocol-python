@@ -1,6 +1,6 @@
 
 ##
-# @file ubirch_backen_keys.py
+# @file ubirch_backend_keys.py
 # ubirch backend keys getter functions
 #
 # @author Waldemar Gruenwald
@@ -29,7 +29,7 @@ KEYS = {
     "dev":{
         "uuid":"9d3c78ff-22f3-4441-a5d1-85c636d486ff",
         "vk":{
-            "ed25519":"39ff77632b034d0eba6d219c2ff192e9f24916c9a02672acb49fd05118aad251",
+            "ed25519":"a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66",
             "ecdsa":"2e753c064bc671940fcb98165542fe3c70340cff5d53ad47f0304ef2166f4f223b9572251b5fe8aee54c4fb812da79590caf501beba0911b7fcd3add2eb0180c"    
         }
     },
@@ -49,14 +49,14 @@ KEYS = {
     }
 }
 
-def getBackendEnvironemts() -> list:
+def get_backend_environments() -> list:
     """!
     Getter to list the available backend environments.
     @return available Environments
     """
-    return KEYS.keys()
+    return list(KEYS.keys())
 
-def getBackendUuid(env: str = "demo") -> UUID:
+def get_backend_uuid(env: str = "demo") -> UUID:
     """!
     Getter function for environment (`env`) specific backend UUID
     @param env Environment of the backend, can be `"dev"`, `"demo"`, or `"prod"`. Default is `"demo"`
@@ -64,7 +64,7 @@ def getBackendUuid(env: str = "demo") -> UUID:
     """
     return UUID(hex=KEYS[env]["uuid"])
 
-def getBackendKeys(env: str = "demo", key_type: str = EDDSA_TYPE) -> ed25519.VerifyingKey or ecdsa.VerifyingKey:
+def get_backend_verifying_key(env: str = "demo", key_type: str = EDDSA_TYPE) -> ed25519.VerifyingKey or ecdsa.VerifyingKey:
     """!
     Getter function for environment (`env`) specific backend verification key
     @param env Environment of the backend, can be `"dev"`, `"demo"`, or `"prod"`. Default is `"demo"`
