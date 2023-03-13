@@ -234,7 +234,7 @@ class KeyStore(object):
         """
         # try to find a matching sk for the uuid
         try:
-            sk : PrivateKeyEntry = self._ks.private_keys['pke_' + uuid.hex]
+            sk : jks.PrivateKeyEntry = self._ks.private_keys['pke_' + uuid.hex]
         except KeyError as e:
             # there is no sk for the given uuid
             return None
