@@ -12,6 +12,8 @@ from requests import codes, Response
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG
 
+# import pdb
+
 ECDSA_TYPE = "ecdsa"
 EDDSA_TYPE = "ed25519"
 
@@ -235,6 +237,8 @@ class TestKeymanager:
         assert r.status_code == codes.ok, f"ed25519 json deletion failed: [{r.status_code}] {r.content}"
 
     def test_register_ecdsa_json(self):
+        # pdb.set_trace()
+
         r = self.testProto.register_key_json(self.uuid_json_ec, ECDSA_TYPE)
         assert r.status_code == codes.ok, f"ecdsa json registration failed: [{r.status_code}] {r.content}"
 
