@@ -18,16 +18,7 @@ EDDSA_TYPE = "ed25519"
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.INFO)
 logger = logging.getLogger()
 
-usage = "usage:\n" \
-        " python3 test_key_registration.py {dev | demo | prod}"
-
-if len(sys.argv) < 2:
-    print(usage)
-    sys.exit(1)
-
-env = sys.argv[1]
-
-logger.info("env: {}".format(env))
+env = "demo"
 
 
 class Proto(ubirch.Protocol):
@@ -62,8 +53,7 @@ class Proto(ubirch.Protocol):
                 raise ValueError(f"existing key for {uuid} is not from expected type {key_type}")
 
     def register_key_msgpack(self, uuid: UUID, key_type: str) -> Response:
-
-        proto.initialize_key(uuid, key_type)
+        self.initialize_key(uuid, key_type)
 
         pub_key_info = self.ks.get_certificate(uuid)
         key_reg = self.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, pub_key_info)
@@ -85,8 +75,7 @@ class Proto(ubirch.Protocol):
         return json.dumps(key_reg, sort_keys=True, indent=None, separators=(",", ":")).encode()
 
     def register_key_json(self, uuid: UUID, key_type: str) -> Response:
-
-        proto.initialize_key(uuid, key_type)
+        self.initialize_key(uuid, key_type)
 
         pub_key_info = self.ks.get_certificate(uuid)
 
@@ -126,8 +115,7 @@ class Proto(ubirch.Protocol):
 
         return self.api.deregister_identity(key_deletion)
 
-
-    def _sign(self, uuid: UUID, message: bytes, hashing: bool=True) -> bytes:
+    def _sign(self, uuid: UUID, message: bytes, hashing: bool = True) -> bytes:
         signing_key = self.ks.find_signing_key(uuid)
 
         if isinstance(signing_key, ecdsa.SigningKey):
@@ -165,7 +153,6 @@ else:
     print()
 print()
 
-
 # register ecdsa msgpack
 uuid_msgpack_ec = uuid.uuid4()
 
@@ -184,7 +171,6 @@ else:
     logger.error("{}: ECDSA deletion failed".format(uuid_msgpack_ec))
     print()
 print()
-
 
 # register eddsa json
 uuid_json_ed = uuid.uuid4()
@@ -205,7 +191,6 @@ else:
     print()
 print()
 
-
 # register ecdsa json
 uuid_json_ec = uuid.uuid4()
 
@@ -224,3 +209,35 @@ else:
     logger.error("{}: ECDSA deletion failed".format(uuid_json_ec))
     print()
 print()
+
+
+class TestKeymanager:
+    testProto = Proto(env)
+    uuid_msgpack_ed = uuid.uuid4()
+    uuid_msgpack_ec = uuid.uuid4()
+    uuid_json_ed = uuid.uuid4()
+    uuid_json_ec = uuid.uuid4()
+
+    def test_register_eddsa_msgpack(self):
+        r = self.testProto.register_key_msgpack(self.uuid_msgpack_ed, EDDSA_TYPE)
+        assert r.status_code == codes.ok, f"ed25519 msgpack registration failed: [{r.status_code}] {r.content}"
+
+    def test_register_ecdsa_msgpack(self):
+        r = self.testProto.register_key_msgpack(self.uuid_msgpack_ec, ECDSA_TYPE)
+        assert r.status_code == codes.ok, f"ecdsa msgpack registration failed: [{r.status_code}] {r.content}"
+
+    def test_register_eddsa_json(self):
+        r = self.testProto.register_key_json(self.uuid_json_ed, EDDSA_TYPE)
+        assert r.status_code == codes.ok, f"ed25519 json registration failed: [{r.status_code}] {r.content}"
+
+    def test_delete_eddsa_json(self):
+        r = self.testProto.deregister_key(self.uuid_json_ed, EDDSA_TYPE)
+        assert r.status_code == codes.ok, f"ed25519 json deletion failed: [{r.status_code}] {r.content}"
+
+    def test_register_ecdsa_json(self):
+        r = self.testProto.register_key_json(self.uuid_json_ec, ECDSA_TYPE)
+        assert r.status_code == codes.ok, f"ecdsa json registration failed: [{r.status_code}] {r.content}"
+
+    def test_delete_ecdsa_json(self):
+        r = self.testProto.deregister_key(self.uuid_json_ec, ECDSA_TYPE)
+        assert r.status_code == codes.ok, f"ecdsa json deletion failed: [{r.status_code}] {r.content}"
