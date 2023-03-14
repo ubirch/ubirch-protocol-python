@@ -28,6 +28,7 @@ import ed25519
 from jks import jks, AlgorithmIdentifier, rfc5208, TrustedCertEntry
 from pyasn1.codec.ber import encoder
 
+
 logger = getLogger(__name__)
 
 EDDSA_OID = (1, 2, 1, 3, 101, 112)
@@ -264,13 +265,13 @@ class KeyStore(object):
         """
         cert = None
 
-        if self.exists_verifying_key(uuid) == True:
+        if self.exists_verifying_key(uuid):
             # try to get the edd key first
             try:
                 cert = ED25519Certificate(
                     self._ks.certs[uuid.hex].alias,
 
-                    # the ED25519Certificate requires an ed25519.VerifyingKey
+                    # the ED25519 Certificate requires an ed25519.VerifyingKey
                     ed25519.VerifyingKey(self._ks.certs[uuid.hex].cert)
                 )
             except KeyError:
@@ -281,7 +282,7 @@ class KeyStore(object):
                 cert = ECDSACertificate(
                     self._ks.certs[uuid.hex + '_ecd'].alias,
 
-                    # the ECDSACertifcate requires an ecdsa.VerifyingKey
+                    # the ECDSA Certificate requires an ecdsa.VerifyingKey
                     ecdsa.VerifyingKey.from_string(
                         self._ks.certs[uuid.hex + '_ecd'].cert,
                         hashfunc=hashlib.sha256, curve=ecdsa.NIST256p
@@ -289,6 +290,9 @@ class KeyStore(object):
                 )
             except KeyError:
                 pass
+
+        else:
+            logger.warning(f"no key found for {uuid}")
 
         return cert
 
