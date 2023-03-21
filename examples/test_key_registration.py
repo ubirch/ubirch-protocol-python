@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 import hashlib, binascii, ecdsa, ed25519
-import sys
+import os
 import uuid
 
 from datetime import datetime
@@ -20,7 +20,8 @@ EDDSA_TYPE = "ed25519"
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.INFO)
 logger = logging.getLogger()
 
-env = "demo"
+env = os.getenv("UBIRCH_ENV", "demo")
+logger.info(f"env: {env}")
 
 
 class Proto(ubirch.Protocol):
