@@ -1,9 +1,6 @@
 
 # Step By Step Example
 
-
-Make sure to follow the setup steps in the [GettingStarted](GettingStarted.md) first. 
-
 1. [Basic protocol](#basic-protocol)
 2. [Key checks and key generation](#key-checks-and-key-generation)
 3. [Using real data](#using-real-data)
@@ -42,10 +39,6 @@ env = "demo"
   - `prod` - production (default and recommended) 
   - `demo` - demonstration stage (for testing only)
   - `dev` - Ubirch internal development stage (not reliable)
-
-> Instead of using the example [`UbirchWrapper.py`](../examples/UbirchWrapper.py) as in [Getting Started](GettingStarted.md), this guide weaves `ubirch.KeyStore` together with the `ubirch.Protocol`.
->
-> But you can also use your own key management tool instead!
 
 The best-practice to do this is to extend the `ubirch.Protocol` with a `_sign()` function that uses the signing key found in the keystore.
 
@@ -127,8 +120,7 @@ print("Response: ({}) {}".format(response.status_code, binascii.hexlify(response
 4. `UBIRCH_PROTOCOL_TYPE_BIN` is the type-code of a standard binary message. Here is resolves to `x00`
 5. Send the created UPP to the Ubirch backend
 
-The codeblocks above will be executed successfully if you have run the Getting Started instructions for this device before. 
-Otherwise you will be prompted with the Error 
+You may be prompted with the Error:
 
 `ValueError: Signing Key is neither ed25519, nor ecdsa! It's: <class 'NoneType'>`
 

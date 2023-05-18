@@ -4,12 +4,6 @@
 
 ---
 
-<!-- WHEN EDITING THIS FILE:
-  The Getting Started and the README have the same content. 
-  But for GitHub to render it as the repo description and GitHub Pages (Jekyll) to be able to find it, there need to be two.
-  The links are different in some places, so please don't just copy and paste everything while doing changes.
--->
-
 <p align="center">
     <a href="#installation">Installation</a> •
     <a href="#setup">Setup</a> •
@@ -62,62 +56,9 @@ Our [Ubirch API](http://developer.ubirch.com/function_documentation/ubirch-proto
 authentication with a `UUID` and an `AUTH_TOKEN`. together with 
 credentials `KEYSTORE` and `KEYSTORE_PWD` for a [KeyStore](http://developer.ubirch.com/function_documentation/ubirch-protocol-python/)
 
-## A minimal application
-The smallest uBirch application looks something like this. 
 
-*The code can be found in [`examples/GettingStarted.py`](../examples/GettingStarted.py) as well.*
-
-*Run it from your command prompt using `$ python3 GettingStarted.py <UUID> <AUTH_TOKEN> <KEYSTORE> <KEYSTORE_PWD>` or copy-paste the codeblocks.*
-
-Let's say we have got some environment-sensor data like:
-
-```python
-import time
-
-data = {
-    "timestamp": int(time.time()),
-    "temperature": 11.2,
-    "humidity": 35.8,
-    "status": "OK"
-}
-```
-
-To send a hash of the data to the Ubirch backend run these few lines inside of `examples/`:
-```python
-from UbirchWrapper import UbirchWrapper
-
-# (1) Initialize an UbirchWrapper instance and pass the credentials for a `KeyStore`
-client = UbirchWrapper(uuid, auth, keystore_name, keystore_password)
-
-# (2) Check if the public key is registered at the Ubirch key service and register it if necessary
-client.checkRegisterPubkey()
-
-# (3) Create a chained Ubirch protocol packet (UPP) that contains a hash of the data 
-currentUPP = client.createUPP(data)
-
-# (4) Send the UPP to the Ubirch backend using the API and handle the response
-response = client.api.send(uuid, currentUPP)
-client.handleMessageResponse(response)
-
-# (5) Verify that the response came from the backend
-client.verifyResponseSender(response)
-
-# (6) Unpack the received UPP to get its previous signature 
-previousSignatureInUPP = client.extractPreviousSignature(response)
-
-# (7) Make sure it is the same as the UPP signature sent
-client.assertSignatureCorrect(previousSignatureInUPP)
-
-# (9) Persist signature: Save last signatures to a `.sig` file
-client.protocol.persist(uuid)
-
-print("Successfully sent the UPP and verified the response!")
-```
-
-*This example uses the example [UbirchWrapper](../examples/UbirchWrapper.py) that helps to implement general repetitive tasks.*
-
-> **Next:** Take a look at the Step-by-step-example on
-> the [Documentation Pages](https://developer.ubirch.com/ubirch-protocol-python/)
+## Step By Step Example
+Take a look at the Step-by-step-example on the [Documentation Pages](https://developer.ubirch.com/ubirch-protocol-python/).
 
 ## Testing
 
