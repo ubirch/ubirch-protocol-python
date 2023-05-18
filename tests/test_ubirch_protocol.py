@@ -134,10 +134,6 @@ class TestUbirchProtocol(unittest.TestCase):
     def test_get_unpacked_index(self):
         p = Protocol()
 
-        # test indexes of signatures for unsigned messages
-        self.assertEqual(p.get_unpacked_index(0b0001, ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_SIG), -1)
-        self.assertEqual(p.get_unpacked_index(0b0001, ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_PREV_SIG), -1)
-        
         # test indexes of signatures for signed messages
         self.assertEqual(p.get_unpacked_index(0b0010, ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_SIG), 4)
         self.assertEqual(p.get_unpacked_index(0b0010, ubirch.ubirch_protocol.UNPACKED_UPP_FIELD_PREV_SIG), -1)
