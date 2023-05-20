@@ -25,7 +25,7 @@ from uuid import UUID
 
 import ecdsa
 import ed25519
-from jks import jks, AlgorithmIdentifier, rfc5208, TrustedCertEntry
+from jks import jks, AlgorithmIdentifier, rfc5208, TrustedCertEntry, PrivateKeyEntry
 from pyasn1.codec.ber import encoder
 
 logger = getLogger(__name__)
