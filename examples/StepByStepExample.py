@@ -18,28 +18,29 @@ class Proto(ubirch.Protocol):
         self.__ks = keystore
         self.load_saved_signatures(ident_uuid)
 
+        # make sure there are no 
+
         if key_type == "ed25519":
             # check if the device already has keys or generate a new pair
             if not self.__ks.exists_signing_key(ident_uuid):
                 print("Generating new keypair with ed25519 algorithm")
                 self.__ks.create_ed25519_keypair(ident_uuid)
 
-            if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex + '_ecd', None) != None:
-                # suffix-less pubkey found, delete it
-                self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex + '_ecd')
+            # make sure there is no ecdsa verifying key for the backend
+            self.__ks.delete_ecdsa_verifying_key(UBIRCH_UUIDS[env])
 
+            # insert the ed25519 verifying key for the backend
             self.__ks.insert_ed25519_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_ED[env])
-
         elif key_type == "ecdsa":
             # check if the device already has keys or generate a new pair
             if not self.__ks.exists_signing_key(ident_uuid):
                 print("Generating new keypair with ecdsa algorithm")
                 self.__ks.create_ecdsa_keypair(ident_uuid)
 
-            if self.__ks._ks.entries.get(UBIRCH_UUIDS[env].hex, None) != None:
-                # suffix-less pubkey found, delete it
-                self.__ks._ks.entries.pop(UBIRCH_UUIDS[env].hex)
+            # make sure there is no ed25519 verifying key for the backend
+            self.__ks.delete_ed25519_verifying_key(UBIRCH_UUIDS[env])
 
+            # insert the ecdsa verifying key for the backend
             self.__ks.insert_ecdsa_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_EC[env])
 
     def _sign(self, ident_uuid: uuid.UUID, message: bytes):
