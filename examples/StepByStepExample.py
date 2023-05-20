@@ -114,8 +114,10 @@ if __name__ == "__main__":
     if len(sys.argv) > 5:
         ubirch_env = sys.argv[5].lower()
 
-        if not ubirch_env in ["env", "demo", "prod"]:
-            print("Error: Provided uBirch environment '%s' is not valid! Must be one of 'dev', 'demo' or 'prod'!", ubirch_env)
+        if not ubirch_env in ["dev", "demo", "prod"]:
+            print(f"Error: Provided uBirch environment '{ubirch_env}' is not valid! Must be one of 'dev', 'demo' or 'prod'!")
+
+            usage_exit()
     else:
         ubirch_env = DEFAULT_ENV.lower()
 
