@@ -1,11 +1,9 @@
 import binascii
-from hashlib import sha256
 import hashlib
 import json
 import logging
 import os
 import pickle
-import random
 import sys
 import time
 import ed25519
@@ -22,7 +20,7 @@ logger = logging.getLogger()
 
 
 ########################################################################
-# uirch protocol section
+# ubirch protocol section
 class VerifyProto(ubirch.Protocol):
     """
     Implements the ubirch-protocol for verifying only.
@@ -242,6 +240,8 @@ def act_on_data(data_node : str, serial_port : str):
     """
     global verified_datablocks_deque
     while len(verified_datablocks_deque) > 0:
+        msg_queue_ts_ms = 0 # initialize with 0 (timing debugging)
+        msg_src_ts_ms = 0 # initialize with 0 (timing debugging)
         data_str = verified_datablocks_deque.pop() # get verified data
         data_json = json.loads(data_str) # parse json
         messages = data_json['block_msgs']

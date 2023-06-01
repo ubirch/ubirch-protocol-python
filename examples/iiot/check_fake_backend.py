@@ -372,9 +372,9 @@ def get_last_backend_hash(uuid: UUID, bearer_token:str,stage:str) -> bytes:
                 print("Server response:")
                 print(r.text)
             # debug print of token even if it's invalid
-            print("Used token contents:")
-            import jwt #TODO: move to top imports?
-            print(jwt.decode(bearer_token, options={"verify_signature": False, "verify_aud":False, "verify_exp": False}))
+            # print("Used token contents:")
+            # import jwt #TODO: move to top imports?
+            # print(jwt.decode(bearer_token, options={"verify_signature": False, "verify_aud":False, "verify_exp": False}))
             raise
 
     return hash_bytes
