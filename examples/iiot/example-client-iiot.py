@@ -4,7 +4,6 @@ import hashlib
 import json
 import logging
 import pickle
-import random
 import sys
 import time
 import os
@@ -13,7 +12,6 @@ import shelve
 import persistqueue
 from paho.mqtt import client as MqttClient
 from asyncua.sync import Client as OpcuaClient
-from asyncua.sync import ThreadLoop
 from uuid import UUID
 
 from ed25519 import VerifyingKey

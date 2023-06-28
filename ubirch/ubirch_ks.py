@@ -25,7 +25,7 @@ from uuid import UUID
 
 import ecdsa
 import ed25519
-from jks import jks, AlgorithmIdentifier, rfc5208, TrustedCertEntry
+from jks import jks, AlgorithmIdentifier, rfc5208, TrustedCertEntry, PrivateKeyEntry
 from pyasn1.codec.ber import encoder
 
 logger = getLogger(__name__)
@@ -255,6 +255,32 @@ class KeyStore(object):
             return ecdsa.SigningKey.from_string(sk.pkey, curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
         else:
             raise Exception("stored key with unknown algorithm OID: '{}'".format(sk._algorithm_oid))
+
+    def delete_ed25519_verifying_key(self, uuid: UUID) -> bool:
+        # check whether a matching key exists
+        if self._ks.entries.get(uuid.hex, None) != None:
+            # remove the key
+            self._ks.entries.pop(uuid.hex)
+
+            # write changes
+            self._ks.save(self._ks_file, self._ks_password)
+
+            return True
+        
+        return False
+
+    def delete_ecdsa_verifying_key(self, uuid: UUID) -> bool:
+        # check whether a matching key exists
+        if self._ks.entries.get(uuid.hex + '_ecd', None) != None:
+            # remove the key
+            self._ks.entries.pop(uuid.hex + '_ecd')
+
+            # write changes
+            self._ks.save(self._ks_file, self._ks_password)
+
+            return True
+        
+        return False
 
     def _find_cert(self, uuid: UUID) -> ECDSACertificate or ED25519Certificate:
         """!

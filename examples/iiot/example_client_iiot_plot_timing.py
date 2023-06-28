@@ -2,7 +2,6 @@
 import itertools
 import os
 import pickle
-import numpy as np
 import matplotlib.pyplot as plt
 
 # do scatter plot of delays over rounds on exit
@@ -19,9 +18,7 @@ for file in os.listdir("."):
     if file.endswith(".pckl"):
         print(f"loading {file}")
         with open(file, 'rb') as handle:
-            dict = pickle.load(handle)
-        statistics[file]=dict
-
+            statistics[file] = pickle.load(handle)
 averages = {} # dict to hold averages for each datapoint
 
 plt.style.use('ggplot') # let's choose a a bit prettier standard style

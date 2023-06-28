@@ -8,8 +8,6 @@ These are commandline tools that can be used to quickly accomplish certain tasks
 
 
 ## Setup - API Credentials
-Make sure to follow the steps in [GettingStarted](GettingStarted.md) first.
-
 You should have the following information at hand:
 - The stage you want to work on (later referred to as `env`)
 - The UUID of your device or "fake" device in this instance

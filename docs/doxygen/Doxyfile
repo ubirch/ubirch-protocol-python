@@ -16,7 +16,7 @@
 #===========================================================================
 # CHANGE ON A PER PROJECT BASIS:
 PROJECT_NAME           = "Ubirch Protocol Python"
-INPUT                  = MainPage.md ../../ubirch ../../examples/GettingStarted.py ../../examples/StepByStepExample.py
+INPUT                  = MainPage.md ../../ubirch ../../examples/StepByStepExample.py
 
 ### CHANGE OPTIONALLY:
 OPTIMIZE_OUTPUT_JAVA   = YES # Optimizing for Java optimizes for Python as well ¯\_(ツ)_/¯

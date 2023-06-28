@@ -34,7 +34,6 @@ logger = logging.getLogger(__name__)
 # ubirch-protocol constants
 UBIRCH_PROTOCOL_VERSION = 2
 
-PLAIN = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x01)
 SIGNED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x02)
 CHAINED = ((UBIRCH_PROTOCOL_VERSION << 4) | 0x03)
 
@@ -51,16 +50,6 @@ UNPACKED_UPP_FIELD_PAYLOAD  = 4
 UNPACKED_UPP_FIELD_SIG      = 5
 
 # lookup tables for fields in unpacked upps (used by the "get_unpacked_index" function)
-
-# message without any signatures
-#    0    |   1  |   2  |    3
-# --------|------|------|--------
-# VERSION | UUID | TYPE | PAYLOAD
-UNPACKED_UNSIGNED_UPP_INDEX_TABLE = [-1, -1, -1, -1, -1, -1]
-UNPACKED_UNSIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_VERSION] = 0
-UNPACKED_UNSIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_UUID]    = 1
-UNPACKED_UNSIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_TYPE]    = 2
-UNPACKED_UNSIGNED_UPP_INDEX_TABLE[UNPACKED_UPP_FIELD_PAYLOAD] = 3
 
 # message without the previous signature, contains a message signature
 #    0    |   1  |   2  |    3    |     4
@@ -304,9 +293,7 @@ class Protocol(object):
         # check the lower four bits of the version byte
         lowerFour = versionByte & 0x0f
 
-        if lowerFour == 0x01:
-            return UNPACKED_UNSIGNED_UPP_INDEX_TABLE[targetField]
-        elif lowerFour == 0x02:
+        if lowerFour == 0x02:
             return UNPACKED_SIGNED_UPP_INDEX_TABLE[targetField]
         elif lowerFour == 0x03:
             return UNPACKED_CHAINED_UPP_INDEX_TABLE[targetField]
