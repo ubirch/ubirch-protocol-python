@@ -1,7 +1,7 @@
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN, UNPACKED_UPP_FIELD_PREV_SIG
 
-from ubirch_keys_and_uuids import UBIRCH_UUIDS, UBIRCH_PUBKEYS_EC, UBIRCH_PUBKEYS_ED
+from ubirch.ubirch_backend_keys import EDDSA_TYPE, ECDSA_TYPE 
 
 import time, json, pickle, hashlib, binascii, ecdsa, ed25519, sys, uuid
 from requests import codes, Response
@@ -18,19 +18,19 @@ class Proto(ubirch.Protocol):
         self.__ks = keystore
         self.load_saved_signatures(ident_uuid)
 
-        # make sure there are no 
-
-        if key_type == "ed25519":
+        # check if the device already has keys or generate a new pair
+        if key_type == EDDSA_TYPE:
             # check if the device already has keys or generate a new pair
             if not self.__ks.exists_signing_key(ident_uuid):
                 print("Generating new keypair with ed25519 algorithm")
                 self.__ks.create_ed25519_keypair(ident_uuid)
 
             # make sure there is no ecdsa verifying key for the backend
-            self.__ks.delete_ecdsa_verifying_key(UBIRCH_UUIDS[env])
+            self.__ks.delete_ecdsa_verifying_key(ubirch.get_backend_uuid(env))
 
             # insert the ed25519 verifying key for the backend
-            self.__ks.insert_ed25519_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_ED[env])
+            self.__ks.insert_ed25519_verifying_key(ubirch.get_backend_uuid(env),
+                                                   ubirch.get_backend_verifying_key(env, EDDSA_TYPE))
         elif key_type == "ecdsa":
             # check if the device already has keys or generate a new pair
             if not self.__ks.exists_signing_key(ident_uuid):
@@ -38,10 +38,11 @@ class Proto(ubirch.Protocol):
                 self.__ks.create_ecdsa_keypair(ident_uuid)
 
             # make sure there is no ed25519 verifying key for the backend
-            self.__ks.delete_ed25519_verifying_key(UBIRCH_UUIDS[env])
+            self.__ks.delete_ed25519_verifying_key(ubirch.get_backend_uuid(env))
 
             # insert the ecdsa verifying key for the backend
-            self.__ks.insert_ecdsa_verifying_key(UBIRCH_UUIDS[env], UBIRCH_PUBKEYS_EC[env])
+            self.__ks.insert_ecdsa_verifying_key(ubirch.get_backend_uuid(env),
+                                                 ubirch.get_backend_verifying_key(env, ECDSA_TYPE))
 
     def _sign(self, ident_uuid: uuid.UUID, message: bytes):
         signing_key = self.__ks.find_signing_key(ident_uuid)
@@ -91,11 +92,12 @@ class Proto(ubirch.Protocol):
 
 def usage_exit():
     print(
-            "Usage: python %s <Keystore Path> <Keystore Password> <uuid.UUID> <Authentication Token> [uBirch Environment]\n\n"
+            "Usage: python %s <Keystore Path> <Keystore Password> <uuid.UUID> <Authentication Token> [uBirch Environment] [Crypto Algorithm]\n\n"
             "       Keystore Path           Path to the Keystore. If it doesn't exist yet, it will be created.\n"
             "       Keystore Password       Password for the Keystore.\n"
             "       Authentication Token    Authentication token to be used for the uBirch backend.\n"
-            "       uBirch Environment      The uBirch Environment to be used. Dev, Demo or Prod. Optional, default is " + DEFAULT_ENV
+            "       uBirch Environment      The uBirch Environment to be used. 'dev', 'demo' or 'prod'. Optional, default is '" + DEFAULT_ENV + "'\n"
+            "       Crypto Algorithm        The crypto algorithm to be used. 'ed25519' or 'ecdsa'. Optional, default is '" + DEFAULT_KEY_TYPE + "'\n"
         )
 
     sys.exit(-1)
@@ -115,12 +117,23 @@ if __name__ == "__main__":
     if len(sys.argv) > 5:
         ubirch_env = sys.argv[5].lower()
 
-        if not ubirch_env in ["dev", "demo", "prod"]:
-            print(f"Error: Provided uBirch environment '{ubirch_env}' is not valid! Must be one of 'dev', 'demo' or 'prod'!")
+        if not ubirch_env in ubirch.get_backend_environemts():
+            print(f"Error: Provided uBirch environment '{ubirch_env}' is not valid! Must be one of {ubirch.get_backend_environemts()}!")
 
             usage_exit()
     else:
         ubirch_env = DEFAULT_ENV.lower()
+
+    # check whether the key type is provided
+    if len(sys.argv) > 6:
+        key_type = sys.argv[6].lower()
+
+        if not key_type in [EDDSA_TYPE, ECDSA_TYPE]:
+            print(f"Error: Provided key type '{key_type}' is not valid! Must be one of {[EDDSA_TYPE, ECDSA_TYPE]}!")
+
+            usage_exit()
+    else:   
+        key_type = DEFAULT_KEY_TYPE.lower()
 
     # ========== Setting up all parts of the Ubirch ==========#
     # create a keystore for the device
@@ -128,7 +141,7 @@ if __name__ == "__main__":
     keystore = ubirch.KeyStore(keystore_path, keystore_pass)
 
     # create an instance of the protocol with signature saving
-    protocol = Proto(keystore, DEFAULT_KEY_TYPE, ubirch_env, ident_uuid)
+    protocol = Proto(keystore, key_type, ubirch_env, ident_uuid)
 
     # create an instance of the UBIRCH API and set the auth token
     api = ubirch.API(env=ubirch_env)
@@ -180,7 +193,7 @@ if __name__ == "__main__":
 
     # ================== Response UPP verification ==================#
     #= Verify that the response came from the backend =#
-    if protocol.verify_signature(UBIRCH_UUIDS[ubirch_env], response.content) == True:
+    if protocol.verify_signature(ubirch.get_backend_uuid(ubirch_env), response.content) == True:
         print("Backend response signature successfully verified!")
     else:
         raise Exception("Backend response signature verification FAILED!")
