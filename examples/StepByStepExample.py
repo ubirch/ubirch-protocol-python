@@ -2,13 +2,15 @@ import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UNPACKED_UPP_FIELD_PREV_SIG
 from ubirch.ubirch_backend_keys import EDDSA_TYPE, ECDSA_TYPE 
 
-import time, json, pickle, hashlib, binascii, ecdsa, ed25519, sys, uuid
+import time, json, pickle, hashlib, binascii, ecdsa, ed25519, sys, uuid, logging
 from requests import codes
 
 
 DEFAULT_KEY_TYPE = "ed25519"
 DEFAULT_ENV = "demo"
 
+logging.basicConfig(format='%(asctime)s %(name)10.10s %(levelname)-8.8s %(message)s', level=logging.INFO)
+logger = logging.getLogger()
 
 class Proto(ubirch.Protocol):
     """!
@@ -25,7 +27,7 @@ class Proto(ubirch.Protocol):
         if key_type == ECDSA_TYPE:
             # check if the device already has keys or generate a new pair
             if not self.__ks.exists_signing_key(ident_uuid):
-                print("Generating new keypair with ecdsa algorithm")
+                logger.info("Generating new keypair with ecdsa algorithm")
                 self.__ks.create_ecdsa_keypair(ident_uuid)
 
             # make sure there is no ed25519 verifying key for the backend
@@ -41,7 +43,7 @@ class Proto(ubirch.Protocol):
         elif key_type == EDDSA_TYPE:
             # check if the device already has keys or generate a new pair
             if not self.__ks.exists_signing_key(ident_uuid):
-                print("Generating new keypair with ed25519 algorithm")
+                logger.info("Generating new keypair with ed25519 algorithm")
                 self.__ks.create_ed25519_keypair(ident_uuid)
 
             # make sure there is no ecdsa verifying key for the backend
@@ -94,16 +96,16 @@ class Proto(ubirch.Protocol):
         try:
             with open(ident_uuid.hex + ".sig", "rb") as f:
                 signatures = pickle.load(f)
-                print("loaded {} known signatures".format(len(signatures)))
+                logger.info(f"Loaded {len(signatures)} known signatures")
                 self.set_saved_signatures(signatures)
         except FileNotFoundError or EOFError:
-            print("no existing saved signatures")
+            logger.warning("no existing saved signatures")
             pass
 
 
 def usage_exit():
     """! print usage and exit """
-    print(
+    logger.info(
             "Usage: python StepByStepExample.py <Keystore Path> <Keystore Password> <UUID> <Authentication Token> [uBirch Environment] [Crypto Algorithm]\n\n"
             "       Keystore Path           Path to the Keystore. If it doesn't exist yet, it will be created.\n"
             "       Keystore Password       Password for the Keystore.\n"
@@ -131,7 +133,7 @@ if __name__ == "__main__":
         ubirch_env = sys.argv[5].lower()
 
         if not ubirch_env in ubirch.get_backend_environemts():
-            print(f"Error: Provided uBirch environment '{ubirch_env}' is not valid! Must be one of {ubirch.get_backend_environemts()}!")
+            logger.error(f"Provided uBirch environment '{ubirch_env}' is not valid! Must be one of {ubirch.get_backend_environemts()}!")
 
             usage_exit()
     else:
@@ -142,7 +144,7 @@ if __name__ == "__main__":
         key_type = sys.argv[6].lower()
 
         if not key_type in [EDDSA_TYPE, ECDSA_TYPE]:
-            print(f"Error: Provided key type '{key_type}' is not valid! Must be one of {[EDDSA_TYPE, ECDSA_TYPE]}!")
+            logger.error(f"Provided key type '{key_type}' is not valid! Must be one of {[EDDSA_TYPE, ECDSA_TYPE]}!")
 
             usage_exit()
     else:   
@@ -160,29 +162,29 @@ if __name__ == "__main__":
     api = ubirch.API(env=ubirch_env)
     api.set_authentication(ident_uuid, auth_token)
 
-    print("Initializing uBirch protocol with the following parameters:")
-    print("  - UUID: {}".format(ident_uuid))
-    print("  - Authentication Token: {}".format(auth_token))
-    print("  - uBirch Environment: {}".format(ubirch_env))
-    print("  - Crypto Algorithm: {}".format(key_type))
+    logger.info("Initializing uBirch protocol with the following parameters:")
+    logger.info(f"  - UUID: {ident_uuid}")
+    logger.info(f"  - Authentication Token: {auth_token}")
+    logger.info(f"  - uBirch Environment: {ubirch_env}")
+    logger.info(f"  - Crypto Algorithm: {key_type}")
 
     #======================== 'Register' device ========================#
     # check if the public key is registered at the Ubirch key service and register it if necessary
     if not api.is_identity_registered(ident_uuid):
-        print("Device is not registered yet. Registering now...")
+        logger.info("Device is not registered yet. Registering now...")
         # get the certificate and create the registration message
         certificate = keystore.get_certificate(ident_uuid)
         key_registration = protocol.message_signed(ident_uuid, UBIRCH_PROTOCOL_TYPE_REG, certificate)
-        print("Registration message: {}".format(binascii.hexlify(key_registration)))
+        logger.info(f"Registration message: {binascii.hexlify(key_registration)}")
 
         # send the registration message and catch any errors that could have come up
         response = api.register_identity(key_registration)
 
-        print("Registration response: ({}) {}".format(response.status_code, response.content))
+        logger.info(f"Registration response: ({response.status_code}) {response.content}")
         if response.status_code != codes.ok:
             raise Exception("Registration failed!")
     else:
-        print("Device is already registered.")
+        logger.info("Device is already registered.")
 
     #======================== 'Generate' data ========================#
     data = {
@@ -195,16 +197,16 @@ if __name__ == "__main__":
     #=========== Create and send a Ubirch protocol packet ==========#
     # Create a compact rendering of the message to ensure determinism when creating the hash
     serialized = json.dumps(data, separators=(',', ':'), sort_keys=True, ensure_ascii=False).encode()
-    print(f"Serialized message: {serialized}")
+    logger.info(f"Serialized message: {serialized}")
 
     # Hash the message using the configured hash algorithm
     hashed_data = protocol.hash_algo(serialized).digest()
-    print("Message hash (base64): {}".format(binascii.b2a_base64(hashed_data).decode().rstrip("\n")))
+    logger.info(f"Message hash (base64): {binascii.b2a_base64(hashed_data, newline=False).decode()}")
 
     # Create a new chained protocol message with the message hash
     # UBIRCH_PROTOCOL_TYPE_BIN is the type-code of a standard binary message: '0x00'
     message_UPP = protocol.message_chained(ident_uuid, ubirch.ubirch_protocol.UBIRCH_PROTOCOL_TYPE_BIN, hashed_data)
-    print("Message UPP (hex): {}".format(binascii.hexlify(message_UPP)))
+    logger.info(f"Message UPP (hex): {binascii.hexlify(message_UPP)}")
 
     # send the message to the Ubirch authentication service and catch any errors that could have come up
     response = api.send(ident_uuid, message_UPP)
@@ -212,17 +214,20 @@ if __name__ == "__main__":
     if response.status_code != codes.ok:
         raise Exception("Sending UPP failed!")
     else:
-        print("Sending UPP successful!")
+        logger.info("Sending UPP successful!")
  
-    print("Response code: ({})".format(response.status_code))
-    print("Response UPP (hex):{}".format(binascii.hexlify(response.content)))
+    logger.info(f"Response code: ({response.status_code})")
+    logger.info(f"Response UPP (hex):{binascii.hexlify(response.content)}")
  
     # ================== Response UPP verification ==================#
     #= Verify that the response came from the backend =#
-    if protocol.verify_signature(ubirch.get_backend_uuid(ubirch_env), response.content) == True:
-        print("Backend response signature successfully verified!")
-    else:
-        raise Exception("Backend response signature verification FAILED!")
+    try:
+        verified = protocol.verify_signature(ubirch.get_backend_uuid(ubirch_env), response.content)
+        if verified == True:
+            logger.info("Backend response signature successfully verified!")
+    except Exception as e:
+        logger.error("Backend response signature verification FAILED!")
+        raise
 
     #= Verify that the UPP is correctly chained. =#
     # The previous signature in the response UPP has to be the same as the sent UPPs Signature
@@ -234,7 +239,7 @@ if __name__ == "__main__":
     previous_signature_in_UPP = unpacked[signature_index]
 
     if signature_message_UPP == previous_signature_in_UPP:
-        print("Sent UPP is correctly chained! The previous signature in the response UPP is the same as the sent UPPs signature")
+        logger.info("Sent UPP is correctly chained! The previous signature in the response UPP is the same as the sent UPPs signature")
     else:
         raise Exception("The previous signature in the response UPP doesn't match the signature of our UPP!")
 
@@ -242,4 +247,4 @@ if __name__ == "__main__":
     protocol.persist_signatures(ident_uuid)
 
     # the handle, verification and assert functions raise Errors on any kind of error - save to assume success
-    print("[✓] Successfully sent the UPP and verified the response!")
+    logger.info("[✓] Successfully sent the UPP and verified the response!")
