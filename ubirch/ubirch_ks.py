@@ -257,7 +257,11 @@ class KeyStore(object):
             raise Exception("stored key with unknown algorithm OID: '{}'".format(sk._algorithm_oid))
 
     def delete_ed25519_verifying_key(self, uuid: UUID) -> bool:
-        # check whether a matching key exists
+        """!
+        Delete the ed25519 verifying key for this UUID.
+        @param uuid The UUID of the device
+        @return True if the key was deleted, False if no key was found.
+        """
         if self._ks.entries.get(uuid.hex, None) != None:
             # remove the key
             self._ks.entries.pop(uuid.hex)
@@ -270,7 +274,11 @@ class KeyStore(object):
         return False
 
     def delete_ecdsa_verifying_key(self, uuid: UUID) -> bool:
-        # check whether a matching key exists
+        """!
+        Delete the ecdsa verifying key for this UUID.
+        @param uuid The UUID of the device
+        @return True if the key was deleted, False if no key was found.
+        """
         if self._ks.entries.get(uuid.hex + '_ecd', None) != None:
             # remove the key
             self._ks.entries.pop(uuid.hex + '_ecd')
