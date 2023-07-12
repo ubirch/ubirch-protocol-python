@@ -26,14 +26,14 @@ import sys
 import time
 import ecdsa
 import ed25519
-from uuid import UUID
+import uuid
 
 import requests
-from ed25519 import VerifyingKey
 from requests import codes
 
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG, UBIRCH_PROTOCOL_TYPE_BIN
+from ubirch.ubirch_backend_keys import EDDSA_TYPE, ECDSA_TYPE 
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
@@ -42,66 +42,94 @@ logger = logging.getLogger()
 ########################################################################
 # Implement the ubirch-protocol with signing and saving the signatures
 class Proto(ubirch.Protocol):
-    UUID_PROD = UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
-    PUB_PROD = VerifyingKey("ef8048ad06c0285af0177009381830c46cec025d01d86085e75a4f0041c2e690", encoding='hex')
-
-    def __init__(self, key_store: ubirch.KeyStore, uuid: UUID) -> None:
+    """!
+    This class is a wrapper for the ubirch.Protocol class.
+    It adds functionality for handling keys with different algorithms 
+    and persitent signature handling via pickle. 
+    """    
+    def __init__(self, keystore: ubirch.KeyStore, key_type: str, env : str, ident_uuid: uuid.UUID):
         super().__init__()
-        self.__ks = key_store
+        self.__ks = keystore
+        self.load_saved_signatures(ident_uuid)
 
-        # check if the device already has keys or generate a new pair
-        if not keystore.exists_signing_key(uuid):
-            keystore.create_ed25519_keypair(uuid)
+        # check the key type and set the corresponding hash algorithm
+        if key_type == ECDSA_TYPE:
+            # check if the device already has keys or generate a new pair
+            if not self.__ks.exists_signing_key(ident_uuid):
+                logger.info("Generating new keypair with ecdsa algorithm")
+                self.__ks.create_ecdsa_keypair(ident_uuid)
 
-        # check if the keystore already has the backend key for verification or insert verifying key
-        if not self.__ks.exists_verifying_key(self.UUID_PROD):
-            self.__ks.insert_ed25519_verifying_key(self.UUID_PROD, self.PUB_PROD)
+            # make sure there is no ed25519 verifying key for the backend
+            self.__ks.delete_ed25519_verifying_key(ubirch.get_backend_uuid(env))
 
-        # load last signature for device
-        self.load(uuid)
-
-        logger.info("ubirch-protocol: device id: {}".format(uuid))
-
-    def persist(self, uuid: UUID):
-        signatures = self.get_saved_signatures()
-        with open(uuid.hex + ".sig", "wb") as f:
-            pickle.dump(signatures, f)
-
-    def load(self, uuid: UUID):
-        try:
-            with open(uuid.hex + ".sig", "rb") as f:
-                signatures = pickle.load(f)
-                logger.info("loaded {} known signatures".format(len(signatures)))
-                self.set_saved_signatures(signatures)
-        except FileNotFoundError:
-            logger.warning("no existing saved signatures")
-            pass
-
-    def _sign(self, uuid: UUID, message: bytes) -> bytes:
-        signing_key = self.__ks.find_signing_key(uuid)
+            # insert the ecdsa verifying key for the backend
+            self.__ks.insert_ecdsa_verifying_key(ubirch.get_backend_uuid(env),
+                                                 ubirch.get_backend_verifying_key(env, ECDSA_TYPE))
+            
+            # select the hash algorithm for the signature
+            self.hash_algo = hashlib.sha256
         
+        elif key_type == EDDSA_TYPE:
+            # check if the device already has keys or generate a new pair
+            if not self.__ks.exists_signing_key(ident_uuid):
+                logger.info("Generating new keypair with ed25519 algorithm")
+                self.__ks.create_ed25519_keypair(ident_uuid)
+
+            # make sure there is no ecdsa verifying key for the backend
+            self.__ks.delete_ecdsa_verifying_key(ubirch.get_backend_uuid(env))
+
+            # insert the ed25519 verifying key for the backend
+            self.__ks.insert_ed25519_verifying_key(ubirch.get_backend_uuid(env),
+                                                   ubirch.get_backend_verifying_key(env, EDDSA_TYPE))
+            
+            # select the hash algorithm for the signature
+            self.hash_algo = hashlib.sha512
+
+
+    def _sign(self, ident_uuid: uuid.UUID, message: bytes):
+        signing_key = self.__ks.find_signing_key(ident_uuid)
+
         if isinstance(signing_key, ecdsa.SigningKey):
             # no hashing required here
-            final_message = message
-        elif isinstance(signing_key, ed25519.SigningKey):
-            final_message = hashlib.sha512(message).digest() 
-        else: 
-            raise(ValueError("Signing Key is neither ed25519, nor ecdsa!"))    
-        
-        return signing_key.sign(final_message)
+            return signing_key.sign(message)
 
-    def _verify(self, uuid: UUID, message: bytes, signature: bytes):
-        verifying_key = self.__ks.find_verifying_key(uuid)
+        elif isinstance(signing_key, ed25519.SigningKey):
+            hashed_message = hashlib.sha512(message).digest()
+            return signing_key.sign(hashed_message)
+
+        else:
+            raise (ValueError("Signing Key is neither ed25519, nor ecdsa! It's: " + str(type(signing_key))))
+
+    def _verify(self, ident_uuid: uuid.UUID, message: bytes, signature: bytes):
+        verifying_key = self.__ks.find_verifying_key(ident_uuid)
 
         if isinstance(verifying_key, ecdsa.VerifyingKey):
             # no hashing required here
-            final_message = message
+            return verifying_key.verify(signature, message)
+
         elif isinstance(verifying_key, ed25519.VerifyingKey):
-            final_message = hashlib.sha512(message).digest() 
-        else: 
-            raise(ValueError("Verifying Key is neither ed25519, nor ecdsa!"))    
-         
-        return verifying_key.verify(signature, final_message)
+            hashed_message = hashlib.sha512(message).digest()
+            return verifying_key.verify(signature, hashed_message)
+
+        else:
+            raise (ValueError("Verifying Key is neither ed25519, nor ecdsa! It's: " + str(type(verifying_key))))
+
+    def persist_signatures(self, ident_uuid: uuid.UUID):
+        """! persist the latest signatures to a file """
+        signatures = self.get_saved_signatures()
+        with open(ident_uuid.hex + ".sig", "wb") as f:
+            pickle.dump(signatures, f)
+
+    def load_saved_signatures(self, ident_uuid: uuid.UUID):
+        """! load the latest signatures from a file """
+        try:
+            with open(ident_uuid.hex + ".sig", "rb") as f:
+                signatures = pickle.load(f)
+                logger.info(f"Loaded {len(signatures)} known signatures")
+                self.set_saved_signatures(signatures)
+        except FileNotFoundError or EOFError:
+            logger.warning("no existing saved signatures")
+            pass
 
 ########################################################################
 
@@ -111,8 +139,8 @@ config = configparser.ConfigParser()
 config.read('demo-device.ini')
 if not config.has_section('device'):
     config.add_section('device')
-    uuid = input("Enter your UUID:")
-    config.set('device', 'uuid', uuid)
+    device_uuid = input("Enter your UUID:")
+    config.set('device', 'uuid', device_uuid)
     auth = input("Enter your API authentication token:")
     config.set('device', 'auth', auth)
     config.set('device', 'env', 'prod')
@@ -121,13 +149,13 @@ if not config.has_section('device'):
     with open('demo-device.ini', "w") as f:
         config.write(f)
 
-uuid = UUID(hex=config.get('device', 'uuid'))
+device_uuid = uuid.UUID(hex=config.get('device', 'uuid'))
 auth = config.get('device', 'auth')
 env = config.get('device', 'env', fallback=None)
 debug = config.getboolean('device', 'debug', fallback=False)
 groups = list(filter(None, config.get('device', 'groups', fallback="").split(",")))
 
-logger.info("UUID : {}".format(uuid))
+logger.info("UUID : {}".format(device_uuid))
 logger.info("AUTH : {}".format(auth))
 logger.info("ENV  : {}".format(env))
 logger.info("DEBUG: {}".format(debug))
@@ -136,26 +164,26 @@ logger.info("DEBUG: {}".format(debug))
 keystore = ubirch.KeyStore("demo-device.jks", "keystore")
 
 # create new protocol
-proto = Proto(keystore, uuid)
+proto = Proto(keystore, EDDSA_TYPE, env, device_uuid)
 
 # use the ubirch API to create a new device and send data using the ubirch-protocol
 api = ubirch.API(env=env, debug=debug)
-api.set_authentication(uuid, auth)
+api.set_authentication(device_uuid, auth)
 # register the devices identity
-if not api.is_identity_registered(uuid):
-    registration_message = proto.message_signed(uuid, UBIRCH_PROTOCOL_TYPE_REG, keystore.get_certificate(uuid))
+if not api.is_identity_registered(device_uuid):
+    registration_message = proto.message_signed(device_uuid, UBIRCH_PROTOCOL_TYPE_REG, keystore.get_certificate(device_uuid))
     r = api.register_identity(registration_message)
     if r.status_code == requests.codes.ok:
-        logger.info("registered new identity: {}".format(uuid))
+        logger.info("registered new identity: {}".format(device_uuid))
     else:
-        logger.error("device registration failed: {}".format(uuid))
+        logger.error("device registration failed: {}".format(device_uuid))
     logger.debug(r.content)
 
 for i in range(3):
     # create a message like being sent to the customer backend
     # include an ID and timestamp in the data message to ensure a unique hash
     message = {
-        "id": str(uuid),
+        "id": str(device_uuid),
         "ts": int(time.time()),
         "n": i
     }
@@ -169,11 +197,11 @@ for i in range(3):
     logger.info("message hash({}): {}".format(i, binascii.b2a_base64(message_hash, newline=False).decode()))
 
     # create a new chained protocol message with the message hash
-    upp = proto.message_chained(uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
+    upp = proto.message_chained(device_uuid, UBIRCH_PROTOCOL_TYPE_BIN, message_hash)
     logger.info("UPP({}): {}".format(i, binascii.hexlify(upp).decode()))
 
     # send chained protocol message to UBIRCH authentication service
-    r = api.send(uuid, upp)
+    r = api.send(device_uuid, upp)
     if r.status_code == codes.ok:
         logger.info("UPP sent. backend response: {}".format(binascii.hexlify(r.content).decode()))
     else:
@@ -183,11 +211,11 @@ for i in range(3):
 
     # verify the backend response
     try:
-        proto.message_verify(r.content)
+        verified = proto.verify_signature(ubirch.get_backend_uuid(env),r.content)
         logger.info("backend response signature verified")
     except Exception as e:
         logger.error("backend response signature verification failed! {}".format(repr(e)))
         sys.exit(1)
 
 # save last signature
-proto.persist(uuid)
+proto.persist_signatures(device_uuid)
