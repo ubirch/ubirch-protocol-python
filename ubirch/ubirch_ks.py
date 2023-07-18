@@ -182,7 +182,7 @@ class KeyStore(object):
         @param sk A `ecdsa.SigningKey` like generated from `ecdsa.create_keypair()`
         @return The verifying key and the signing key
         """
-        if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
+        if str('pke_' + uuid.hex) in self._ks.entries or str(uuid.hex + '_ecd') in self._ks.certs: # TODO check this again
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
         self.insert_ecdsa_verifying_key(uuid, vk)
@@ -282,6 +282,23 @@ class KeyStore(object):
         if self._ks.entries.get(uuid.hex + '_ecd', None) != None:
             # remove the key
             self._ks.entries.pop(uuid.hex + '_ecd')
+
+            # write changes
+            self._ks.save(self._ks_file, self._ks_password)
+
+            return True
+        
+        return False
+
+    def delete_signing_key(self, uuid: UUID) -> bool:
+        """!
+        Delete the ed25519/ecdsa signing key for this UUID.
+        @param uuid The UUID of the device
+        @return True if the key was deleted, False if no key was found.
+        """
+        if self._ks.entries.get('pke_' + uuid.hex, None) != None:
+            # remove the key
+            self._ks.entries.pop('pke_' + uuid.hex)
 
             # write changes
             self._ks.save(self._ks_file, self._ks_password)
