@@ -22,6 +22,9 @@ import unittest
 import uuid
 from datetime import datetime
 import binascii
+import ecdsa 
+import hashlib
+
 
 import ubirch
 
@@ -56,6 +59,28 @@ class TestUbirchKeyStore(unittest.TestCase):
         ks.create_ecdsa_keypair(id)
         self.assertIsNotNone(ks.find_verifying_key(id))
         self.assertIsNotNone(ks.find_signing_key(id))
+
+    def test_create_new_keypair_ecdsa_wrong_curve(self):
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        id = uuid.uuid4()
+        try:
+            ks.create_ecdsa_keypair(uuid=id, curve=ecdsa.SECP256k1, hashfunc=hashlib.sha256),
+        except Exception as e:
+            self.assertEqual(e.args[0], "Curve not supported! Currently only supports [ecdsa.NIST256p]")
+
+        self.assertIsNone(ks.find_verifying_key(id))
+        self.assertIsNone(ks.find_signing_key(id))
+
+    def test_create_new_keypair_ecdsa_wrong_hashfunc(self):
+        ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
+        id = uuid.uuid4()
+        try:
+            ks.create_ecdsa_keypair(uuid=id, curve=ecdsa.NIST256p, hashfunc=hashlib.sha512),
+        except Exception as e:
+            self.assertEqual(e.args[0], "Hashing algorithm not supported! Currently only supports [hashlib.sha256]")
+
+        self.assertIsNone(ks.find_verifying_key(id))
+        self.assertIsNone(ks.find_signing_key(id))
 
     def test_do_not_create_duplicate(self):
         ks = ubirch.KeyStore(TEST_KEYSTORE_FILE, TEST_PASSWORD)
