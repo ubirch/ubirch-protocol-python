@@ -129,13 +129,13 @@ class KeyStore(object):
         @param sk A `ed25519.SigningKey` like generated from `ed25519.create_keypair()`
         @return The verifying key and the signing key
         """
-        if uuid.hex in self._ks.entries or uuid.hex in self._ks.certs:
+        if str('pke_' + uuid.hex) in self._ks.entries or uuid.hex in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
         self.insert_ed25519_verifying_key(uuid, vk)
         self.insert_ed25519_signing_key(uuid, sk)
         self._ks.save(self._ks_file, self._ks_password)
-        logger.info("inserted new key pair for {}: {}".format(uuid.hex, bytes.decode(vk.to_ascii(encoding='hex'))))
+        logger.info("inserted new ED25519 key pair for {}: {}".format(uuid.hex, bytes.decode(vk.to_ascii(encoding='hex'))))
         return vk, sk
 
     def create_ed25519_keypair(self, uuid: UUID) -> (ed25519.VerifyingKey, ed25519.SigningKey):
@@ -171,8 +171,7 @@ class KeyStore(object):
         @param vk A `ecdsa.VerifyingKey` like generated from `ecdsa.create_keypair()`
         """
         # store verifying key in certificate store
-        # ecdsa VKs are marked with a "_ecd" suffix
-        self._ks.entries[uuid.hex + '_ecd'] = ECDSACertificate(uuid.hex, vk)
+        self._ks.entries[uuid.hex] = ECDSACertificate(uuid.hex, vk)
 
     def insert_ecdsa_keypair(self, uuid: UUID, vk: ecdsa.VerifyingKey, sk: ecdsa.SigningKey) -> (ecdsa.VerifyingKey, ecdsa.SigningKey):
         """!
@@ -182,13 +181,13 @@ class KeyStore(object):
         @param sk A `ecdsa.SigningKey` like generated from `ecdsa.create_keypair()`
         @return The verifying key and the signing key
         """
-        if str('pke_' + uuid.hex) in self._ks.entries or str(uuid.hex + '_ecd') in self._ks.certs: # TODO check this again
+        if str('pke_' + uuid.hex) in self._ks.entries or str(uuid.hex) in self._ks.certs:
             raise Exception("uuid '{}' already exists in keystore".format(uuid.hex))
 
         self.insert_ecdsa_verifying_key(uuid, vk)
         self.insert_ecdsa_signing_key(uuid, sk)
         self._ks.save(self._ks_file, self._ks_password)
-        #logger.info("inserted new key pair for {}: {}".format(uuid.hex, vk.to_string().decode()))
+        logger.info("inserted new ECDSA key pair for {}: {}".format(uuid.hex, vk.to_string().hex()))
         return (vk, sk)
 
     def create_ecdsa_keypair(self, uuid: UUID, curve: ecdsa.curves.Curve = ecdsa.NIST256p, hashfunc=hashlib.sha256) -> (ecdsa.VerifyingKey, ecdsa.SigningKey):
@@ -224,7 +223,7 @@ class KeyStore(object):
         @param uuid The UUID of the device
         @return True if this UUID has a verifying key in the key store.
         """
-        return uuid.hex in self._ks.certs or (uuid.hex + '_ecd') in self._ks.certs
+        return uuid.hex in self._ks.certs
 
     def find_signing_key(self, uuid: UUID) -> ed25519.SigningKey or ecdsa.SigningKey:
         """!
@@ -256,36 +255,17 @@ class KeyStore(object):
         else:
             raise Exception("stored key with unknown algorithm OID: '{}'".format(sk._algorithm_oid))
 
-    def delete_ed25519_verifying_key(self, uuid: UUID) -> bool:
+    def delete_verifying_key(self, uuid: UUID) -> bool:
         """!
-        Delete the ed25519 verifying key for this UUID.
+        Delete the ecdsa/ed25519 verifying key for this UUID.
         @param uuid The UUID of the device
         @return True if the key was deleted, False if no key was found.
         """
         if self._ks.entries.get(uuid.hex, None) != None:
             # remove the key
             self._ks.entries.pop(uuid.hex)
-
             # write changes
             self._ks.save(self._ks_file, self._ks_password)
-
-            return True
-        
-        return False
-
-    def delete_ecdsa_verifying_key(self, uuid: UUID) -> bool:
-        """!
-        Delete the ecdsa verifying key for this UUID.
-        @param uuid The UUID of the device
-        @return True if the key was deleted, False if no key was found.
-        """
-        if self._ks.entries.get(uuid.hex + '_ecd', None) != None:
-            # remove the key
-            self._ks.entries.pop(uuid.hex + '_ecd')
-
-            # write changes
-            self._ks.save(self._ks_file, self._ks_password)
-
             return True
         
         return False
@@ -313,35 +293,33 @@ class KeyStore(object):
         @param uuid The UUID of the device
         @return The stored ECDSACertificate or ED25519Certificate if found. Else returns `None`
         """
-        cert = None
-
         if self.exists_verifying_key(uuid) == True:
             # try to get the edd key first
             try:
                 cert = ED25519Certificate(
                     self._ks.certs[uuid.hex].alias,
-
                     # the ED25519Certificate requires an ed25519.VerifyingKey
                     ed25519.VerifyingKey(self._ks.certs[uuid.hex].cert)
                 )
-            except KeyError:
+                return cert 
+            except (KeyError, AssertionError):
                 pass
 
             # no edd key found, try to get ecd
             try:
                 cert = ECDSACertificate(
-                    self._ks.certs[uuid.hex + '_ecd'].alias,
-
+                    self._ks.certs[uuid.hex].alias, 
                     # the ECDSACertifcate requires an ecdsa.VerifyingKey
                     ecdsa.VerifyingKey.from_string(
-                        self._ks.certs[uuid.hex + '_ecd'].cert,
+                        self._ks.certs[uuid.hex].cert,
                         hashfunc=hashlib.sha256, curve=ecdsa.NIST256p
                     )
                 )
-            except KeyError:
+                return cert
+            except (KeyError, AssertionError):
                 pass
 
-        return cert
+        return None
 
     def find_verifying_key(self, uuid: UUID) -> ed25519.VerifyingKey or ecdsa.VerifyingKey:
         """!
