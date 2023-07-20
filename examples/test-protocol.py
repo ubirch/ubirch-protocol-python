@@ -60,7 +60,7 @@ class Proto(ubirch.Protocol):
                 self.__ks.create_ecdsa_keypair(ident_uuid)
 
             # make sure there is no ed25519 verifying key for the backend
-            self.__ks.delete_ed25519_verifying_key(ubirch.get_backend_uuid(env))
+            self.__ks.delete_verifying_key(ubirch.get_backend_uuid(env))
 
             # insert the ecdsa verifying key for the backend
             self.__ks.insert_ecdsa_verifying_key(ubirch.get_backend_uuid(env),
@@ -76,7 +76,7 @@ class Proto(ubirch.Protocol):
                 self.__ks.create_ed25519_keypair(ident_uuid)
 
             # make sure there is no ecdsa verifying key for the backend
-            self.__ks.delete_ecdsa_verifying_key(ubirch.get_backend_uuid(env))
+            self.__ks.delete_verifying_key(ubirch.get_backend_uuid(env))
 
             # insert the ed25519 verifying key for the backend
             self.__ks.insert_ed25519_verifying_key(ubirch.get_backend_uuid(env),
@@ -136,7 +136,7 @@ class Proto(ubirch.Protocol):
 
 # load configuration from storage
 config = configparser.ConfigParser()
-config.read('demo-device.ini')
+config.read('demo-device-ecc.ini')
 if not config.has_section('device'):
     config.add_section('device')
     device_uuid = input("Enter your UUID:")
@@ -146,7 +146,8 @@ if not config.has_section('device'):
     config.set('device', 'env', 'prod')
     config.set('device', 'debug', 'False')
     config.set('device', 'groups', '')
-    with open('demo-device.ini', "w") as f:
+    config.set('device', 'key_type', EDDSA_TYPE)
+    with open('demo-device-ecc.ini', "w") as f:
         config.write(f)
 
 device_uuid = uuid.UUID(hex=config.get('device', 'uuid'))
@@ -154,17 +155,19 @@ auth = config.get('device', 'auth')
 env = config.get('device', 'env', fallback=None)
 debug = config.getboolean('device', 'debug', fallback=False)
 groups = list(filter(None, config.get('device', 'groups', fallback="").split(",")))
+key_type = config.get('device', 'key_type', fallback=EDDSA_TYPE)
 
-logger.info("UUID : {}".format(device_uuid))
-logger.info("AUTH : {}".format(auth))
-logger.info("ENV  : {}".format(env))
-logger.info("DEBUG: {}".format(debug))
+logger.info("UUID     : {}".format(device_uuid))
+logger.info("AUTH     : {}".format(auth))
+logger.info("ENV      : {}".format(env))
+logger.info("KEY_TYPE : {}".format(key_type))
+logger.info("DEBUG    : {}".format(debug))
 
 # create a new device uuid and a keystore for the device
-keystore = ubirch.KeyStore("demo-device.jks", "keystore")
+keystore = ubirch.KeyStore("demo-device-ecc.jks", "keystore")
 
 # create new protocol
-proto = Proto(keystore, EDDSA_TYPE, env, device_uuid)
+proto = Proto(keystore, key_type, env, device_uuid)
 
 # use the ubirch API to create a new device and send data using the ubirch-protocol
 api = ubirch.API(env=env, debug=debug)
