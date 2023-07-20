@@ -31,7 +31,7 @@ class Proto(ubirch.Protocol):
                 self.__ks.create_ecdsa_keypair(ident_uuid)
 
             # make sure there is no ed25519 verifying key for the backend
-            self.__ks.delete_ed25519_verifying_key(ubirch.get_backend_uuid(env))
+            self.__ks.delete_verifying_key(ubirch.get_backend_uuid(env))
 
             # insert the ecdsa verifying key for the backend
             self.__ks.insert_ecdsa_verifying_key(ubirch.get_backend_uuid(env),
@@ -47,7 +47,7 @@ class Proto(ubirch.Protocol):
                 self.__ks.create_ed25519_keypair(ident_uuid)
 
             # make sure there is no ecdsa verifying key for the backend
-            self.__ks.delete_ecdsa_verifying_key(ubirch.get_backend_uuid(env))
+            self.__ks.delete_verifying_key(ubirch.get_backend_uuid(env))
 
             # insert the ed25519 verifying key for the backend
             self.__ks.insert_ed25519_verifying_key(ubirch.get_backend_uuid(env),
