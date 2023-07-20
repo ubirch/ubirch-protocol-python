@@ -27,6 +27,7 @@ import hashlib
 
 import ubirch
 from ubirch.ubirch_protocol import UBIRCH_PROTOCOL_TYPE_REG
+from ubirch.ubirch_backend_keys import EDDSA_TYPE, ECDSA_TYPE 
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(levelname)-8.8s %(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
@@ -53,7 +54,7 @@ class Proto(ubirch.Protocol):
 
 # load configuration from storage
 config = configparser.ConfigParser()
-config.read('demo-device.ini')
+config.read('demo-device-ecc.ini')
 if not config.has_section('device'):
     config.add_section('device')
     device_uuid = input("Enter your UUID:")
@@ -63,7 +64,8 @@ if not config.has_section('device'):
     config.set('device', 'env', 'prod')
     config.set('device', 'debug', 'False')
     config.set('device', 'groups', '')
-    with open('demo-device.ini', "w") as f:
+    config.set('device', 'key_type', EDDSA_TYPE)
+    with open('demo-device-ecc.ini', "w") as f:
         config.write(f)
 
 device_uuid = uuid.UUID(hex=config.get('device', 'uuid'))
@@ -71,22 +73,33 @@ auth = config.get('device', 'auth')
 env = config.get('device', 'env', fallback=None)
 debug = config.getboolean('device', 'debug', fallback=False)
 groups = list(filter(None, config.get('device', 'groups', fallback="").split(",")))
+key_type = config.get('device', 'key_type', fallback=EDDSA_TYPE)
 
-logger.info("UUID : {}".format(device_uuid))
-logger.info("AUTH : {}".format(auth))
-logger.info("ENV  : {}".format(env))
-logger.info("DEBUG: {}".format(debug))
+logger.info("UUID     : {}".format(device_uuid))
+logger.info("AUTH     : {}".format(auth))
+logger.info("ENV      : {}".format(env))
+logger.info("KEY_TYPE : {}".format(key_type))
+logger.info("DEBUG    : {}".format(debug))
 
 # create a new device uuid and a keystore for the device
-keystore = ubirch.KeyStore("demo-device.jks", "keystore")
+keystore = ubirch.KeyStore("demo-device-ecc.jks", "keystore")
 
 # check if the device already has keys or generate a new pair
 if not keystore.exists_signing_key(device_uuid):
-    keystore.create_ed25519_keypair(device_uuid)
+    if key_type == EDDSA_TYPE:
+        keystore.create_ed25519_keypair(device_uuid)
+    elif key_type == ECDSA_TYPE:
+        keystore.create_ecdsa_keypair(device_uuid)
 
 # get the keys
 sk = keystore.find_signing_key(device_uuid)
 vk = keystore.find_verifying_key(device_uuid)
+if key_type == EDDSA_TYPE:
+    vk_string = vk.to_bytes()
+elif key_type == ECDSA_TYPE:
+    vk_string = vk.to_string()
+else:
+    raise(ValueError("Key Type is neither ed25519, nor ecdsa!"))
 
 # create protocol instance
 proto = Proto(keystore)
@@ -102,8 +115,8 @@ logger.info("registered: {}: {}".format(r.status_code, r.content))
 
 # de-register public key
 key_deregistration = str.encode(json.dumps({
-    "publicKey": bytes.decode(base64.b64encode(vk.to_bytes())),
-    "signature": bytes.decode(base64.b64encode(sk.sign(vk.to_bytes())))
+    "publicKey": bytes.decode(base64.b64encode(vk_string)),
+    "signature": bytes.decode(base64.b64encode(sk.sign(vk_string)))
 }))
 r = api.deregister_identity(key_deregistration)
 logger.info("deregistered: {}: {}".format(r.status_code, r.content))
