@@ -9,6 +9,7 @@ import ecdsa
 import hashlib
 
 import ubirch
+from ubirch.ubirch_backend_keys import EDDSA_TYPE, ECDSA_TYPE 
 
 
 DEFAULT_INPUT = "/dev/stdin"
@@ -21,40 +22,45 @@ logger = logging.getLogger()
 
 
 class Proto(ubirch.Protocol):
-    # UUIDs paired with public keys of uBirch Niomon on all stages
-    UUID_DEV = uuid.UUID(hex="9d3c78ff-22f3-4441-a5d1-85c636d486ff")
-    PUB_DEV = ed25519.VerifyingKey("a2403b92bc9add365b3cd12ff120d020647f84ea6983f98bc4c87e0f4be8cd66", encoding='hex')
-    UUID_DEMO = uuid.UUID(hex="07104235-1892-4020-9042-00003c94b60b")
-    PUB_DEMO = ed25519.VerifyingKey("39ff77632b034d0eba6d219c2ff192e9f24916c9a02672acb49fd05118aad251", encoding='hex')
-    UUID_PROD = uuid.UUID(hex="10b2e1a4-56b3-4fff-9ada-cc8c20f93016")
-    PUB_PROD = ed25519.VerifyingKey("ef8048ad06c0285af0177009381830c46cec025d01d86085e75a4f0041c2e690", encoding='hex')
 
-    def __init__(self, ks : ubirch.KeyStore):
+    def __init__(self, ks : ubirch.KeyStore, key_type: str = EDDSA_TYPE):
         super().__init__()
 
         self.ks : ubirch.KeyStore = ks
 
-        # insert all keys defined above into the keystore
-        if not self.ks.exists_verifying_key(self.UUID_DEV):
-            self.ks.insert_ed25519_verifying_key(self.UUID_DEV, self.PUB_DEV)
-        if not self.ks.exists_verifying_key(self.UUID_DEMO):
-            self.ks.insert_ed25519_verifying_key(self.UUID_DEMO, self.PUB_DEMO)
-        if not self.ks.exists_verifying_key(self.UUID_PROD):
-            self.ks.insert_ed25519_verifying_key(self.UUID_PROD, self.PUB_PROD)
+                # check the key type and set the corresponding hash algorithm
+        if key_type == ECDSA_TYPE:
+            # insert ecdsa verifying keys for all the backend environments
+            for env in ubirch.get_backend_environemts():
+                if not self.ks.exists_verifying_key(ubirch.get_backend_uuid(env)):
+                    self.ks.insert_ecdsa_verifying_key(ubirch.get_backend_uuid(env),
+                                                       ubirch.get_backend_verifying_key(env, ECDSA_TYPE))
+        
+        elif key_type == EDDSA_TYPE:
+            # insert ed25519 verifying keys for all the backend environments
+            for env in ubirch.get_backend_environemts():
+                if not self.ks.exists_verifying_key(ubirch.get_backend_uuid(env)):
+                    self.ks.insert_ed25519_verifying_key(ubirch.get_backend_uuid(env),
+                                                         ubirch.get_backend_verifying_key(env, EDDSA_TYPE))
+        
+        else:
+            raise ValueError("Invalid key type: %s" % key_type)
+        
+        return
 
     def _verify(self, uuid: uuid.UUID, message: bytes, signature: bytes):
         verifying_key = self.ks.find_verifying_key(uuid)
 
         if isinstance(verifying_key, ecdsa.VerifyingKey):
             # no hashing required here
-            final_message = message
+            return verifying_key.verify(signature, message)
+
         elif isinstance(verifying_key, ed25519.VerifyingKey):
-            final_message = hashlib.sha512(message).digest()
+            hashed_message = hashlib.sha512(message).digest()
+            return verifying_key.verify(signature, hashed_message)
+
         else:
-            raise(ValueError("Verifying Key is neither ed25519, nor ecdsa!"))
-
-        return verifying_key.verify(signature, final_message)
-
+            raise (ValueError("Verifying Key is neither ed25519, nor ecdsa! It's: " + str(type(verifying_key))))
 
 class Main:
     def __init__(self):
@@ -224,7 +230,7 @@ class Main:
 
     def init_proto(self) -> bool:
         try:
-            self.proto = Proto(self.keystore)
+            self.proto = Proto(self.keystore, ECDSA_TYPE if self.isecd == True else EDDSA_TYPE)
         except Exception as e:
             logger.exception(e)
 
