@@ -9,7 +9,7 @@ import uuid
 import ubirch
 
 
-DEFAULT_ENV    = "dev"
+DEFAULT_ENV    = "demo"
 DEFAULT_INPUT  = "upp.bin"
 DEFAULT_OUTPUT = "response_upp.bin"
 DEFAULT_ISHEX  = "False"
@@ -189,7 +189,10 @@ class Main:
                     if r.status_code == 401:
                         logger.error("The UPP was rejected because of an authentication error! (Missing header/Invalid auth token)")
                     elif r.status_code == 403:
-                        logger.error("The UPP wa rejected because of an verification error!")
+                        logger.error("The UPP was rejected because of an verification error!")
+                    else:
+                        logger.error("The UPP was rejected! Status code %s", r.status_code)
+                        
         except Exception as e:
             logger.exception(e)
 
