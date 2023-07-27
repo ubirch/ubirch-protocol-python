@@ -1,4 +1,5 @@
 import binascii
+import base64
 import json
 import logging
 import pickle
@@ -121,7 +122,7 @@ class Main:
         self.argparser.add_argument("data", metavar="DATA", type=str,
             help="data to be packed into the UPP or hashed; e.g.: {\"t\": 23.4, \"ts\": 1624624140}"
         )
-        self.argparser.add_argument("--version", "-v", metavar="VERISON", type=str, default=DEFAULT_VERSION,
+        self.argparser.add_argument("--version", "-v", metavar="VERSION", type=str, default=DEFAULT_VERSION,
             help="version of the UPP; 0x21 (unsigned; NOT IMPLEMENTED), 0x22 (signed) or 0x23 (chained) (default: %s)" % DEFAULT_VERSION
         )
         self.argparser.add_argument("--type", "-t", metavar="TYPE", type=str, default=DEFAULT_TYPE,
@@ -140,7 +141,7 @@ class Main:
             help="hash algorithm for hashing the data; sha256, sha512 or off (disable hashing), ... (default and recommended: %s)" % DEFAULT_HASH
         )
         self.argparser.add_argument("--isjson", "-j", metavar="ISJSON", type=str, default=DEFAULT_ISJSON,
-            help="tells the script to treat the input data as json and serealize it (see EXAMPLES.md for more information); true or false (default: %s)" % DEFAULT_ISJSON
+            help="tells the script to treat the input data as json and serialize it (see docs/DevTools.md for more information); true or false (default: %s)" % DEFAULT_ISJSON
         )
         self.argparser.add_argument("--output", "-o", metavar="OUTPUT", type=str, default=DEFAULT_OUTPUT,
             help="file to write the generated UPP to (aside from standard output); e.g. upp.bin (default: %s)" % DEFAULT_OUTPUT
@@ -278,7 +279,7 @@ class Main:
                     k_t = "ED25519"
 
                 logger.info("Public/Verifying key for \"%s\" [%s, base64]: \"%s\"" %
-                    (self.uuid_str, k_t, binascii.b2a_base64(vk_b, newline=False).decode()))
+                    (self.uuid_str, k_t, base64.b64encode(vk_b).decode()))
         except Exception as e:
             logger.exception(e)
 
@@ -370,7 +371,7 @@ class Main:
                 self.payload = self.hasher(self.data.encode()).digest()
 
                 if self.nostdout == False:
-                    logger.info("UPP payload (%s hash of the data) [base64]: \"%s\"" % (self.hash, binascii.b2a_base64(self.payload).decode().rstrip("\n")))
+                    logger.info("UPP payload (%s hash of the data) [base64]: \"%s\"" % (self.hash, base64.b64encode(self.payload).decode().rstrip("\n")))
         except Exception as e:
             logger.exception(e)
 
