@@ -54,7 +54,7 @@ class Proto(ubirch.Protocol):
 
 # load configuration from storage
 config = configparser.ConfigParser()
-config.read('demo-device-ecc.ini')
+config.read('demo-device.ini')
 if not config.has_section('device'):
     config.add_section('device')
     device_uuid = input("Enter your UUID:")
@@ -65,7 +65,7 @@ if not config.has_section('device'):
     config.set('device', 'debug', 'False')
     config.set('device', 'groups', '')
     config.set('device', 'key_type', EDDSA_TYPE)
-    with open('demo-device-ecc.ini', "w") as f:
+    with open('demo-device.ini', "w") as f:
         config.write(f)
 
 device_uuid = uuid.UUID(hex=config.get('device', 'uuid'))
@@ -82,7 +82,7 @@ logger.info("KEY_TYPE : {}".format(key_type))
 logger.info("DEBUG    : {}".format(debug))
 
 # create a new device uuid and a keystore for the device
-keystore = ubirch.KeyStore("demo-device-ecc.jks", "keystore")
+keystore = ubirch.KeyStore("demo-device.jks", "keystore")
 
 # check if the device already has keys or generate a new pair
 if not keystore.exists_signing_key(device_uuid):
