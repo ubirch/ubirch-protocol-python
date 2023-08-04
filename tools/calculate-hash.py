@@ -29,4 +29,8 @@ print(" rendered: " + serialized.decode())
 
 # calculate SHA256 hash of message
 message_hash = hashlib.sha256(serialized).digest()
-print(" SHA256 hash: " + binascii.b2a_base64(message_hash).decode())
+print(" SHA256 hash: " + binascii.b2a_base64(message_hash).decode().rstrip('\n'))
+
+# calculate SHA512 hash of message
+message_hash = hashlib.sha512(serialized).digest()
+print(" SHA512 hash: " + binascii.b2a_base64(message_hash).decode())
