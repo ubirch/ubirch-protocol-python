@@ -112,13 +112,15 @@ class Main:
         try:
             # get the key type from the key length
             if len(self.vk_str) == 128:
-                logger.info("Determined the key to be ECDSA")
+                logger.info("Loading the key as ECDSA NIST256p SHA256 verifying key, bacause it is 128 hexadecimal characters long")
 
                 self.vk = ecdsa.VerifyingKey.from_string(binascii.unhexlify(self.vk_str), curve=ecdsa.NIST256p, hashfunc=hashlib.sha256)
-            else:
-                logger.info("Determined the key to be ED25519")
+            elif len(self.vk_str) == 64:
+                logger.info("Loading the key as ED25519 verifying key, bacause it is 64 hexadecimal characters long")
 
                 self.vk = ed25519.VerifyingKey(self.vk_str, encoding="hex")
+            else:
+                raise(ValueError("Invalid key length: %d. Key length must be 64 for ed25519 and 128 for ecdsa" % len(self.vk_str)))
         except Exception as e:
             logger.error("Invalid verifying key: \"%s\"" % self.vk_str)
             logger.exception(e)
