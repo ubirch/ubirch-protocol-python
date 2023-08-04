@@ -6,7 +6,7 @@ import uuid
 import ubirch
 
 
-DEFAULT_ENV = "dev"
+DEFAULT_ENV = "demo"
 
 
 logging.basicConfig(format='%(asctime)s %(name)20.20s %(funcName)20.20s() %(levelname)-8.8s %(message)s', level=logging.INFO)
