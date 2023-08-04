@@ -178,17 +178,27 @@ class Main:
         self.put_new_key_parser.add_argument("--msgpack", "-m", metavar="MSGPACK", type=str, default=PUT_KEY_USE_MSGPACK_DEFAULT,
             help="NOT IMPLEMENTED! Enables/Disables usage of MsgPack instead of Json. Can't be used for key updates (-u); true or false (default: %s)" % PUT_KEY_USE_MSGPACK_DEFAULT
         )
+        self.put_new_key_parser.add_argument("--ecdsa", "-e", type=str, default="false",
+            help="If set to 'true', all keys will be treated as ECDSA keys; 'true'/'false' (Default: 'false')"
+        )
 
         # subparser + arguments for the delete_key operation
         self.del_key_parser = subparsers.add_parser(DELETE_KEY_CMD, help="Delete a registered PubKey.")
         self.del_key_parser.add_argument("prvkey", metavar="PRIVKEY_HEX", type=str,
             help="ED25519 or ECDSA NIST256p Pubkey PrivKey in HEX corresponding to the PubKey to be deleted."
         )
+        self.del_key_parser.add_argument("--ecdsa", "-e", type=str, default="false",
+            help="If set to 'true', all keys will be treated as ECDSA keys; 'true'/'false' (Default: 'false')"
+        )
+
 
         # subparser + arguments for the revoke_key operation
         self.revoke_key_parser = subparsers.add_parser(REVOKE_KEY_CMD, help="Revoke a registered PubKey.")
         self.revoke_key_parser.add_argument("prvkey", metavar="PRIVKEY_HEX", type=str,
             help="ED25519 or ECDSA NIST256p Pubkey PrivKey in HEX corresponding to the PubKey to be revoked."
+        )
+        self.revoke_key_parser.add_argument("--ecdsa", "-e", type=str, default="false",
+            help="If set to 'true', all keys will be treated as ECDSA keys; 'true'/'false' (Default: 'false')"
         )
        
         return 
