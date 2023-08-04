@@ -11,8 +11,8 @@ import requests
 VERIFICATION_SERVICE = "https://verify.%s.ubirch.com/api/upp/verify/anchor"
 
 DEFAULT_ISPATH = "False"
-DEFAULT_ENV    = "dev"
-DEFAULT_ISJSON = "True"
+DEFAULT_ENV    = "demo"
+DEFAULT_ISJSON = "False"
 DEFAULT_HASH   = "sha256"
 DEFAULT_NOSEND = "False"
 DEFAULT_ISHL    = "False"
@@ -61,22 +61,22 @@ class Main:
             help="input data or data file path (depends on --ispath)"
         )
         self.argparser.add_argument("--ispath", "-i", metavar="ISPATH", type=str, default=DEFAULT_ISPATH,
-            help="sets if INPUT is being treated as data or data file path; true or false (default: %s)" % DEFAULT_ISPATH
+            help="sets if INPUT is being treated as data or data file path; 'true' or 'false' (default: %s)" % DEFAULT_ISPATH
         )
         self.argparser.add_argument("--env", "-e", metavar="ENV", type=str, default=DEFAULT_ENV,
-            help="the environment to operate in; dev, demo or prod (default: %s)" % DEFAULT_ENV
+            help="the environment to operate in; 'dev', 'demo' or 'prod' (default: %s)" % DEFAULT_ENV
         )
         self.argparser.add_argument("--isjson", "-j", metavar="ISJSON", type=str, default=DEFAULT_ISJSON,
-            help="tells the script to treat the input data as json and serealize it (see EXAMPLES.md for more information); true or false (default: %s)" % DEFAULT_ISJSON
+            help="tells the script to treat the input data as json and serialize it; 'true' or 'false' (default: %s)" % DEFAULT_ISJSON
         )
         self.argparser.add_argument("--hash", "-a", metavar="HASH", type=str, default=DEFAULT_HASH,
             help="sets the hash algorithm to use; sha256, sha512 or OFF to treat the input data as hash (default: %s)" % DEFAULT_HASH
         )
-        self.argparser.add_argument("--no-send", "-n", metavar="NOSEND", type=str, default=DEFAULT_NOSEND,
-            help="if set to true, the script will only generate the hash of the input data without sending it; true or false (default: %s)" % DEFAULT_NOSEND
+        self.argparser.add_argument("--nosend", "-n", metavar="NOSEND", type=str, default=DEFAULT_NOSEND,
+            help="if set to true, the script will only generate the hash of the input data without sending it; 'true' or 'false' (default: %s)" % DEFAULT_NOSEND
         )
         self.argparser.add_argument("--ishl", "-l", metavar="ISHASHLINK", type=str, default=DEFAULT_ISHL,
-            help="implied --isjson to be true; if set to true, the script will look for a hashlink list in the json object and use it to decide which fields to hash; true or false (default: %s)" % DEFAULT_ISHL
+            help="implied --isjson to be true; if set to true, the script will look for a hashlink list in the json object and use it to decide which fields to hash; 'true' or 'false' (default: %s)" % DEFAULT_ISHL
         )
 
     def process_args(self) -> bool:
@@ -89,7 +89,7 @@ class Main:
         self.isjson_str = self.args.isjson
         self.env = self.args.env
         self.hashalg = self.args.hash
-        self.nosend_str = self.args.no_send
+        self.nosend_str = self.args.nosend
         self.ishl_str = self.args.ishl
 
         # check the value for --hash
