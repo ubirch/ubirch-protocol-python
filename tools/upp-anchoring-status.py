@@ -11,7 +11,7 @@ import binascii
 VERIFICATION_SERVICE = "https://verify.%s.ubirch.com/api/upp/verify/anchor"
 
 DEFAULT_ISHASH = "False"
-DEFAULT_ENV    = "dev"
+DEFAULT_ENV    = "demo"
 DEFAULT_ISHEX  = "false"
 
 
@@ -44,6 +44,7 @@ class Main:
         self.argparser = argparse.ArgumentParser(
             description="Requests the verification/anchoring of a UPP from the uBirch backend",
             epilog="When --ishash/-i is set to true, the input argument is treated as a base64 payload hash. "
+                   "When --ishash/-i is set to true and --ishex/-x is set to true, the input argument is treated as a hex encoded payload hash. "
                    "Otherwise, it is expected to be some kind of path to read a UPP from. "
                    "This can be a file path or also /dev/stdin if the UPP is piped to this program via standard input."
         )
@@ -58,7 +59,7 @@ class Main:
             help="the environment to operate in; dev, demo or prod (default: %s)" % DEFAULT_ENV
         )
         self.argparser.add_argument("--ishex", "-x", metavar="ISHEX", type=str, default=DEFAULT_ISHEX,
-            help="Sets whether the UPP input data is a hex string or binary; e.g. true, false (default: %s)" % DEFAULT_ISHEX
+            help="sets if INPUT data is a hex string or not; true or false (default: %s)" % DEFAULT_ISHEX
         )
 
     def process_args(self) -> bool:
@@ -124,14 +125,25 @@ class Main:
         return True
 
     def get_hash_from_input(self) -> bool:
-        try:
-            self.hash = base64.b64decode(self.input)
+        if self.ishex == True:
+            try:
+                self.hash = binascii.unhexlify(self.input)
+            except Exception as e:
+                logger.exception(e)
 
-            logger.info("Extracted hash from input: \"%s\"" % base64.b64encode(self.hash).decode())
-        except Exception as e:
-            logger.exception(e)
+                return False
 
-            return False
+        else: 
+        # base64 encoded input hash
+            try:
+                self.hash = base64.b64decode(self.input)
+            except Exception as e:
+                logger.exception(e)
+
+                return False
+
+        logger.info("Decoded hash from input (base64): \"%s\"" % base64.b64encode(self.hash).decode())
+        logger.info("Decoded hash from input    (hex): \"%s\"" % binascii.hexlify(self.hash).decode())
 
         return True
 
