@@ -187,6 +187,8 @@ class Protocol(object):
         @param uuid the uuid of the device the keyinfo belongs to
         @param keyinfo_dict the public key info object
         @return the keyreg json as string
+
+        @note: this method is currently not used by the examples, however it can be used for the JSON based API calls
         """
         sorted_keyinfo = json.dumps(keyinfo_dict, sort_keys=True, indent=None, separators=(",", ":"))
 
