@@ -130,8 +130,8 @@ class Protocol(object):
         @note IMPORTANT: This function needs to be implemented by the user. 
         It needs to be able to load a signing key, related to a specific `uuid`, i.e. `.find_signing_key()`
         and to sign the `message` with returning the binary signature, i.e. `.sign()`  
-        The implementation of this method should take care of hashing the message before signing, 
-        if defined for the signing algorithm.
+        **The implementation of this method needs to take care of hashing the message before signing, 
+        if defined for the signing algorithm.**
         
         @param uuid The uuid of the sender to identify the correct key pair
         @param message The bytes to sign
@@ -147,8 +147,8 @@ class Protocol(object):
         @note IMPORTANT: This function needs to be implemented by the user.
         It needs to be able to load a verifying key, related to the `uuid`, i.e. `.find_verifying_key()`
         and to verify the `signature` of the `message`, i.e. `.verify()`
-        The implementation of this method should take care of hashing the message before verifying, 
-        if defined for the verifying algorithm.
+        ** The implementation of this method needs to take care of hashing the message before verifying, 
+        if defined for the verifying algorithm.**
         
         Throws exception if not verifiable.
         
