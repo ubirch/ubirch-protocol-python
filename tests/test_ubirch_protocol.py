@@ -296,3 +296,11 @@ class TestUbirchProtocol(unittest.TestCase):
         self.assertEqual(expectedPubKey, payload[b'pubKeyId'])
         self.assertEqual( 1574329437, payload[b'validNotAfter'])
         self.assertEqual( 1542793437, payload[b'validNotBefore'])
+
+    def test_verify_signed_message_deprecated_method(self):
+        p = Protocol()
+        unpacked = p.message_verify(bytes(EXPECTED_SIGNED))
+        self.assertEqual(SIGNED, unpacked[0])
+        self.assertEqual(TEST_UUID.bytes, unpacked[1])
+        self.assertEqual(0xEF, unpacked[2])
+        self.assertEqual(1, unpacked[3])
