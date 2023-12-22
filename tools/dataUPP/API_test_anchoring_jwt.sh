@@ -1,5 +1,5 @@
-HARDWARE_ID='98880181-4770-44da-85a9-da86a6ccaa1f'
-JWT='<ENTER-TOKEN-HER>'
+HARDWARE_ID='<ENTER-UUID-HERE>'
+JWT='<ENTER-TOKEN-HERE>'
 UPP='standard_upp.bin'
 RESPONSE_UPP='response_upp.bin'
 
