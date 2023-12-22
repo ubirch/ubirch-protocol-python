@@ -503,13 +503,13 @@ The currently supported cryptographic algorithms and therefore also the key mana
 - [ECDSA](https://pypi.org/project/ecdsa/) with the `NIST256p` curve and the `SHA256` internal hashing mechanism.
 
 ### Managing the local KeyStore
-> **NOTE:** The new version is [keystore-tool-new.py](../tools/keystore-tool-new.py), which replaces the old [keystore-tool.py](../tools/keystore-tool.py) and supports all functionality. There the `ECDSA` keys do not need the id suffix. If keys were stored with the old mechanism with suffix, the best way is to `Get` the keys with the old tool and `Put` them into the new tool.
-The [keystore-tool-new.py](../tools/keystore-tool-new.py) script operates on a `KEYSTORE` file:
+> **NOTE:** The new version is [keystore-tool.py](../tools/keystore-tool.py), which replaces the old [keystore-tool-legacy.py](../tools/keystore-tool-legacy.py) and supports all functionality. There the `ECDSA` keys do not need the id suffix. If keys were stored with the old mechanism with suffix, the best way is to `Get` the keys with the old tool and `Put` them into the new tool.
+The [keystore-tool.py](../tools/keystore-tool.py) script operates on a `KEYSTORE` file:
 
 
 ```
-$ python3 tools/keystore-tool-new.py -h
-usage: keystore-tool-new.py [-h] KEYSTORE KEYSTORE_PASS {get,put,del} ...
+$ python3 tools/keystore-tool.py -h
+usage: keystore-tool.py [-h] KEYSTORE KEYSTORE_PASS {get,put,del} ...
 
 Manipulate/View the contents of a keystore (.jks)
 
@@ -531,8 +531,8 @@ Only one entry per UUID is supported. Passing an non-existent KeyStore file as a
 #### Get key entries from the keystore
 To get key entries from the keystore use:
 ```
-$ python3 tools/keystore-tool-new.py KEYSTORE KEYSTORE_PASS get -h
-usage: keystore-tool-new.py KEYSTORE KEYSTORE_PASS get [-h] [--uuid UUID] [--show-secret SHOW_SECRET]
+$ python3 tools/keystore-tool.py KEYSTORE KEYSTORE_PASS get -h
+usage: keystore-tool.py KEYSTORE KEYSTORE_PASS get [-h] [--uuid UUID] [--show-secret SHOW_SECRET]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -542,7 +542,7 @@ optional arguments:
 ```
 an example is:
 ```
-$ python3 tools/keystore-tool-new.py keystore.jks keystore-password get
+$ python3 tools/keystore-tool.py keystore.jks keystore-password get
 
  UUID: 98880181477044da85a9da86a6ccaa1f
 
@@ -558,8 +558,8 @@ The output will per default not show the private key. To display the private key
 #### Put new key into the keystore
 It is possible to inject externally created keys for the supported algorithms into the keystore by:
 ```
-$ python3 tools/keystore-tool-new.py KEYSTORE KEYSTORE_PASS put -h
-usage: keystore-tool-new.py KEYSTORE KEYSTORE_PASS put [-h] [--ecdsa ECDSA] UUID PUBKEY PRIVKEY
+$ python3 tools/keystore-tool.py KEYSTORE KEYSTORE_PASS put -h
+usage: keystore-tool.py KEYSTORE KEYSTORE_PASS put [-h] [--ecdsa ECDSA] UUID PUBKEY PRIVKEY
 
 positional arguments:
   UUID                  The UUID the new keys belong to; e.g.: f99de1c4-3859-5326-a155-5696f00686d9
@@ -575,8 +575,8 @@ optional arguments:
 #### Delete existing key from the keystore
 It is possible to delete existing keys from the keystore by:
 ```
-$ python3 tools/keystore-tool-new.py KEYSTORE KEYSTORE_PASS del -h
-usage: keystore-tool-new.py KEYSTORE KEYSTORE_PASS del [-h] UUID
+$ python3 tools/keystore-tool.py KEYSTORE KEYSTORE_PASS del -h
+usage: keystore-tool.py KEYSTORE KEYSTORE_PASS del [-h] UUID
 
 positional arguments:
   UUID        The UUID to delete the keypair for (this is safe since each UUID can only occur once in the KeyStore); e.g.: f99de1c4-3859-5326-a155-5696f00686d9
@@ -586,7 +586,7 @@ optional arguments:
 ```
 > **NOTE:** If a key for the given uuid is found, you will be asked to confirm the deletion of the key by typing `YES` like:
 ```
-$ python3 tools/keystore-tool-new.py keystore.jks keystore-password del 98880181-4770-44da-85a9-da86a6ccaa1e
+$ python3 tools/keystore-tool.py keystore.jks keystore-password del 98880181-4770-44da-85a9-da86a6ccaa1e
 2023-08-03 14:15:59,922                 root          del_keypair() WARNING  About to remove the keypair for UUID 98880181-4770-44da-85a9-da86a6ccaa1e from new_keystore.jks! Enter 'YES' to continue
 > 
 ```

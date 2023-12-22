@@ -1,6 +1,6 @@
 """!
-@brief NEW tool for managing keys with the keystore.
-@note this tool is based on the current version of ubirch/KeyStore.py, where ed25519 and ecdsa keys are stored the same way. 
+@brief tool for managing keys with the keystore.
+@note this tool is based on the old version of ubirch/KeyStore.py, where the ecdsa keys were stored with uuid + _ecd suffix 
 """
 
 import sys
@@ -201,16 +201,16 @@ class Main:
         signing_keys = self.keystore._ks.private_keys
 
         # go trough the list of verifiying keys and print information for each entry
-        for vk_uuid in verifying_keys.keys():
-            print("\r\n UUID: %s\r\n" % vk_uuid)
+        for vk_uuid_mod in verifying_keys.keys():
+            # check the key type
+            if vk_uuid_mod.find("_ecd") != -1:
+                vk_uuid = vk_uuid_mod[:-4]
 
-            vk = self.keystore.find_verifying_key(uuid.UUID(vk_uuid))
-            if type(vk) == ecdsa.VerifyingKey:
                 ktype = "ECDSA NIST256p SHA256"
-            elif type(vk) == ed25519.VerifyingKey:
-                ktype = "ED25519"
             else:
-                ktype = "UNKNOWN"
+                vk_uuid = vk_uuid_mod
+
+                ktype = "ED25519"
 
             # check if a filtering uuid is set; if it is, filter
             if self.uuid != None:
@@ -227,7 +227,7 @@ class Main:
 
             print("=" * 134)
             print("UUID: %s" % str(uuid.UUID(hex=vk_uuid)))
-            print(" VK : %s" % binascii.hexlify(verifying_keys[vk_uuid].cert).decode())
+            print(" VK : %s" % binascii.hexlify(verifying_keys[vk_uuid_mod].cert).decode())
             print(" SK : %s" % sk)
             print("TYPE: %s" % ktype)
             print("=" * 134)
@@ -265,21 +265,28 @@ class Main:
         try:
             # direkt access to the entries variable is needed since .certs and .private_keys
             # are class properties which are only temporary (-> editing them has no effect)
-            if self.keystore.delete_signing_key(self.uuid):
-                logger.info("Deleted signing key for UUID %s" % self.uuid_str)
+            if self.keystore._ks.entries.get(self.uuid.hex, None) != None:
+                # suffix-less pubkey found, delete it
+                self.keystore._ks.entries.pop(self.uuid.hex)
             else:
-                logger.warning("No signing key found for UUID %s" % self.uuid_str)
-
-            if self.keystore.delete_verifying_key(self.uuid):
-                logger.info("Deleted verifying key for UUID %s" % self.uuid_str)
-            else:
-                logger.warning("No verifying key found for UUID %s" % self.uuid_str)
-        
+                # check for ecdsa key
+                if self.keystore._ks.entries.get(self.uuid.hex + '_ecd', None) != None:
+                    self.keystore._ks.entries.pop(self.uuid.hex + '_ecd')
+                else:
+                    # key not found
+                    raise(ValueError("No key found for UUID '%s'" % self.uuid_str))
+            try:
+                self.keystore._ks.entries.pop("pke_" + self.uuid.hex)
+            except KeyError:
+                pass
         except Exception as e:
-            logger.error("Error deleting keys!")
+            logger.error("Error deleting keys! No changes will be written!")
             logger.exception(e)
 
             return False
+
+        # write changes
+        self.keystore._ks.save(self.keystore._ks_file, self.keystore._ks_password)
 
         return True
 
