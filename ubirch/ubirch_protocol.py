@@ -18,6 +18,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from warnings import warn
 import hashlib
 import logging
 import json
@@ -339,3 +340,17 @@ class Protocol(object):
             raise
 
         return True
+    
+    def message_verify(self, message: bytes) -> list:
+        """!
+        Verify the integrity of the message and decode the contents.
+        Throws an exception if the message is not verifiable.
+        @deprecated This method is deprecated. Please use to "verify_signature()" instead. 
+        @param message the msgpack encoded message
+        @return the decoded message
+        """
+        warn('This method is deprecated. Please use to "verify_signature()" instead', DeprecationWarning, stacklevel=2)
+        unpacked = self.unpack_upp(message)
+        self.verify_signature(UUID(bytes=unpacked[1]), message)
+        return unpacked
+    
