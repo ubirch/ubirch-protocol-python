@@ -1,8 +1,5 @@
 """
 Script to create a data-UPP from a dataset
-
-Usage: TODO
-
 """
 
 import binascii
