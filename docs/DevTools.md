@@ -133,7 +133,7 @@ TODO describe this process
 ### Creating a UPP
 To generate a UPP (Ubirch Protocol Package), the script [`upp-creator.py`](../tools/upp-creator.py) can be used.
 The resulting UPP will not contain the actual data, but the hash of it. 
-This script allows multiple modes of operation, which can be set through different command line arguments. Some of those directly set fields in the resulting UPP. Please consult the [uBirch Protocol Readme](https://github.com/ubirch/ubirch-protocol#basic-message-format) for further information on those fields and their possible values.
+This script allows multiple modes of operation, which can be set through different command line arguments. Some of those directly set fields in the resulting UPP. Please consult the [uBirch Protocol Readme](../README.md) for further information on those fields and their possible values.
 
 ```
 $ python3 tools/upp-creator.py -h
